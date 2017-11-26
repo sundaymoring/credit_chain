@@ -244,6 +244,8 @@ public:
 
     size_t GetNodeCount(NumConnections num);
     void GetNodeStats(std::vector<CNodeStats>& vstats);
+    std::vector<CNode*>& GetNode();
+    CCriticalSection& GetNodeCS();
     bool DisconnectNode(const std::string& node);
     bool DisconnectNode(NodeId id);
 

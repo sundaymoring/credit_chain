@@ -22,6 +22,9 @@ class CWallet;
 
 namespace Consensus { struct Params; };
 
+static const bool DEFAULT_GENERATE = true;
+static const int DEFAULT_GENERATE_THREADS = 1;
+
 static const bool DEFAULT_PRINTPRIORITY = false;
 
 struct CBlockTemplate
@@ -166,6 +169,7 @@ public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
     std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx=true);
+    std::unique_ptr<CBlockTemplate> CreateNewBlockPOS(const CScript& scriptPubKeyIn, bool fMineWitnessTx=true);
 
 private:
     // utility functions
@@ -208,6 +212,8 @@ private:
       * of updated descendants. */
     int UpdatePackagesForAdded(const CTxMemPool::setEntries& alreadyAdded, indexed_modified_transaction_set &mapModifiedTx);
 };
+
+void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);

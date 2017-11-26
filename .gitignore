@@ -1,5 +1,8 @@
 *.tar.gz
 
+bitcoin14_pos*
+core
+
 *.exe
 src/bitcoin
 src/bitcoind

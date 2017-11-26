@@ -90,6 +90,12 @@ bool error(const char* fmt, const Args&... args)
     return false;
 }
 
+static inline bool error(const char* format)
+{
+    LogPrintStr(std::string("ERROR: ") + format + "\n");
+    return false;
+}
+
 void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
 void ParseParameters(int argc, const char*const argv[]);
 void FileCommit(FILE *file);
@@ -203,6 +209,7 @@ std::string HelpMessageOpt(const std::string& option, const std::string& message
  */
 int GetNumCores();
 
+void SetThreadPriority(int nPriority);
 void RenameThread(const char* name);
 
 /**

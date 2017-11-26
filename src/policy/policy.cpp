@@ -11,8 +11,18 @@
 #include "tinyformat.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "chainparams.h"
 
 #include <boost/foreach.hpp>
+
+int64_t FutureDrift(int64_t nTime)
+{
+    // loose policy for FutureDrift in regtest mode
+    if (chainActive.Height() <= Params().GetConsensus().nLastPOWBlock) {
+             return nTime + 24 * 60 * 60;
+    }
+    return nTime + 15;
+}
 
     /**
      * Check transaction inputs to mitigate two

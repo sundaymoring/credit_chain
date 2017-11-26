@@ -1738,7 +1738,8 @@ void CConnman::ThreadOpenConnections()
                     // but inbound and addnode peers do not use our outbound slots.  Inbound peers
                     // also have the added issue that they're attacker controlled and could be used
                     // to prevent us from connecting to particular hosts if we used them here.
-                    setConnected.insert(pnode->addr.GetGroup());
+//                    setConnected.insert(pnode->addr.GetGroup());
+                    setConnected.insert(pnode->addr.GetKey());
                     nOutbound++;
                 }
             }
@@ -2493,6 +2494,15 @@ void CConnman::GetNodeStats(std::vector<CNodeStats>& vstats)
         vstats.emplace_back();
         pnode->copyStats(vstats.back());
     }
+}
+
+std::vector<CNode*>& CConnman::GetNode(){
+    LOCK(cs_vNodes);
+    return vNodes;
+}
+
+CCriticalSection& CConnman::GetNodeCS(){
+    return cs_vNodes;
 }
 
 bool CConnman::DisconnectNode(const std::string& strNode)

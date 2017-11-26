@@ -501,6 +501,9 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)", DEFAULT_HTTP_SERVER_TIMEOUT));
     }
 
+    strUsage += HelpMessageOpt("-gen=<n>", strprintf(_("pos mining"), DEFAULT_HTTP_THREADS));
+
+
     return strUsage;
 }
 
@@ -1646,7 +1649,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (!connman.Start(scheduler, strNodeError, connOptions))
         return InitError(strNodeError);
 
+    // Generate coins in the background
+    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
+
     // ********************************************************* Step 12: finished
+
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
