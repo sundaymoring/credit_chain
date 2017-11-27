@@ -2110,7 +2110,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             if (fOnlyConfirmed && !pcoin->IsTrusted())
                 continue;
 
-            if ((pcoin->IsCoinBase() || pcoin->IsCoinStake()) && pcoin->GetBlocksToMaturity() > 0)
+            if ((pcoin->IsCoinBase() ) && pcoin->GetBlocksToMaturity() > 0)
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();
@@ -2492,8 +2492,6 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     // now we ensure code won't be written that makes assumptions about
     // nLockTime that preclude a fix later.
     txNew.nLockTime = chainActive.Height();
-
-    txNew.nTime = GetAdjustedTime();
 
     // Secondly occasionally randomly pick a nLockTime even further back, so
     // that transactions that are delayed after signing for whatever reason,
@@ -4100,7 +4098,7 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex* &pindexRet) const
 
 int CMerkleTx::GetBlocksToMaturity() const
 {
-    if (!(IsCoinBase() || IsCoinStake()))
+    if (!(IsCoinBase() ))
         return 0;
     return max(0, (COINBASE_MATURITY+1) - GetDepthInMainChain());
 }
@@ -4111,8 +4109,8 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount& nAbsurdFee, CValidationState& 
     return ::AcceptToMemoryPool(mempool, state, tx, true, NULL, NULL, false, nAbsurdFee);
 }
 
-bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, const COutPoint& prevout, int64_t* pBlockTime)
-{return true;
+bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, const COutPoint& prevout)
+{
     uint256 hashProofOfStake, targetProofOfStake;
 
     CMutableTransaction txPrev;
@@ -4121,40 +4119,32 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, con
         return false;
 
     // Read block header
-    CBlock block;
+    CBlock blockPrev;
     const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
-    if (!ReadBlockFromDisk(block, pos, Params().GetConsensus()))
+    if (!ReadBlockFromDisk(blockPrev, pos, Params().GetConsensus()))
         return false;
 
     int nDepth;
     if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, nStakeMinConfirmations - 1, nDepth))
         return false;
 
-    if (pBlockTime)
-        *pBlockTime = block.GetBlockTime();
-
-    return CheckStakeKernelHash(pindexPrev, nBits, CCoins(txPrev, pindexPrev->nHeight), prevout, nTime);
+    return CheckStakeKernelHash( pindexPrev, nBits, CCoins(txPrev, pindexPrev->nHeight), prevout, nTime);
 }
 
 // miner's coin stake reward
 int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees)
 {
-//    int64_t nSubsidy;
-//    if (Params().GetConsensus().IsProtocolV3(pindexPrev->nTime))
-//        nSubsidy = COIN * 3 / 2;
-//    else
-        int64_t nSubsidy = 1;
-//        nSubsidy = nCoinAge * 1 * CENT * 33 / (365 * 33 + 8);
+    int64_t nSubsidy = 1;
 
     LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d\n", FormatMoney(nSubsidy), nCoinAge);
 
     return nSubsidy + nFees;
 }
 
-bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, CAmount& nFees, CMutableTransaction& tx, CKey& key){
+bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t nSearchInterval, CAmount& nFees, CMutableTransaction& tx, CKey& key){
     CBlockIndex* pindexPrev = pindexBestHeader;
     arith_uint256 bnTargetPerCoinDay;
-    bnTargetPerCoinDay.SetCompact(nBits);
+    bnTargetPerCoinDay.SetCompact(block.nBits);
 
     struct CMutableTransaction txNew(tx);
     txNew.vin.clear();
@@ -4197,9 +4187,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             // Search backward in time from the given txNew timestamp
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-            int64_t nBlockTime;
 
-            if (CheckKernel(pindexPrev, nBits, txNew.nTime - n, prevoutStake, &nBlockTime))
+            if (CheckKernel(pindexPrev, block.nBits, block.nTime - n, prevoutStake))
             {
                 // Found a kernel
                 LogPrint("coinstake", "CreateCoinStake : kernel found\n");
@@ -4247,7 +4236,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                     scriptPubKeyOut = scriptPubKeyKernel;
                 }
 
-                txNew.nTime -= n;
+                block.nTime -= n;
                 txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 nCredit += pcoin.first->tx.get()->vout[pcoin.second].nValue;
                 vwtxPrev.push_back(pcoin.first);
@@ -4288,9 +4277,9 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
     // Calculate coin age reward
     {
-        uint64_t nCoinAge;
-        if (!GetCoinAge(txNew, *pblocktree, pindexPrev, nCoinAge))
-            return error("CreateCoinStake : failed to calculate coin age");
+//        uint64_t nCoinAge;
+//        if (!GetCoinAge(txNew, *pblocktree, pindexPrev, nCoinAge))
+//            return error("CreateCoinStake : failed to calculate coin age");
 
 //        int64_t nReward = GetProofOfStakeReward(pindexPrev, nCoinAge, nFees);
         int64_t nReward = GetProofOfStakeReward(pindexPrev, 0, nFees);

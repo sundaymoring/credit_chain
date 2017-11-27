@@ -224,7 +224,6 @@ public:
         nTx = 0;
         nChainTx = 0;
         nStatus = 0;
-        nStakeModifier = uint256();
         nSequenceId = 0;
         nTimeMax = 0;
 
@@ -403,7 +402,6 @@ public:
 
         READWRITE(VARINT(nHeight));
         READWRITE(VARINT(nStatus));
-        READWRITE(nStakeModifier);
         READWRITE(VARINT(nTx));
         if (nStatus & (BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO))
             READWRITE(VARINT(nFile));

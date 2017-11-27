@@ -1008,7 +1008,7 @@ public:
     bool SetHDMasterKey(const CPubKey& key);
 
     // blackcoin pos
-    bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, CAmount& nFees, CMutableTransaction& tx, CKey& key);
+    bool CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t nSearchInterval, CAmount& nFees, CMutableTransaction& tx, CKey& key);
     bool SelectCoinsForStaking(CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
     void AvailableCoinsForStaking(std::vector<COutput>& vCoins) const;
     uint64_t GetStakeWeight() const;

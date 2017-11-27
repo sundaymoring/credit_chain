@@ -6,6 +6,8 @@
 
 #include "consensus/params.h"
 
+#include "chain.h"
+
 const struct BIP9DeploymentInfo VersionBitsDeploymentInfo[Consensus::MAX_VERSION_BITS_DEPLOYMENTS] = {
     {
         /*.name =*/ "testdummy",

@@ -179,4 +179,7 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
 
 size_t CountWitnessSigOps(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags);
 
+typedef std::vector<unsigned char> valtype;
+bool IsCompressedOrUncompressedPubKey(const valtype &vchPubKey);
+
 #endif // BITCOIN_SCRIPT_INTERPRETER_H

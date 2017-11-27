@@ -240,7 +240,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     pblocktemplate->vTxFees.push_back(-1); // updated at end
     pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
 
-    pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
+    pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus(), true);
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (chainparams.MineBlocksOnDemand())
@@ -280,7 +280,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].SetEmpty();
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+//    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
 
     uint64_t nSerializeSize = GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
@@ -736,44 +736,10 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
 
-
-//
-// ScanHash scans nonces looking for a hash with at least some zero bits.
-// The nonce is usually preserved between calls, but periodically or if the
-// nonce is 0xffff0000 or above, the block is rebuilt and nNonce starts over at
-// zero.
-//
-/*bool static ScanHash(const CBlockHeader *pblock, uint32_t& nNonce, uint256 *phash)
-{
-    // Write the first 76 bytes of the block header to a double-SHA256 state.
-    CHash256 hasher;
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-    ss << *pblock;
-    assert(ss.size() == 80);
-    hasher.Write((unsigned char*)&ss[0], 76);
-
-    while (true) {
-        nNonce++;
-
-        // Write the last 4 bytes of the block header (the nonce) to a copy of
-        // the double-SHA256 state, and compute the result.
-        CHash256(hasher).Write((unsigned char*)&nNonce, 4).Finalize((unsigned char*)phash);
-
-        // Return the nonce if the hash has at least some zero bits,
-        // caller will check if it has enough to reach the target
-        if (((uint16_t*)phash)[15] == 0)
-            return true;
-
-        // If nothing found after trying for a while, return -1
-        if ((nNonce & 0xfff) == 0)
-            return false;
-    }
-}
-*/
 static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainparams)
 {
     LogPrintf("%s\n", pblock->ToString());
-//    LogPrintf("generated %s\n", FormatMoney(pblock->vtx[0]->vout[0].nValue));
+    LogPrintf("generated %s\n", FormatMoney(pblock->vtx[0]->vout[0].nValue));
 
     // Found a solution
     {
@@ -817,33 +783,21 @@ bool SignBlock(CBlock& block, CWallet& wallet, int64_t& nFees){
     CKey key;
     CMutableTransaction txCoinBase(*block.vtx[0]);
     CMutableTransaction txCoinStake;
-    txCoinStake.nTime = GetAdjustedTime();
-//    txCoinStake.nTime &= ~STAKE_TIMESTAMP_MASK; //校正时间，最后15秒忽略不记
 
-    int64_t nSearchTime = txCoinStake.nTime; // search to current time
+    int64_t nSearchTime = GetAdjustedTime(); // search to current time
     if (nSearchTime > nLastCoinStakeSearchTime){
-        if (wallet.CreateCoinStake(wallet, block.nBits, 1, nFees, txCoinStake, key)){
-            if (txCoinStake.nTime >= pindexBestHeader->GetPastTimeLimit()+1)
-            {
-                // make sure coinstake would meet timestamp protocol
-                //    as it would be the same as the block timestamp
-                txCoinBase.nTime = block.nTime = txCoinStake.nTime;
-                block.vtx[0] = MakeTransactionRef(txCoinBase);
+        if (wallet.CreateCoinStake(wallet, block, 1, nFees, txCoinStake, key)){
 
-                // we have to make sure that we have no future timestamps in
-                //    our transactions set
-                for (vector<CTransactionRef>::iterator it = block.vtx.begin(); it != block.vtx.end();)
-                    if (it->get()->nTime > block.nTime) { it = block.vtx.erase(it); } else { ++it; }
+            block.vtx.insert(block.vtx.begin() + 1, std::make_shared<CTransaction>(txCoinStake));
 
-                block.vtx.insert(block.vtx.begin() + 1, std::make_shared<CTransaction>(txCoinStake));
+            CBlockIndex* pindexPrev = chainActive.Tip();
+            GenerateCoinbaseCommitment(block, pindexPrev, Params().GetConsensus());
+            block.hashMerkleRoot = BlockMerkleRoot(block);
 
-                block.hashMerkleRoot = BlockMerkleRoot(block);
-
-                // append a signature to our block
-                return key.Sign(block.GetHash(), block.vchBlockSig);
-            }
+//            return true;
+            // append a signature to our block
+            return key.Sign(block.GetHash(), block.vchBlockSig);
         }
-        nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
         nLastCoinStakeSearchTime = nSearchTime;
     }
     return false;
@@ -895,7 +849,7 @@ void static BitcoinMiner(CWallet *pwallet, const CChainParams& chainparams){
 //    CCriticalSection& cs_vNodes = connman.GetNodeCS();
 //    std::vector<CNode*>& vNodes = connman.GetNode();
 
-    unsigned int nExtraNonce = 0;
+//    unsigned int nExtraNonce = 0;
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
@@ -911,8 +865,8 @@ void static BitcoinMiner(CWallet *pwallet, const CChainParams& chainparams){
             //
             // Create new block
             //
-            unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
-            CBlockIndex* pindexPrev = chainActive.Tip();
+//            unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
+//            CBlockIndex* pindexPrev = chainActive.Tip();
             std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlockPOS(coinbaseScript->reserveScript));
             if (!pblocktemplate.get())
             {
@@ -929,7 +883,7 @@ void static BitcoinMiner(CWallet *pwallet, const CChainParams& chainparams){
                 MilliSleep(500);
             }
 
-            sleep(1);
+            sleep(10);
 
             LogPrintf("Running BitcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                 ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
