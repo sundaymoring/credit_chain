@@ -4,6 +4,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "chain.h"
+#include "versionbits.h"
+
 
 /**
  * CChain implementation
@@ -78,6 +80,10 @@ int static inline GetSkipHeight(int height) {
     // but the following expression seems to perform well in simulations (max 110 steps to go back
     // up to 2**18 blocks).
     return (height & 1) ? InvertLowestOne(InvertLowestOne(height - 1)) + 1 : InvertLowestOne(height);
+}
+
+inline bool CBlockIndex::IsVersionRangeOfStake() const{
+    return nVersion == VERSIONBITS_TOP_BITS_STAKE;
 }
 
 CBlockIndex* CBlockIndex::GetAncestor(int height)

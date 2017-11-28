@@ -1816,6 +1816,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 //        return state.DoS(100, error("%s: incorrect difficulty", __func__),
 //                        REJECT_INVALID, "bad-diffbits");
 
+//    if (block.IsProofOfStake())
+        pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : pindex->GetBlockHash());
 
     // Check proof-of-stake
     if (block.IsProofOfStake()) {
@@ -3041,7 +3043,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check proof-of-stake block signature
 
-    if ((block.nVersion == VERSIONBITS_TOP_BITS_STAKE)
+    if ( block.nVersion == VERSIONBITS_TOP_BITS_STAKE
             && !CheckBlockSignature(block, block.GetHash()))
             return state.DoS(100, error("CheckBlock(): bad proof-of-stake block signature"),
                     REJECT_INVALID, "bad-block-signature");

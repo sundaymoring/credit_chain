@@ -196,6 +196,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
+                if (pindexNew->nVersion == VERSIONBITS_TOP_BITS_STAKE)
+                    pindexNew->nVersion = diskindex.nVersion;
 
 //                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))
 //                    return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());

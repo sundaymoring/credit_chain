@@ -99,7 +99,7 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(*(CBlockHeader*)this);
         READWRITE(vtx);
-        if (nVersion == VERSIONBITS_TOP_BITS_STAKE){
+        if (this->nVersion == VERSIONBITS_TOP_BITS_STAKE){
             READWRITE(vchBlockSig);
         }
     }

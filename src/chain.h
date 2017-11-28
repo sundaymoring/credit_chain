@@ -283,7 +283,8 @@ public:
 
     uint256 GetBlockHash() const
     {
-        return *phashBlock;
+        return phashBlock == NULL ? uint256() : *phashBlock;
+//        return *phashBlock;
     }
 
     int64_t GetBlockTime() const
@@ -314,11 +315,10 @@ public:
 
     int64_t GetPastTimeLimit() const
     {
-//        if (Params().GetConsensus().IsProtocolV2(GetBlockTime()))
-//            return GetBlockTime();
-//        else
-            return GetMedianTimePast();
+        return GetMedianTimePast();
     }
+
+    bool IsVersionRangeOfStake() const;
 
     bool IsProofOfWork() const
     {
@@ -417,6 +417,9 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+
+        if (this->nVersion == VERSIONBITS_TOP_BITS_STAKE)
+            READWRITE(nStakeModifier);
     }
 
     uint256 GetBlockHash() const
