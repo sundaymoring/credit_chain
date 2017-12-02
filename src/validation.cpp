@@ -1741,7 +1741,7 @@ VersionBitsCache versionbitscache;
 int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params, bool isProofOfStake)
 {
     LOCK(cs_main);
-    int32_t nVersion = isProofOfStake ? VERSIONBITS_TOP_BITS_STAKE : VERSIONBITS_TOP_BITS;
+    int32_t nVersion = isProofOfStake ? VERSIONBITS_PROOF_OF_STAKE : VERSIONBITS_TOP_BITS;
 
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
@@ -2968,11 +2968,14 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
 
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
+#ifdef PROOF_OF_STAKE_ENABLE
     // Check proof of work matches claimed amount
+    if (fCheckPOW && VERSIONBITS_MUST_POW(block.nVersion) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+#else
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+#endif
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
-//    TODO add if  pos ,judge time
     // Check timestamp
     if ( block.GetBlockTime() > FutureDrift(GetAdjustedTime()))
         return state.Invalid(error("CheckBlockHeader(): block timestamp too far in the future"),
@@ -3042,8 +3045,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     }
 
     // Check proof-of-stake block signature
-
-    if ( block.nVersion == VERSIONBITS_TOP_BITS_STAKE
+    if ( block.IsProofOfStake() && IS_VERSIONBITS_PROOF_OF_STAKE(block.nVersion)
             && !CheckBlockSignature(block, block.GetHash()))
             return state.DoS(100, error("CheckBlock(): bad proof-of-stake block signature"),
                     REJECT_INVALID, "bad-block-signature");
@@ -3170,6 +3172,17 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
     //TODO ??last pow judge
+    // Preliminary check difficulty in pos-only stage
+#ifdef PROOF_OF_STAKE_ENABLE
+    if (chainActive.Height() > consensusParams.nLastPOWBlock &&
+            nHeight > consensusParams.nLastPOWBlock &&
+            ! VERSIONBITS_MUST_POW(block.nBits) &&
+//            block.nBits != GetNextTargetRequired(pindexPrev, &block, true, consensusParams))
+            block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
+         return state.DoS(100, error("%s: incorrect difficulty", __func__),
+                         REJECT_INVALID, "bad-diffbits");
+#endif
+
     return true;
 }
 
@@ -3253,6 +3266,11 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-weight", false, strprintf("%s : weight limit failed", __func__));
     }
 
+#ifdef PROOF_OF_STAKE_ENABLE
+    if (block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock)
+        return state.DoS(100, error("%s : reject proof-of-work at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");
+#endif
+
     return true;
 }
 
@@ -3275,7 +3293,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
             return true;
         }
 
-        if (!CheckBlockHeader(block, state, chainparams.GetConsensus(), false))
+        if (!CheckBlockHeader(block, state, chainparams.GetConsensus()))
             return error("%s: Consensus::CheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
         // Get prev block index
@@ -3297,8 +3315,10 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     if (pindex == NULL)
         pindex = AddToBlockIndex(block);
 
+#ifdef PROOF_OF_STAKE_ENABLE
     if (pindex->nHeight > chainparams.GetConsensus().nLastPOWBlock)
         pindex->SetProofOfStake();
+#endif
 
     if (ppindex)
         *ppindex = pindex;

@@ -318,8 +318,6 @@ public:
         return GetMedianTimePast();
     }
 
-    bool IsVersionRangeOfStake() const;
-
     bool IsProofOfWork() const
     {
           return !IsProofOfStake();
@@ -418,7 +416,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        if (this->nVersion == VERSIONBITS_TOP_BITS_STAKE)
+        if (IS_VERSIONBITS_PROOF_OF_STAKE(this->nVersion))
             READWRITE(nStakeModifier);
     }
 

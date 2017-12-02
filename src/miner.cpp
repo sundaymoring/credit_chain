@@ -862,6 +862,11 @@ void static BitcoinMiner(CWallet *pwallet, const CChainParams& chainparams){
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
 
         while (true) {
+            if (chainActive.Height() < Params().GetConsensus().nLastPOWBlock){
+//                LogPrintf( "not achieve lastPowBlock height, not enable pos\n");
+                sleep(1);
+                continue;
+            }
             //
             // Create new block
             //

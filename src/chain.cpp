@@ -82,10 +82,6 @@ int static inline GetSkipHeight(int height) {
     return (height & 1) ? InvertLowestOne(InvertLowestOne(height - 1)) + 1 : InvertLowestOne(height);
 }
 
-inline bool CBlockIndex::IsVersionRangeOfStake() const{
-    return nVersion == VERSIONBITS_TOP_BITS_STAKE;
-}
-
 CBlockIndex* CBlockIndex::GetAncestor(int height)
 {
     if (height > nHeight || height < 0)

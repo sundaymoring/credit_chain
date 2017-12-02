@@ -113,6 +113,13 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd)
     {
+#ifdef PROOF_OF_STAKE_ENABLE
+        if (chainActive.Height() >= Params().GetConsensus().nLastPOWBlock){
+            LogPrintf("chainActive height greater than lastPowBlock height, then not generate block of pow\n");
+            break;
+        }
+#endif
+
         std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");

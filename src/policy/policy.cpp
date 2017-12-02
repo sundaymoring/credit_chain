@@ -18,10 +18,13 @@
 int64_t FutureDrift(int64_t nTime)
 {
     // loose policy for FutureDrift in regtest mode
-    if (chainActive.Height() <= Params().GetConsensus().nLastPOWBlock) {
-             return nTime + 24 * 60 * 60;
+    int64_t n = nTime + 24 * 60 * 60;
+#ifdef PROOF_OF_STAKE_ENABLE
+    if (chainActive.Height() > Params().GetConsensus().nLastPOWBlock) {
+        n = nTime + 15;
     }
-    return nTime + 15;
+#endif
+    return n;
 }
 
     /**

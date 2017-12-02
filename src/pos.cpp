@@ -124,7 +124,8 @@ bool VerifySignature(const CMutableTransaction& txFrom, const CTransaction& txTo
     if (txin.prevout.hash != txFrom.GetHash())
         return false;
 
-//    const CAmount& amount = txout.nValue;
-    return true;
-//    return VerifyScript(txin.scriptSig, txout.scriptPubKey, flags, TransactionSignatureChecker(&txTo, nIn, amount),  NULL);
+    const CAmount& amount = txout.nValue;
+//    return true;
+    const CScriptWitness *witness = &txTo.vin[nIn].scriptWitness;
+    return VerifyScript(txin.scriptSig, txout.scriptPubKey, witness, flags, TransactionSignatureChecker(&txTo, nIn, amount),  NULL);
 }
