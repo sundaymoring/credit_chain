@@ -1741,7 +1741,7 @@ VersionBitsCache versionbitscache;
 int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params, bool isProofOfStake)
 {
     LOCK(cs_main);
-    int32_t nVersion = isProofOfStake ? VERSIONBITS_PROOF_OF_STAKE : VERSIONBITS_TOP_BITS;
+    int32_t nVersion = VERSIONBITS_TOP_BITS;
 
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
@@ -2970,7 +2970,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 {
 #ifdef PROOF_OF_STAKE_ENABLE
     // Check proof of work matches claimed amount
-    if (fCheckPOW && VERSIONBITS_MUST_POW(block.nVersion) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (fCheckPOW && (block.nVersion <= VERSIONBITS_TOP_BITS_POW) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
 #else
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
 #endif
@@ -3045,7 +3045,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     }
 
     // Check proof-of-stake block signature
-    if ( block.IsProofOfStake() && IS_VERSIONBITS_PROOF_OF_STAKE(block.nVersion)
+    if ( block.IsProofOfStake() && (block.nVersion > VERSIONBITS_TOP_BITS_POW)
             && !CheckBlockSignature(block, block.GetHash()))
             return state.DoS(100, error("CheckBlock(): bad proof-of-stake block signature"),
                     REJECT_INVALID, "bad-block-signature");
@@ -3167,17 +3167,15 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     // check for version 2, 3 and 4 upgrades
     if((block.nVersion < 2 && nHeight >= consensusParams.BIP34Height) ||
        (block.nVersion < 3 && nHeight >= consensusParams.BIP66Height) ||
-       (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height))
+       (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height) ||
+       (block.nVersion <= VERSIONBITS_TOP_BITS_POW && nHeight>consensusParams.nLastPOWBlock))
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
-    //TODO ??last pow judge
     // Preliminary check difficulty in pos-only stage
 #ifdef PROOF_OF_STAKE_ENABLE
     if (chainActive.Height() > consensusParams.nLastPOWBlock &&
             nHeight > consensusParams.nLastPOWBlock &&
-            ! VERSIONBITS_MUST_POW(block.nBits) &&
-//            block.nBits != GetNextTargetRequired(pindexPrev, &block, true, consensusParams))
             block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
          return state.DoS(100, error("%s: incorrect difficulty", __func__),
                          REJECT_INVALID, "bad-diffbits");
@@ -3348,7 +3346,13 @@ bool ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, CValidatio
 }
 
 /** Store block on disk. If dbp is non-NULL, the file is known to already reside on disk */
-static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock)
+static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
+                        CValidationState& state,
+                        const CChainParams& chainparams,
+                        CBlockIndex** ppindex,
+                        bool fRequested,
+                        const CDiskBlockPos* dbp,
+                        bool* fNewBlock)
 {
     const CBlock& block = *pblock;
 

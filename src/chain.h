@@ -416,7 +416,8 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        if (IS_VERSIONBITS_PROOF_OF_STAKE(this->nVersion))
+//        if (IS_VERSIONBITS_PROOF_OF_STAKE(this->nVersion))
+        if (this->nVersion > VERSIONBITS_TOP_BITS_POW)
             READWRITE(nStakeModifier);
     }
 

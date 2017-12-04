@@ -21,7 +21,7 @@ int64_t FutureDrift(int64_t nTime)
     int64_t n = nTime + 24 * 60 * 60;
 #ifdef PROOF_OF_STAKE_ENABLE
     if (chainActive.Height() > Params().GetConsensus().nLastPOWBlock) {
-        n = nTime + 15;
+        n = nTime + 24 * 60 * 60;
     }
 #endif
     return n;

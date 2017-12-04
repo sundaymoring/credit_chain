@@ -193,7 +193,17 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+    coinbaseTx.vout[0].nValue = GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+    if ((nHeight > 0) && (nHeight <= chainparams.GetConsensus().nLastPOWBlock)) {
+        // Founders reward is 20% of the block subsidy
+        auto vFoundersReward = coinbaseTx.vout[0].nValue / 5;
+        // Take some reward away from us
+        coinbaseTx.vout[0].nValue -= vFoundersReward;
+
+        // And give it to the founders
+        coinbaseTx.vout.push_back(CTxOut(vFoundersReward, chainparams.GetFoundersRewardScriptAtHeight(nHeight)));
+    }
+    coinbaseTx.vout[0].nValue += nFees;
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());

@@ -2231,7 +2231,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         for (unsigned int n = 0; n < nCount; n++) {
             vRecv >> headers[n];
             ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
-            if (IS_VERSIONBITS_PROOF_OF_STAKE(headers[n].nVersion)){
+//            if (IS_VERSIONBITS_PROOF_OF_STAKE(headers[n].nVersion)){
+            if (headers[n].nVersion > VERSIONBITS_TOP_BITS_POW){
                 ReadCompactSize(vRecv); // ignore block sig; assume it is 0.
             }
         }
@@ -2285,6 +2286,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         CValidationState state;
         if (!ProcessNewBlockHeaders(headers, state, chainparams, &pindexLast)) {
+            if (pindexLast){
+                UpdateBlockAvailability(pfrom->GetId(), pindexLast->GetBlockHash());
+            }
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0) {

@@ -196,7 +196,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
-                if (IS_VERSIONBITS_PROOF_OF_STAKE(pindexNew->nVersion))
+//                if (IS_VERSIONBITS_PROOF_OF_STAKE(pindexNew->nVersion))
+                if (pindexNew->nVersion > VERSIONBITS_TOP_BITS_POW)
                     pindexNew->nVersion = diskindex.nVersion;
 
 //                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))
