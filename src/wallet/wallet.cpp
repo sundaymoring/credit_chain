@@ -49,7 +49,7 @@ const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
 
 CAmount nReserveBalance = 0;
 
-static int64_t GetStakeCombineThreshold() { return 500 * COIN*100; } //change 500 -> 50000
+static int64_t GetStakeCombineThreshold() { return 500 * COIN; }
 static int64_t GetStakeSplitThreshold() { return 2 * GetStakeCombineThreshold(); }
 
 /**
@@ -2110,7 +2110,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             if (fOnlyConfirmed && !pcoin->IsTrusted())
                 continue;
 
-            if ((pcoin->IsCoinBase() ) && pcoin->GetBlocksToMaturity() > 0)
+            if ((pcoin->IsCoinBase() || IsCoinStake() ) && pcoin->GetBlocksToMaturity() > 0)
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();

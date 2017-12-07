@@ -21,8 +21,6 @@
 #include "script/standard.h"
 #include "support/allocators/zeroafterfree.h"
 
-#include "base58.h"
-
 #include <string>
 #include <vector>
 

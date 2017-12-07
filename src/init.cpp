@@ -501,7 +501,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)", DEFAULT_HTTP_SERVER_TIMEOUT));
     }
 
-    strUsage += HelpMessageOpt("-gen=<n>", strprintf(_("pos mining"), DEFAULT_HTTP_THREADS));
+    strUsage += HelpMessageOpt("-staking=<n>", strprintf(_("Enable pos mining (default: %d)"), DEFAULT_POS_ENABLE));
 
 
     return strUsage;
@@ -1650,7 +1650,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError(strNodeError);
 
     // Generate coins in the background
-    GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
+    StartStake(GetBoolArg("-staking", DEFAULT_POS_ENABLE), chainparams);
 
     // ********************************************************* Step 12: finished
 

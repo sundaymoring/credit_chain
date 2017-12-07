@@ -194,9 +194,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     coinbaseTx.vout[0].nValue = GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-    if ((nHeight > 0) && (nHeight <= chainparams.GetConsensus().nLastPOWBlock)) {
-        // Founders reward is 20% of the block subsidy
-        auto vFoundersReward = coinbaseTx.vout[0].nValue / 5;
+    if ((nHeight > 500000) && (nHeight <= chainparams.GetConsensus().nLastPOWBlock)) {
+        // Founders reward is 10% of the block subsidy
+        auto vFoundersReward = coinbaseTx.vout[0].nValue / 10;
         // Take some reward away from us
         coinbaseTx.vout[0].nValue -= vFoundersReward;
 
@@ -848,18 +848,16 @@ bool CheckStake(CBlock* pblock, CWallet& wallet, const CChainParams& chainparams
     return true;
 }
 
-void static BitcoinMiner(CWallet *pwallet, const CChainParams& chainparams){
+void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
     LogPrintf("BitcoinMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("bitcoin-miner");
 
     CReserveKey reservekey(pwallet);
 
-//    CConnman& connman = *g_connman;
-//    CCriticalSection& cs_vNodes = connman.GetNodeCS();
-//    std::vector<CNode*>& vNodes = connman.GetNode();
-
-//    unsigned int nExtraNonce = 0;
+    CConnman& connman = *g_connman;
+    CCriticalSection& cs_vNodes = connman.GetNodeCS();
+    std::vector<CNode*>& vNodes = connman.GetNode();
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
@@ -917,12 +915,9 @@ void static BitcoinMiner(CWallet *pwallet, const CChainParams& chainparams){
 }
 
 
-void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
+void StartStake(bool fGenerate, const CChainParams& chainparams)
 {
     static boost::thread_group* minerThreads = NULL;
-
-    if (nThreads < 0)
-        nThreads = GetNumCores();
 
     if (minerThreads != NULL)
     {
@@ -931,10 +926,10 @@ void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainpar
         minerThreads = NULL;
     }
 
-    if (nThreads == 0 || !fGenerate)
+    if (!fGenerate)
         return;
 
     minerThreads = new boost::thread_group();
-    for (int i = 0; i < 1; i++)
-        minerThreads->create_thread(boost::bind(&BitcoinMiner, pwalletMain, boost::cref(chainparams)));
+
+    minerThreads->create_thread(boost::bind(&StakeMiner, pwalletMain, boost::cref(chainparams)));
 }
