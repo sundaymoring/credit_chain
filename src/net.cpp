@@ -1738,8 +1738,7 @@ void CConnman::ThreadOpenConnections()
                     // but inbound and addnode peers do not use our outbound slots.  Inbound peers
                     // also have the added issue that they're attacker controlled and could be used
                     // to prevent us from connecting to particular hosts if we used them here.
-//                    setConnected.insert(pnode->addr.GetGroup());
-                    setConnected.insert(pnode->addr.GetKey());
+                    setConnected.insert(pnode->addr.GetGroup());
                     nOutbound++;
                 }
             }

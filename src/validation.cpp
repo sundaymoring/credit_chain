@@ -1155,6 +1155,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
+// TODO ????
 //    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
 //        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
@@ -1671,6 +1672,7 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
         // but it must be corrected before txout nversion ever influences a network rule.
         if (outsBlock.nVersion < 0)
             outs->nVersion = outsBlock.nVersion;
+//TODO ???
 //        if (*outs != outsBlock)
 //            fClean = fClean && error("DisconnectBlock(): added transaction mismatch? database corrupted");
 
@@ -1738,10 +1740,13 @@ void ThreadScriptCheck() {
 // Protected by cs_main
 VersionBitsCache versionbitscache;
 
-int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params, bool isProofOfStake)
+int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params)
 {
     LOCK(cs_main);
     int32_t nVersion = VERSIONBITS_TOP_BITS;
+	
+    if (pindexPrev->nHeight + 1 >= params.BCDHeight)
+    	nVersion |= VERSIONBITS_IS_POS;	
 
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
@@ -1810,7 +1815,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             view.SetBestBlock(pindex->GetBlockHash());
         return true;
     }
-
+//TODO ????
 //    // Check difficulty
 //    if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), chainparams.GetConsensus()))
 //        return state.DoS(100, error("%s: incorrect difficulty", __func__),
@@ -2970,7 +2975,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 {
 #ifdef PROOF_OF_STAKE_ENABLE
     // Check proof of work matches claimed amount
-    if (fCheckPOW && (block.nVersion <= VERSIONBITS_TOP_BITS_POW) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (fCheckPOW && !(block.nVersion & VERSIONBITS_IS_POS) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
 #else
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
 #endif
@@ -2993,6 +2998,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
+//TODO ???
     if (!CheckBlockHeader(block, state, consensusParams, false))
         return false;
 
@@ -3045,7 +3051,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     }
 
     // Check proof-of-stake block signature
-    if ( block.IsProofOfStake() && (block.nVersion > VERSIONBITS_TOP_BITS_POW)
+    if ( block.IsProofOfStake() && (block.nVersion & VERSIONBITS_IS_POS)
             && !CheckBlockSignature(block, block.GetHash()))
             return state.DoS(100, error("CheckBlock(): bad proof-of-stake block signature"),
                     REJECT_INVALID, "bad-block-signature");
@@ -3168,7 +3174,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     if((block.nVersion < 2 && nHeight >= consensusParams.BIP34Height) ||
        (block.nVersion < 3 && nHeight >= consensusParams.BIP66Height) ||
        (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height) ||
-       (block.nVersion <= VERSIONBITS_TOP_BITS_POW && nHeight>consensusParams.nLastPOWBlock))
+       ( !(block.nVersion & VERSIONBITS_IS_POS) && nHeight>consensusParams.nLastPOWBlock))
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
@@ -3440,6 +3446,7 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         CValidationState state;
         // Ensure that CheckBlock() passes before calling AcceptBlock, as
         // belt-and-suspenders.
+		//TODO:??????
         bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus(), false);
 
         LOCK(cs_main);

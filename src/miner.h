@@ -22,8 +22,9 @@ class CWallet;
 
 namespace Consensus { struct Params; };
 
-static const bool DEFAULT_GENERATE = false;
-static const int DEFAULT_GENERATE_THREADS = 1;
+
+static const bool DEFAULT_POS_ENABLE = false;
+//static const bool DEFAULT_STAKE = false;
 
 static const bool DEFAULT_PRINTPRIORITY = false;
 
@@ -213,7 +214,7 @@ private:
     int UpdatePackagesForAdded(const CTxMemPool::setEntries& alreadyAdded, indexed_modified_transaction_set &mapModifiedTx);
 };
 
-void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
+void StartStake(bool fGenerate, const CChainParams& chainparams);
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
