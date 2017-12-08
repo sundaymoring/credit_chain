@@ -194,7 +194,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     coinbaseTx.vout[0].nValue = GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-    if ((nHeight > 500000) && (nHeight <= chainparams.GetConsensus().nLastPOWBlock)) {
+    if ((nHeight >= chainparams.GetConsensus().BECHeight ) && ( nHeight < 740000 )) {
         // Founders reward is 10% of the block subsidy
         auto vFoundersReward = coinbaseTx.vout[0].nValue / 10;
         // Take some reward away from us
