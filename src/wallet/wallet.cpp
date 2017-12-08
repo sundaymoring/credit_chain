@@ -49,7 +49,7 @@ const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
 
 CAmount nReserveBalance = 0;
 
-static int64_t GetStakeCombineThreshold() { return 500 * COIN; }
+static int64_t GetStakeCombineThreshold() { return 100 * COIN * COIN_SCALE; }
 static int64_t GetStakeSplitThreshold() { return 2 * GetStakeCombineThreshold(); }
 
 /**

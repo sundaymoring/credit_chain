@@ -18,6 +18,12 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
 
+    if (pindexLast->nHeight+1 == params.BECHeight)
+    	return nProofOfWorkLimit;
+
+    if (pindexLast->nHeight+1 == params.BECHeight + 5000)
+        return nProofOfWorkLimit;
+
     // Only change once per difficulty adjustment interval
     if ((pindexLast->nHeight+1) % params.DifficultyAdjustmentInterval() != 0)
     {
