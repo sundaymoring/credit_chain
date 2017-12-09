@@ -230,7 +230,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     return std::move(pblocktemplate);
 }
 
-std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript& scriptPubKeyIn, bool fMineWitnessTx)
+std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript& scriptPubKeyIn, CAmount& nFeesIn, bool fMineWitnessTx)
 {
     int64_t nTimeStart = GetTimeMicros();
 
@@ -250,7 +250,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     pblocktemplate->vTxFees.push_back(-1); // updated at end
     pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
 
-    pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus(), true);
+    pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (chainparams.MineBlocksOnDemand())
@@ -290,7 +290,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].SetEmpty();
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-//    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+    nFeesIn = nFees;
     pblocktemplate->vTxFees[0] = -nFees;
 
     uint64_t nSerializeSize = GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
@@ -851,13 +852,11 @@ bool CheckStake(CBlock* pblock, CWallet& wallet, const CChainParams& chainparams
 void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
     LogPrintf("BitcoinMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("bitcoin-miner");
+    RenameThread("stake-miner");
 
-    CReserveKey reservekey(pwallet);
+//    CReserveKey reservekey(pwallet);
 
-    CConnman& connman = *g_connman;
-    CCriticalSection& cs_vNodes = connman.GetNodeCS();
-    std::vector<CNode*>& vNodes = connman.GetNode();
+    std::vector<CNode*>& vNodes = g_connman->GetNode();
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
@@ -870,46 +869,54 @@ void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
 
         while (true) {
-            if (chainActive.Height() < Params().GetConsensus().nLastPOWBlock){
-//                LogPrintf( "not achieve lastPowBlock height, not enable pos\n");
-                sleep(1);
+            while (pwallet->IsLocked())
+            {
+                nLastCoinStakeSearchInterval = 0;
+                MilliSleep(1000);
+            }
+
+            if( chainparams.MiningRequiresPeers()){
+                while (vNodes.empty() || IsInitialBlockDownload())
+                {
+                    nLastCoinStakeSearchInterval = 0;
+                    MilliSleep(1000);
+                }
+            }
+            if (chainActive.Tip()->nHeight < Params().GetConsensus().nLastPOWBlock){
+                MilliSleep(1000);
                 continue;
             }
+
+            CAmount nFees = 0;
             //
             // Create new block
             //
-//            unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
-//            CBlockIndex* pindexPrev = chainActive.Tip();
-            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlockPOS(coinbaseScript->reserveScript));
+            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlockPOS(coinbaseScript->reserveScript, nFees));
             if (!pblocktemplate.get())
             {
                 LogPrintf("Error in BitcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 return;
             }
 
-            int64_t nFees = 0;
             CBlock *pblock = &pblocktemplate->block;
             if (SignBlock(*pblock, *pwallet, nFees)){
                 SetThreadPriority(THREAD_PRIORITY_NORMAL);
                 CheckStake(pblock, *pwallet, chainparams);
                 SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                MilliSleep(500);
-            }
+			}
+            MilliSleep(1000);
 
-            sleep(10);
 
-            LogPrintf("Running BitcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
-                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
         }
     }
     catch (const boost::thread_interrupted&)
     {
-        LogPrintf("BitcoinMiner terminated\n");
+        LogPrintf("StakeMiner terminated\n");
         throw;
     }
     catch (const std::runtime_error &e)
     {
-        LogPrintf("BitcoinMiner runtime error: %s\n", e.what());
+        LogPrintf("StakeMiner runtime error: %s\n", e.what());
         return;
     }
 }

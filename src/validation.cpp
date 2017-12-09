@@ -490,9 +490,6 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
 }
 
 
-
-
-
 bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
 {
     // Basic checks that don't depend on any context
@@ -1158,9 +1155,8 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-//TODO:WTF?????
-//    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-//        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+    if (block.IsProofOfWork() && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
 }
@@ -1679,9 +1675,8 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
         // but it must be corrected before txout nversion ever influences a network rule.
         if (outsBlock.nVersion < 0)
             outs->nVersion = outsBlock.nVersion;
-// TODO: WHY??????			
-//        if (*outs != outsBlock)
-//            fClean = fClean && error("DisconnectBlock(): added transaction mismatch? database corrupted");
+        if (*outs != outsBlock)
+            fClean = fClean && error("DisconnectBlock(): added transaction mismatch? database corrupted");
 
         // remove outputs
         outs->Clear();
@@ -1752,7 +1747,7 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     LOCK(cs_main);
     int32_t nVersion = VERSIONBITS_TOP_BITS;
 	
-    if (pindexPrev->nHeight + 1 >= params.BCDHeight)
+    if (pindexPrev->nHeight + 1 > params.BCDHeight + 5000)
     	nVersion |= VERSIONBITS_IS_POS;	
 
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
@@ -1822,12 +1817,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             view.SetBestBlock(pindex->GetBlockHash());
         return true;
     }
-
-//TODO: WHY????
-//    // Check difficulty
-//    if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), chainparams.GetConsensus()))
-//        return state.DoS(100, error("%s: incorrect difficulty", __func__),
-//                        REJECT_INVALID, "bad-diffbits");
 
 //    if (block.IsProofOfStake())
         pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : pindex->GetBlockHash());
@@ -2034,7 +2023,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                    REJECT_INVALID, "bad-cb-amount");
     }
     if( block.IsProofOfStake()){
-        CAmount blockReward = nFees + GetProofOfStakeSubsidy();
+        CAmount blockReward = nFees + GetBlockSubsidy();
          if (nActualStakeReward > blockReward)
              return state.DoS(100,
                               error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d)",
@@ -3006,8 +2995,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-	//TODO:WTF?????
-    if (!CheckBlockHeader(block, state, consensusParams, false))
+    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
         return false;
 
     // Check the merkle root.
@@ -3186,15 +3174,6 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
-    // Preliminary check difficulty in pos-only stage
-#ifdef PROOF_OF_STAKE_ENABLE
-    if (chainActive.Height() > consensusParams.nLastPOWBlock &&
-            nHeight > consensusParams.nLastPOWBlock &&
-            block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-         return state.DoS(100, error("%s: incorrect difficulty", __func__),
-                         REJECT_INVALID, "bad-diffbits");
-#endif
-
     return true;
 }
 
@@ -3277,6 +3256,27 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     if (GetBlockWeight(block) > MAX_BLOCK_WEIGHT) {
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-weight", false, strprintf("%s : weight limit failed", __func__));
     }
+
+    // Coinbase transaction must include an output sending 10% of
+    // the block reward to a founders reward script, until the last founders
+    // reward block is reached, with exception of the genesis block.
+    // The last founders reward block is defined as the block just before the
+    // first subsidy halving block, which occurs at halving_interval + slow_start_shift
+    if (nHeight >= consensusParams.nBECHeight && nHeight <= consensusParams.nLastPOWBlock){
+        bool found = false;
+
+        BOOST_FOREACH(const CTxOut& output, block.vtx[0]->vout) {
+            if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {
+                if (output.nValue == (GetBlockSubsidy(nHeight, consensusParams) / 10)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found || block.IsProofOfStake())
+            return state.DoS(100,error("ConnectBlock(): founders reward missing"),REJECT_INVALID, "cb-no-founders-reward");
+    }
+	// TODO: Check founder rewards of POS blocks
 
 #ifdef PROOF_OF_STAKE_ENABLE
     if (block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock)
@@ -3454,8 +3454,7 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         CValidationState state;
         // Ensure that CheckBlock() passes before calling AcceptBlock, as
         // belt-and-suspenders.
-		//TODO:??????
-        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus(), false);
+        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus());
 
         LOCK(cs_main);
 
