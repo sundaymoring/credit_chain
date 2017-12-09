@@ -49,7 +49,7 @@ const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
 
 CAmount nReserveBalance = 0;
 
-static int64_t GetStakeCombineThreshold() { return 500 * COIN; }
+static int64_t GetStakeCombineThreshold() { return 100 * COIN * COIN_SCALE; }
 static int64_t GetStakeSplitThreshold() { return 2 * GetStakeCombineThreshold(); }
 
 /**
@@ -3531,7 +3531,7 @@ uint64_t CWallet::GetStakeWeight() const
     LOCK2(cs_main, cs_wallet);
     BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
     {
-        if (pcoin.first->GetDepthInMainChain() >= nStakeMinConfirmations)
+        if (pcoin.first->GetDepthInMainChain() >= STAKE_MIN_CONFIRMATIONS)
             nWeight += pcoin.first->tx->vout[pcoin.second].nValue;
     }
 
@@ -4125,20 +4125,10 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, int64_t nTime, con
         return false;
 
     int nDepth;
-    if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, nStakeMinConfirmations - 1, nDepth))
+    if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, STAKE_MIN_CONFIRMATIONS - 1, nDepth))
         return false;
 
     return CheckStakeKernelHash( pindexPrev, nBits, CCoins(txPrev, pindexPrev->nHeight), prevout, nTime);
-}
-
-// miner's coin stake reward
-int64_t GetProofOfStakeReward(const CBlockIndex* pindexPrev, int64_t nCoinAge, int64_t nFees)
-{
-    int64_t nSubsidy = 1;
-
-    LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d\n", FormatMoney(nSubsidy), nCoinAge);
-
-    return nSubsidy + nFees;
 }
 
 bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t nSearchInterval, CAmount& nFees, CMutableTransaction& tx, CKey& key){
@@ -4260,7 +4250,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t 
             && pcoin.first->GetHash() != txNew.vin[0].prevout.hash)
         {
             // Stop adding more inputs if already too many inputs
-            if (txNew.vin.size() >= 2)
+            if (txNew.vin.size() >= MAX_COINSATKE_INPUT)
                 break;
             // Stop adding inputs if reached reserve limit
             if (nCredit + pcoin.first->tx->vout[pcoin.second].nValue > nBalance - nReserveBalance)
@@ -4282,8 +4272,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t 
 //            return error("CreateCoinStake : failed to calculate coin age");
 
 //        int64_t nReward = GetProofOfStakeReward(pindexPrev, nCoinAge, nFees);
-        int64_t nReward = GetProofOfStakeReward(pindexPrev, 0, nFees);
-        if (nReward <= 0)
+        int64_t nReward = nFees + GetBlockSubsidy(pindexPrev->nHeight + 1, Params().GetConsensus());
+        if (nReward < 0)
             return false;
 
         nCredit += nReward;
@@ -4370,7 +4360,7 @@ void CWallet::AvailableCoinsForStaking(std::vector<COutput>& vCoins) const
             if (nDepth < 1)
                 continue;
 
-            if (nDepth < nStakeMinConfirmations)
+            if (nDepth < STAKE_MIN_CONFIRMATIONS)
                 continue;
 
             if (pcoin->GetBlocksToMaturity() > 0)

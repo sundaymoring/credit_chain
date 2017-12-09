@@ -198,10 +198,9 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nTx            = diskindex.nTx;
                 if (pindexNew->nVersion & VERSIONBITS_IS_POS)
                     pindexNew->nStakeModifier = diskindex.nStakeModifier;
-
-// TODO: WTF?????
-//                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))
-//                    return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
+// TODO: check pow and pos, now only check pow, need check pos kernel
+                if (pindexNew->IsProofOfWork() && !CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))
+                    return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
 
                 pcursor->Next();
             } else {
