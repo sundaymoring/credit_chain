@@ -1747,7 +1747,7 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     LOCK(cs_main);
     int32_t nVersion = VERSIONBITS_TOP_BITS;
 	
-    if (pindexPrev->nHeight + 1 > params.BCDHeight + 5000)
+    if (pindexPrev->nHeight + 1 > params.BECHeight + 5000)
     	nVersion |= VERSIONBITS_IS_POS;	
 
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
@@ -2023,7 +2023,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                    REJECT_INVALID, "bad-cb-amount");
     }
     if( block.IsProofOfStake()){
-        CAmount blockReward = nFees + GetBlockSubsidy();
+        CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus());
          if (nActualStakeReward > blockReward)
              return state.DoS(100,
                               error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d)",
@@ -3262,7 +3262,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     // reward block is reached, with exception of the genesis block.
     // The last founders reward block is defined as the block just before the
     // first subsidy halving block, which occurs at halving_interval + slow_start_shift
-    if (nHeight >= consensusParams.nBECHeight && nHeight <= consensusParams.nLastPOWBlock){
+    if (nHeight >= consensusParams.BECHeight && nHeight <= consensusParams.nLastPOWBlock){
         bool found = false;
 
         BOOST_FOREACH(const CTxOut& output, block.vtx[0]->vout) {
