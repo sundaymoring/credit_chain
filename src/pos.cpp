@@ -3,6 +3,7 @@
 #include "script/interpreter.h"
 #include "validation.h"
 #include "chainparams.h"
+#include "consensus/consensus.h"
 
 
 
@@ -107,7 +108,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
 
     // Min age requirement
     int nDepth;
-    if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, nStakeMinConfirmations - 1, nDepth))
+    if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, STAKE_MIN_CONFIRMATIONS - 1, nDepth))
        return state.DoS(100, error("CheckProofOfStake() : tried to stake at depth %d", nDepth + 1));
 
     return true;
