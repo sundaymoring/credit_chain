@@ -581,6 +581,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
+    if (IsEnableFork(chainActive.Tip()) && !tx.IsVersionOfFork())
+        return state.DoS(100, error("%s: tx version=%d error", __func__, tx.nVersion), REJECT_INVALID, "version");
+
     if (!CheckTransaction(tx, state))
         return false; // state filled in by CheckTransaction
 
@@ -1391,6 +1394,7 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
                 undo.fCoinBase = coins->fCoinBase;
                 undo.fCoinStake = coins->fCoinStake;
                 undo.nVersion = coins->nVersion;
+                undo.nTime = coins->nTime;
             }
         }
     }
@@ -1624,6 +1628,7 @@ bool ApplyTxInUndo(const CTxInUndo& undo, CCoinsViewCache& view, const COutPoint
         coins->fCoinStake = undo.fCoinStake;
         coins->nHeight = undo.nHeight;
         coins->nVersion = undo.nVersion;
+        coins->nTime = undo.nTime;
     } else {
         if (coins->IsPruned())
             fClean = fClean && error("%s: undo data adding output to missing transaction", __func__);
@@ -1833,7 +1838,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                   error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coins->nHeight),
                     REJECT_INVALID, "bad-cs-premature");
 
-         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, *coins, prevout, block.nTime))
+         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, *coins, prevout, block.vtx[1]->nTime))
               return state.DoS(100, error("%s: proof-of-stake hash doesn't match nBits", __func__),
                                  REJECT_INVALID, "bad-cs-proofhash");
     }
@@ -3056,6 +3061,10 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         if (!CheckTransaction(*tx, state, false))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
+        // check transaction timestamp
+        if (block.GetBlockTime() < (int64_t)tx->nTime)
+           return state.DoS(100, error("CheckBlock() : block timestamp earlier than transaction timestamp"),
+                                    REJECT_INVALID, "bad-tx-time");
     }
 
     unsigned int nSigOps = 0;
@@ -3179,8 +3188,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
 
-    // //TODO ??last pow height judge
-
     // Start enforcing BIP113 (Median Time Past) using versionbits logic.
     int nLockTimeFlags = 0;
     if (VersionBitsState(pindexPrev, consensusParams, Consensus::DEPLOYMENT_CSV, versionbitscache) == THRESHOLD_ACTIVE) {
@@ -3277,6 +3284,18 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 	// TODO: Check founder rewards of POS blocks
 
 #ifdef PROOF_OF_STAKE_ENABLE
+    if (IsEnableFork(nHeight)){
+        // TODO judge fork version
+//        if (block.nVersion & ){
+//        }
+
+        // if forked, tx version must be CTransaction::CURRENT_VERSION_FORK
+        for (const auto& tx : block.vtx) {
+            if ( !(tx->IsCoinBase()||tx->IsCoinStake()) && !tx->IsVersionOfFork()) {
+                return state.DoS(100, error("%s : reject proof-of-work at height %d", __func__, nHeight), REJECT_INVALID, "bad-tx-version");
+            }
+        }
+    }
     if (block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock)
         return state.DoS(100, error("%s : reject proof-of-work at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");
 #endif
@@ -4544,3 +4563,12 @@ public:
         mapBlockIndex.clear();
     }
 } instance_of_cmaincleanup;
+
+
+bool IsEnableFork(const CBlockIndex* pindexPrev){
+    return IsEnableFork(pindexPrev->nHeight);
+}
+
+bool IsEnableFork(const int height){
+    return height >= Params().GetConsensus().BECHeight;
+}

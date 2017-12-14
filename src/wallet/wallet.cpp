@@ -2493,6 +2493,12 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     // nLockTime that preclude a fix later.
     txNew.nLockTime = chainActive.Height();
 
+    if (!IsEnableFork(chainActive.Tip())){
+        txNew.nVersion = CTransaction::CURRENT_VERSION_OLD;
+    } else {
+        txNew.nTime = GetAdjustedTime();
+    }
+
     // Secondly occasionally randomly pick a nLockTime even further back, so
     // that transactions that are delayed after signing for whatever reason,
     // e.g. high-latency mix networks and some CoinJoin implementations, have
@@ -4178,7 +4184,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t 
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
 
-            if (CheckKernel(pindexPrev, block.nBits, block.nTime - n, prevoutStake))
+            if (CheckKernel(pindexPrev, block.nBits, tx.nTime - n, prevoutStake))
             {
                 // Found a kernel
                 LogPrint("coinstake", "CreateCoinStake : kernel found\n");
@@ -4226,7 +4232,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t 
                     scriptPubKeyOut = scriptPubKeyKernel;
                 }
 
-                block.nTime -= n;
+                tx.nTime -= n;
                 txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 nCredit += pcoin.first->tx.get()->vout[pcoin.second].nValue;
                 vwtxPrev.push_back(pcoin.first);

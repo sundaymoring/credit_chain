@@ -24,9 +24,10 @@ public:
     bool fCoinStake;	  // if the outpoint was the last unspent: whether it belonged to a coinstake
     unsigned int nHeight; // if the outpoint was the last unspent: its height
     int nVersion;         // if the outpoint was the last unspent: its version
+    unsigned int nTime; // if the outpoint was the last unspent: its time
 
-    CTxInUndo() : txout(), fCoinBase(false), fCoinStake(false), nHeight(0), nVersion(0) {}
-    CTxInUndo(const CTxOut &txoutIn, bool fCoinBaseIn = false, bool fCoinStakeIn = false, unsigned int nHeightIn = 0, int nVersionIn = 0, unsigned int nTimeIn = 0) : txout(txoutIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn), nVersion(nVersionIn) { }
+    CTxInUndo() : txout(), fCoinBase(false), fCoinStake(false), nHeight(0), nVersion(0), nTime(0) {}
+    CTxInUndo(const CTxOut &txoutIn, bool fCoinBaseIn = false, bool fCoinStakeIn = false, unsigned int nHeightIn = 0, int nVersionIn = 0, unsigned int nTimeIn = 0) : txout(txoutIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn), nVersion(nVersionIn), nTime(nTimeIn) { }
 
     template<typename Stream>
     void Serialize(Stream &s) const {
@@ -35,6 +36,10 @@ public:
         if (nHeight > 0)
             ::Serialize(s, VARINT(this->nVersion));
         ::Serialize(s, CTxOutCompressor(REF(txout)));
+
+        if (this->nVersion == CTransaction::CURRENT_VERSION_FORK){
+            ::Serialize(s, VARINT(nTime));
+        }
     }
 
     template<typename Stream>
@@ -48,6 +53,12 @@ public:
         if (nHeight > 0)
             ::Unserialize(s, VARINT(this->nVersion));
         ::Unserialize(s, REF(CTxOutCompressor(REF(txout))));
+
+        if (this->nVersion == CTransaction::CURRENT_VERSION_FORK){
+            ::Unserialize(s, VARINT(nTime));
+        } else {
+            nTime = 0;
+        }
     }
 };
 

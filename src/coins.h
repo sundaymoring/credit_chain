@@ -90,12 +90,16 @@ public:
     //! as new tx version will probably only be introduced at certain heights
     int nVersion;
 
+    //! time of the CTransaction
+    uint32_t nTime;
+
     void FromTx(const CTransaction &tx, int nHeightIn) {
         fCoinBase = tx.IsCoinBase();
         fCoinStake = tx.IsCoinStake();
         vout = tx.vout;
         nHeight = nHeightIn;
         nVersion = tx.nVersion;
+        nTime = tx.nTime;
         ClearUnspendable();
     }
 
@@ -110,10 +114,11 @@ public:
         std::vector<CTxOut>().swap(vout);
         nHeight = 0;
         nVersion = 0;
+        nTime = 0;
     }
 
     //! empty constructor
-    CCoins() : fCoinBase(false), fCoinStake(false), vout(0), nHeight(0), nVersion(0) { }
+    CCoins() : fCoinBase(false), fCoinStake(false), vout(0), nHeight(0), nVersion(0), nTime(0) { }
 
     //!remove spent outputs at the end of vout
     void Cleanup() {
@@ -137,6 +142,7 @@ public:
         to.vout.swap(vout);
         std::swap(to.nHeight, nHeight);
         std::swap(to.nVersion, nVersion);
+        std::swap(to.nTime, nTime);
     }
 
     //! equality test
@@ -148,7 +154,8 @@ public:
                 a.fCoinStake == b.fCoinStake &&
                 a.nHeight == b.nHeight &&
                 a.nVersion == b.nVersion &&
-                a.vout == b.vout;
+                a.vout == b.vout &&
+                a.nTime == b.nTime;
     }
     friend bool operator!=(const CCoins &a, const CCoins &b) {
         return !(a == b);
@@ -192,6 +199,10 @@ public:
         }
         // coinbase height
         ::Serialize(s, VARINT(nHeight));
+
+        if (this->nVersion == CTransaction::CURRENT_VERSION_FORK){
+            ::Serialize( s, VARINT(nTime));
+        }
     }
 
     template<typename Stream>
@@ -227,6 +238,11 @@ public:
         }
         // coinbase height
         ::Unserialize(s, VARINT(nHeight));
+        if (this->nVersion == CTransaction::CURRENT_VERSION_FORK){
+            ::Unserialize(s, VARINT(nTime));
+        } else {
+            nTime = 0;
+        }
         Cleanup();
     }
 
