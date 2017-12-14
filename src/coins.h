@@ -172,6 +172,7 @@ public:
         bool fSecond = vout.size() > 1 && !vout[1].IsNull();
         assert(fFirst || fSecond || nMaskCode);
         unsigned int nCode = 8*(nMaskCode - (fFirst || fSecond ? 0 : 1)) + (fCoinBase ? 1 : 0) + (fFirst ? 2 : 0) + (fSecond ? 4 : 0);
+        nCode |= (fCoinStake ? 1 : 0)<<31;
         // version
         ::Serialize(s, VARINT(this->nVersion));
         // header code
@@ -200,6 +201,8 @@ public:
         ::Unserialize(s, VARINT(this->nVersion));
         // header code
         ::Unserialize(s, VARINT(nCode));
+        fCoinStake = (nCode & (1<<31)) != 0;
+        nCode &= ~(1<<31);
         fCoinBase = nCode & 1;
         std::vector<bool> vAvail(2, false);
         vAvail[0] = (nCode & 2) != 0;

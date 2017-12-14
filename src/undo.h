@@ -30,7 +30,8 @@ public:
 
     template<typename Stream>
     void Serialize(Stream &s) const {
-        ::Serialize(s, VARINT(nHeight*2+(fCoinBase ? 1 : 0)));
+        unsigned int nCode = nHeight*2+(fCoinBase ? 1 : 0) + ((fCoinStake ? 1 : 0)<<31);
+        ::Serialize(s, VARINT(nCode));
         if (nHeight > 0)
             ::Serialize(s, VARINT(this->nVersion));
         ::Serialize(s, CTxOutCompressor(REF(txout)));
@@ -40,6 +41,8 @@ public:
     void Unserialize(Stream &s) {
         unsigned int nCode = 0;
         ::Unserialize(s, VARINT(nCode));
+        fCoinStake = (nCode & (1<<31)) != 0;
+        nCode &= ~(1<<31);
         nHeight = nCode / 2;
         fCoinBase = nCode & 1;
         if (nHeight > 0)

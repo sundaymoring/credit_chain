@@ -290,7 +290,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].SetEmpty();
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+//    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     nFeesIn = nFees;
     pblocktemplate->vTxFees[0] = -nFees;
 

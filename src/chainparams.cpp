@@ -304,7 +304,8 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
 
-        consensus.nLastPOWBlock = consensus.BECHeight + 4999;
+        consensus.BECHeight = 110;
+        consensus.nLastPOWBlock = consensus.BECHeight + 10;
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -335,6 +336,12 @@ public:
             0,
             0,
             0
+        };
+
+        vFoundersRewardAddress = {
+            "mjcDekMBYnVfd4PbV3Jewn1jr266MfdpEE", /* main-index: 0*/
+            "mqAepMZRo4oHNYgBkVLPt1EHyVY3e7NyMH", /* main-index: 1*/
+            "mnX7aWLqgRLpJEp91Zo1zMg4fEX7yGdFyD", /* main-index: 2*/
         };
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
