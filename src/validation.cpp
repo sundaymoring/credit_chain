@@ -581,7 +581,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
-    if (IsEnableFork(chainActive.Tip()) && !tx.IsVersionOfFork())
+    if (!tx.IsVersionOfFork())
         return state.DoS(100, error("%s: tx version=%d error", __func__, tx.nVersion), REJECT_INVALID, "version");
 
     if (!CheckTransaction(tx, state))
@@ -3854,6 +3854,9 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         nCheckDepth = 1000000000; // suffices until the year 19000
     if (nCheckDepth > chainActive.Height())
         nCheckDepth = chainActive.Height();
+    if (chainActive.Height() >= chainparams.GetConsensus().BECHeight){
+        nCheckDepth = std::min(chainActive.Height() - chainActive.Height(), nCheckDepth);
+    }
     nCheckLevel = std::max(0, std::min(4, nCheckLevel));
     LogPrintf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
     CCoinsViewCache coins(coinsview);
