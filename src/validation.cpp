@@ -3047,6 +3047,15 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
                 if (block.vtx[i]->IsCoinStake())
                     return state.DoS(100, error("CheckBlock(): more than one coinstake"),
                                      REJECT_INVALID, "bad-cs-multiple");
+
+            if (block.nTime != block.vtx[0]->nTime ||
+                block.nTime != block.vtx[1]->nTime ||
+                block.vtx[1]->nTime & STAKE_TIMESTAMP_MASK){
+                return state.DoS(100,
+                                 error("%s : timestamp violation block-time=%u cb-time=%u cs-time=%u",
+                                       __func__, block.nTime, block.vtx[0]->nTime, block.vtx[1]->nTime),
+                                 REJECT_INVALID, "bad-cs-time");
+            }
     }
 
     // Check proof-of-stake block signature
@@ -3283,11 +3292,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     }
 	// TODO: Check founder rewards of POS blocks
 
-#ifdef PROOF_OF_STAKE_ENABLE
     if (IsEnableFork(nHeight)){
-        // TODO judge fork version
-//        if (block.nVersion & ){
-//        }
 
         // if forked, tx version must be CTransaction::CURRENT_VERSION_FORK
         for (const auto& tx : block.vtx) {
@@ -3298,7 +3303,6 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     }
     if (block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock)
         return state.DoS(100, error("%s : reject proof-of-work at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");
-#endif
 
     return true;
 }

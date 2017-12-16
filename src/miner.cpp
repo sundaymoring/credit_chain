@@ -805,6 +805,8 @@ bool SignBlock(CBlock& block, CWallet& wallet, int64_t& nFees){
     txCoinStake.nTime = GetAdjustedTime();
     txCoinStake.nVersion = txCoinBase.nVersion;
 
+    txCoinStake.nTime &= ~STAKE_TIMESTAMP_MASK;
+
     int64_t nSearchTime = GetAdjustedTime(); // search to current time
     if (nSearchTime > nLastCoinStakeSearchTime){
         if (wallet.CreateCoinStake(wallet, block, 1, nFees, txCoinStake, key)){
