@@ -107,6 +107,7 @@ public:
         consensus.defaultAssumeValid = uint256S("0x00000000000000000013176bf8d7dfeab4e1db31dc93bc311b436e82ab226b90"); //453354
 
         consensus.nLastPOWBlock = consensus.BECHeight + 4999;
+        consensus.nLastRewardBlock = 739999;
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -306,6 +307,7 @@ public:
 
         consensus.BECHeight = 110;
         consensus.nLastPOWBlock = consensus.BECHeight + 10;
+        consensus.nLastRewardBlock = 150;
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -388,11 +390,12 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 {
     regTestParams.UpdateBIP9Parameters(d, nStartTime, nTimeout);
 }
- 
+
 // Block height must be >0 and <=last founders reward block height
 // Index variable i ranges from 0 - (vFoundersRewardAddress.size()-1)
 std::string CChainParams::GetFoundersRewardAddressAtHeight(int nHeight) const {
-    assert(nHeight > 0);
+    int maxHeight = consensus.nLastRewardBlock;
+    assert(nHeight > 0 && nHeight <= maxHeight);
 
 //    size_t addressChangeInterval = (maxHeight + vFoundersRewardAddress.size()) / vFoundersRewardAddress.size();
 //    size_t i = nHeight / addressChangeInterval;
@@ -403,7 +406,7 @@ std::string CChainParams::GetFoundersRewardAddressAtHeight(int nHeight) const {
 // Block height must be >0 and <=last founders reward block height
 // The founders reward address is expected to be a multisig (P2SH) address
 CScript CChainParams::GetFoundersRewardScriptAtHeight(int nHeight) const {
-    assert(nHeight > 0);
+    assert(nHeight > 0 && nHeight <= consensus.nLastRewardBlock);
 
     CBitcoinAddress address(GetFoundersRewardAddressAtHeight(nHeight).c_str());
     assert(address.IsValid());

@@ -1210,14 +1210,14 @@ bool ReadFromDisk(CMutableTransaction& tx, CDiskTxPos& txindex)
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
-	if (nHeight > 739999)
-		return 0;
+    if (nHeight > consensusParams.nLastRewardBlock)
+        return 0;
 
-	if (nHeight >= consensusParams.BECHeight && nHeight < consensusParams.BECHeight + 2000 )
-		return ( 1250 + 2500 * (nHeight - consensusParams.BECHeight)) * COIN;
+    if (nHeight >= consensusParams.BECHeight && nHeight < consensusParams.BECHeight + 2000 )
+        return ( 1250 + 2500 * (nHeight - consensusParams.BECHeight)) * COIN;
 
-	if (nHeight >= consensusParams.BECHeight + 2000 && nHeight < consensusParams.BECHeight + 5000 )
-		return  500 * COIN * COIN_SCALE;
+    if (nHeight >= consensusParams.BECHeight + 2000 && nHeight < consensusParams.BECHeight + 5000 )
+        return  500 * COIN * COIN_SCALE;
 
     int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
     // Force block reward to zero when right shift is undefined.
@@ -1749,9 +1749,9 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
 {
     LOCK(cs_main);
     int32_t nVersion = VERSIONBITS_TOP_BITS;
-	
+
     if (pindexPrev && pindexPrev->nHeight + 1 > params.nLastPOWBlock)
-    	nVersion |= VERSIONBITS_IS_POS;	
+        nVersion |= VERSIONBITS_IS_POS;
 
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
@@ -3286,8 +3286,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         if (!found || block.IsProofOfStake())
             return state.DoS(100,error("ConnectBlock(): founders reward missing"),REJECT_INVALID, "cb-no-founders-reward");
     }
-	// TODO: Check founder rewards of POS blocks
-    if (nHeight > consensusParams.nLastPOWBlock){
+    // Check founder rewards of POS blocks
+    if (nHeight > consensusParams.nLastPOWBlock && nHeight <= consensusParams.nLastRewardBlock){
         bool found = false;
         BOOST_FOREACH(const CTxOut& output, block.vtx[1]->vout) {
             if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {

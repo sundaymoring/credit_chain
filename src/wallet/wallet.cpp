@@ -4275,16 +4275,20 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t 
 //      return error("CreateCoinStake : failed to calculate coin age");
 
 //  int64_t nReward = GetProofOfStakeReward(pindexPrev, nCoinAge, nFees);
-    int64_t nReward = GetBlockSubsidy(pindexPrev->nHeight + 1, Params().GetConsensus());
+    int nHeight = pindexPrev->nHeight + 1;
+    int64_t nReward = GetBlockSubsidy(nHeight, Params().GetConsensus());
     if (nReward < 0)
         return false;
 
-    nCredit = nCredit + nReward + nFees;
+    int64_t vFoundersReward = 0;
+    if (nHeight<=Params().GetConsensus().nLastRewardBlock){
+        // Founders reward is 10% of the block subsidy
+        vFoundersReward = nReward / 10;
+        // Take some reward away from us
+        nReward -= vFoundersReward;
+    }
 
-    // Founders reward is 10% of the block subsidy
-    auto vFoundersReward = nReward / 10;
-    // Take some reward away from us
-    nCredit -= vFoundersReward;
+    nCredit = nCredit + nReward + nFees;
 
     if (nCredit >= GetStakeSplitThreshold())
         txNew.vout.emplace_back(CTxOut(0, txNew.vout[1].scriptPubKey)); //split stake
@@ -4299,7 +4303,9 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t 
         txNew.vout[1].nValue = nCredit;
 
     // And give it to the founders
-    txNew.vout.emplace_back(CTxOut(vFoundersReward, Params().GetFoundersRewardScriptAtHeight(pindexPrev->nHeight+1)));
+    if (nHeight<=Params().GetConsensus().nLastRewardBlock){
+        txNew.vout.emplace_back(CTxOut(vFoundersReward, Params().GetFoundersRewardScriptAtHeight(nHeight)));
+    }
 
     // Sign
     int nIn = 0;
