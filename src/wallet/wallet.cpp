@@ -2493,11 +2493,8 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     // nLockTime that preclude a fix later.
     txNew.nLockTime = chainActive.Height();
 
-    if (!IsEnableFork(chainActive.Tip())){
-        txNew.nVersion = CTransaction::CURRENT_VERSION_OLD;
-    } else {
-        txNew.nTime = GetAdjustedTime();
-    }
+	txNew.nTime = GetAdjustedTime();
+
 
     // Secondly occasionally randomly pick a nLockTime even further back, so
     // that transactions that are delayed after signing for whatever reason,

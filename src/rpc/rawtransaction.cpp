@@ -114,7 +114,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             CBlockIndex* pindex = (*mi).second;
             if (chainActive.Contains(pindex)) {
                 entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
-                entry.push_back(Pair("time", IsEnableFork(pindex)?tx.nTime:pindex->GetBlockTime()));
+                entry.push_back(Pair("time", tx.IsVersionOfFork()?tx.nTime:pindex->GetBlockTime()));
                 entry.push_back(Pair("blocktime", pindex->GetBlockTime()));
             }
             else
@@ -395,11 +395,8 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
     UniValue sendTo = request.params[1].get_obj();
 
     CMutableTransaction rawTx;
-    if (!IsEnableFork(chainActive.Tip())){
-        rawTx.nVersion = CTransaction::CURRENT_VERSION_OLD;
-    } else {
-        rawTx.nTime = GetAdjustedTime();
-    }
+
+    rawTx.nTime = GetAdjustedTime();
 
     if (request.params.size() > 2 && !request.params[2].isNull()) {
         int64_t nLockTime = request.params[2].get_int64();

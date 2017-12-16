@@ -563,7 +563,6 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
 /**
  * is enable fork
  */
-bool IsEnableFork(const CBlockIndex* pindexPrev);
 bool IsEnableFork(const int height);
 
 /** Reject codes greater or equal to this can be returned by AcceptToMemPool

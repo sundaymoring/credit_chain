@@ -189,9 +189,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
-    if (!IsEnableFork(nHeight)){
-        coinbaseTx.nVersion = CTransaction::CURRENT_VERSION_OLD;
-    }
+
+	coinbaseTx.nVersion = 1;
+
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
@@ -218,7 +218,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
     UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-    coinbaseTx.nTime = pblock->nTime;
     pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
@@ -288,9 +287,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
 
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
-    if (!IsEnableFork(nHeight)){
-        coinbaseTx.nVersion = CTransaction::CURRENT_VERSION_OLD;
-    }
+
+	coinbaseTx.nVersion = 1;
+
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
@@ -307,7 +306,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
     UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-    coinbaseTx.nTime = pblock->nTime;
     pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
@@ -803,7 +801,7 @@ bool SignBlock(CBlock& block, CWallet& wallet, int64_t& nFees){
     CMutableTransaction txCoinBase(*block.vtx[0]);
     CMutableTransaction txCoinStake;
     txCoinStake.nTime = GetAdjustedTime();
-    txCoinStake.nVersion = txCoinBase.nVersion;
+    txCoinStake.nVersion = CTransaction::CURRENT_VERSION_FORK;
 
     txCoinStake.nTime &= ~STAKE_TIMESTAMP_MASK;
 
@@ -812,8 +810,7 @@ bool SignBlock(CBlock& block, CWallet& wallet, int64_t& nFees){
         if (wallet.CreateCoinStake(wallet, block, 1, nFees, txCoinStake, key)){
             if (txCoinStake.nTime >= pindexBestHeader->GetPastTimeLimit()+1){
 
-                txCoinBase.nTime = block.nTime = txCoinStake.nTime;
-                block.vtx[0] = std::make_shared<CTransaction>(txCoinBase);
+                block.nTime = txCoinStake.nTime;
 
                 // do not add consensus that block time must higher than tx time
 //                for (vector<CTransaction>::iterator it = block.vtx.begin(); it != block.vtx.end();)

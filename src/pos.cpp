@@ -53,7 +53,7 @@ bool CheckStakeKernelHash( const CBlockIndex* pindexPrev, unsigned int nBits, co
     bnTarget.SetCompact(nBits);
     // Calculate hash
     CHashWriter ss(SER_GETHASH, 0);
-    ss << pindexPrev->nStakeModifier << txPrev.nTime << prevout.hash << prevout.n << nTimeTx;
+    ss << pindexPrev->nStakeModifier << txPrev.nTime << pindexPrev->GetBlockTime() << prevout.hash << prevout.n << nTimeTx;
     uint256 hashProofOfStake = ss.GetHash();
 
     // Now check if proof-of-stake hash meets target protocol

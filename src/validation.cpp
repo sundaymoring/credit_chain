@@ -3048,12 +3048,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
                     return state.DoS(100, error("CheckBlock(): more than one coinstake"),
                                      REJECT_INVALID, "bad-cs-multiple");
 
-            if (block.nTime != block.vtx[0]->nTime ||
-                block.nTime != block.vtx[1]->nTime ||
+            if (block.nTime != block.vtx[1]->nTime ||
                 block.vtx[1]->nTime & STAKE_TIMESTAMP_MASK){
                 return state.DoS(100,
-                                 error("%s : timestamp violation block-time=%u cb-time=%u cs-time=%u",
-                                       __func__, block.nTime, block.vtx[0]->nTime, block.vtx[1]->nTime),
+                                 error("%s : timestamp violation block-time=%u cs-time=%u",
+                                       __func__, block.nTime, block.vtx[1]->nTime),
                                  REJECT_INVALID, "bad-cs-time");
             }
     }
@@ -3071,9 +3070,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
         // check transaction timestamp
-        if (block.GetBlockTime() < (int64_t)tx->nTime)
-           return state.DoS(100, error("CheckBlock() : block timestamp earlier than transaction timestamp"),
-                                    REJECT_INVALID, "bad-tx-time");
     }
 
     unsigned int nSigOps = 0;
@@ -4570,11 +4566,6 @@ public:
         mapBlockIndex.clear();
     }
 } instance_of_cmaincleanup;
-
-
-bool IsEnableFork(const CBlockIndex* pindexPrev){
-    return IsEnableFork(pindexPrev->nHeight);
-}
 
 bool IsEnableFork(const int height){
     return height >= Params().GetConsensus().BECHeight;
