@@ -3287,6 +3287,20 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
             return state.DoS(100,error("ConnectBlock(): founders reward missing"),REJECT_INVALID, "cb-no-founders-reward");
     }
 	// TODO: Check founder rewards of POS blocks
+    if (nHeight > consensusParams.nLastPOWBlock){
+        bool found = false;
+        BOOST_FOREACH(const CTxOut& output, block.vtx[1]->vout) {
+            if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {
+                if (output.nValue == (GetBlockSubsidy(nHeight, consensusParams) / 10)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found || block.IsProofOfWork())
+            return state.DoS(100,error("ConnectBlock(): founders reward missing"),REJECT_INVALID, "cb-no-founders-reward");
+
+    }
 
     if (IsEnableFork(nHeight)){
 
