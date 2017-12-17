@@ -15,7 +15,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 {
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
-	if (pindexLast->nHeight+1 < params.BCDHeight)
+	if (pindexLast->nHeight+1 < params.BECHeight)
 		nProofOfWorkLimit = UintToArith256(uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff")).GetCompact();
 
     // Genesis block
@@ -99,7 +99,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     // Retarget
 	arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
 
-	if (pindexLast->nHeight+1 < params.BCDHeight)
+	if (pindexLast->nHeight+1 < params.BECHeight)
 		bnPowLimit = UintToArith256(uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
 
     arith_uint256 bnNew;
