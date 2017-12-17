@@ -15,6 +15,9 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 {
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
+	if (pindexLast->nHeight+1 < params.BCDHeight)
+		nProofOfWorkLimit = UintToArith256(uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff")).GetCompact();
+
     // Genesis block
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
@@ -70,25 +73,35 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     if (params.fPowNoRetargeting)
         return pindexLast->nBits;
 
-    int limit, powTargetTimespan;
+    int powTargetTimespan;
     if (pindexLast->nHeight+1 > params.BECHeight) {
     	powTargetTimespan = 36 * params.nPowTargetSpacing;
-    	limit = 2;
     }else{
     	powTargetTimespan = params.nPowTargetTimespan;
-    	limit = 4;
     }
 
     // Limit adjustment step
     int64_t nActualTimespan = pindexLast->GetBlockTime() - nFirstBlockTime;
     int64_t realActualTimespan = nActualTimespan;
-    if (nActualTimespan < powTargetTimespan/limit)
-        nActualTimespan = powTargetTimespan/limit;
-    if (nActualTimespan > powTargetTimespan*limit)
-        nActualTimespan = powTargetTimespan*limit;
+
+    if (pindexLast->nHeight+1 > params.BECHeight) {
+    	if (nActualTimespan < powTargetTimespan/2)
+    		nActualTimespan = 2 * powTargetTimespan * nActualTimespan / (2 * nActualTimespan + powTargetTimespan);
+    	if (nActualTimespan > powTargetTimespan*2)
+    		nActualTimespan = powTargetTimespan*2 + (nActualTimespan - powTargetTimespan*2)/2;
+    }
+
+    if (nActualTimespan < powTargetTimespan/4)
+        nActualTimespan = powTargetTimespan/4;
+    if (nActualTimespan > powTargetTimespan*4)
+        nActualTimespan = powTargetTimespan*4;
 
     // Retarget
-    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
+	arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
+
+	if (pindexLast->nHeight+1 < params.BCDHeight)
+		bnPowLimit = UintToArith256(uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+
     arith_uint256 bnNew;
     arith_uint256 bnOld;
     bnNew.SetCompact(pindexLast->nBits);

@@ -77,11 +77,11 @@ public:
         consensus.BIP34Hash = uint256S("0x000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8");
         consensus.BIP65Height = 388381; // 000000000000000004c2b624ed5d7756c508d90fd0da2c7c679febfa6c4735f0
         consensus.BIP66Height = 363725; // 00000000000000000379eaa19dce8c9b722d46ae6a57c2f1a988119488b50931
-        consensus.BECHeight = 500001;
-        consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.BECHeight = 499740;
+        consensus.powLimit = uint256S("000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
-        consensus.nPowTargetSpacing = 10 * 60;
-        consensus.nPosTargetSpacing = 10 * 60;
+        consensus.nPowTargetSpacing = 20;
+        consensus.nPosTargetSpacing = 20;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
@@ -165,9 +165,16 @@ public:
 
         // Founders reward script expects a vector of 2-of-3 multisig addresses
         vFoundersRewardAddress = {
-            "16fqupqz1bTFrjaKA97wUGwtXeirRKBJm2", /* main-index: 0*/
-            "1NePnFGuRMYfzsvEodpvUZBhZ6xGF6JLG6", /* main-index: 1*/
-            "15JnDYeBsLgFbFXtx3wbiG6FMckBboo8TF", /* main-index: 2*/
+            "1BECGQcXX7gbLgX6RBSUMWNjyygnfshRd1", /* main-index: 0*/
+            "1BECu2u6S3ohBVCxFSrxa28VWPX5gwXzf2", /* main-index: 1*/
+            "1BECQUqFxeonK9cmX7EPMnCwkaAKeUNAg3", /* main-index: 2*/
+            "1BEC6iVou8TUBif2MYbsBp4FUFnQc8CyS4",
+            "1BEC4QJVSU7363JrCcoz6dxeC3SPFQWRK5",
+            "1BEC79priR8zBoMDVKWudEj6K5DQ9T6Nb6",
+            "1BECHVAkeJckUunc2BSZQuLpTtdzfG54J7",
+            "1BECXtSr2T8RLozgSi9fuCy5KazNAfiGs8",
+            "1BECaCsGkrjW9axVkZ3BUsngHduCuigus9",
+            "1BEC7gEU56gAnpwakQCiq5iSKk4QN29kgA",
         };
     }
 };
