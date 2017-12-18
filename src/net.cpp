@@ -2504,6 +2504,11 @@ CCriticalSection& CConnman::GetNodeCS(){
     return cs_vNodes;
 }
 
+bool CConnman::isNodesEmpyt(){
+    LOCK(cs_vNodes);
+    return vNodes.empty();
+}
+
 bool CConnman::DisconnectNode(const std::string& strNode)
 {
     LOCK(cs_vNodes);

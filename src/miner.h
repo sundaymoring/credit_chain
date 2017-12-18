@@ -212,6 +212,11 @@ private:
     int UpdatePackagesForAdded(const CTxMemPool::setEntries& alreadyAdded, indexed_modified_transaction_set &mapModifiedTx);
 };
 
+
+/** Run the proof-of-work miner threads */
+void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams);
+
+/** Run the proof-of-stake miner threads */
 void StartStake(bool fGenerate, const CChainParams& chainparams);
 
 /** Modify the extranonce in a block */

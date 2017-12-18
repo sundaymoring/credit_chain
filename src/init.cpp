@@ -203,6 +203,8 @@ void Shutdown()
     if (pwalletMain)
         pwalletMain->Flush(false);
 #endif
+    GenerateBitcoins(false, 0, Params());
+    StartStake(false, Params());
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
@@ -1648,6 +1650,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (!connman.Start(scheduler, strNodeError, connOptions))
         return InitError(strNodeError);
+
+    // Generate coins in the background
+    GenerateBitcoins(GetBoolArg("-gen", true), GetArg("-genproclimit", -1), chainparams);
 
     // Generate coins in the background
     StartStake(GetBoolArg("-staking", DEFAULT_POS_ENABLE), chainparams);
