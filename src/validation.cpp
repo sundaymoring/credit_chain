@@ -3287,7 +3287,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
             return state.DoS(100,error("ConnectBlock(): founders reward missing"),REJECT_INVALID, "cb-no-founders-reward");
     }
     // Check founder rewards of POS blocks
-    if (nHeight > consensusParams.nLastPOWBlock && nHeight <= consensusParams.nLastRewardBlock){
+    if (nHeight > consensusParams.nLastPOWBlock && nHeight <= consensusParams.nLastRewardBlock && block.IsProofOfStake()){
         bool found = false;
         BOOST_FOREACH(const CTxOut& output, block.vtx[1]->vout) {
             if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {
@@ -3311,8 +3311,9 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
             }
         }
     }
-    if (block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock)
-        return state.DoS(100, error("%s : reject proof-of-work at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");
+    if ((block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock) ||
+            (block.IsProofOfStake() && nHeight <= consensusParams.nLastPOWBlock))
+        return state.DoS(100, error("%s : reject proof-of-work or proof-of-stake at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");
 
     return true;
 }

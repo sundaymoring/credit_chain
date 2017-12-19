@@ -50,6 +50,7 @@ enum RPCErrorCode
     RPC_VERIFY_REJECTED             = -26, //!< Transaction or block was rejected by network rules
     RPC_VERIFY_ALREADY_IN_CHAIN     = -27, //!< Transaction already in chain
     RPC_IN_WARMUP                   = -28, //!< Client still warming up
+    RPC_POW_FINISHED                = -32, //!< proof-of-work finished
 
     //! Aliases for backward compatibility
     RPC_TRANSACTION_ERROR           = RPC_VERIFY_ERROR,

@@ -472,11 +472,14 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     if(!g_connman)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
-    if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
-        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Bitcoin is not connected!");
+//    if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
+//        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Bitcoin is not connected!");
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Bitcoin is downloading blocks...");
+
+    if (chainActive.Tip()->nHeight > Params().GetConsensus().nLastPOWBlock)
+        throw JSONRPCError(RPC_POW_FINISHED, "proof-of-work is already finished...");
 
     static unsigned int nTransactionsUpdatedLast;
 
@@ -553,8 +556,10 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         fLastTemplateSupportsSegwit = fSupportsSegwit;
 
         // Create new block
-        CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = BlockAssembler(Params()).CreateNewBlock(scriptDummy, fSupportsSegwit);
+//        CScript scriptDummy = CScript() << OP_TRUE;
+        boost::shared_ptr<CReserveScript> coinbaseScript;
+        GetMainSignals().ScriptForMining(coinbaseScript);
+        pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, fSupportsSegwit);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -573,6 +578,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 
     UniValue aCaps(UniValue::VARR); aCaps.push_back("proposal");
 
+    UniValue txCoinbase = NullUniValue;
     UniValue transactions(UniValue::VARR);
     map<uint256, int64_t> setTxIndex;
     int i = 0;
@@ -581,8 +587,8 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         uint256 txHash = tx.GetHash();
         setTxIndex[txHash] = i++;
 
-        if (tx.IsCoinBase())
-            continue;
+//        if (tx.IsCoinBase())
+//            continue;
 
         UniValue entry(UniValue::VOBJ);
 
@@ -608,7 +614,17 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         entry.push_back(Pair("sigops", nTxSigOps));
         entry.push_back(Pair("weight", GetTransactionWeight(tx)));
 
-        transactions.push_back(entry);
+        if (tx.IsCoinBase()) {
+            // Show founders' reward if it is required
+            if (pblock->vtx[0]->vout.size() > 2) {
+                // Correct this if GetBlockTemplate changes the order
+                entry.push_back(Pair("foundersreward", (int64_t)tx.vout[1].nValue));
+            }
+            entry.push_back(Pair("required", true));
+            txCoinbase = entry;
+        } else {
+            transactions.push_back(entry);
+        }
     }
 
     UniValue aux(UniValue::VOBJ);
@@ -681,8 +697,11 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 
     result.push_back(Pair("previousblockhash", pblock->hashPrevBlock.GetHex()));
     result.push_back(Pair("transactions", transactions));
-    result.push_back(Pair("coinbaseaux", aux));
-    result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0]->vout[0].nValue));
+    result.push_back(Pair("coinbasetxn", transactions[0]));
+    assert(txCoinbase.isObject());
+    result.push_back(Pair("coinbasetxn", txCoinbase));
+//    result.push_back(Pair("coinbaseaux", aux));
+//    result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0]->vout[0].nValue));
     result.push_back(Pair("longpollid", chainActive.Tip()->GetBlockHash().GetHex() + i64tostr(nTransactionsUpdatedLast)));
     result.push_back(Pair("target", hashTarget.GetHex()));
     result.push_back(Pair("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1));
