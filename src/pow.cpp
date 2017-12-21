@@ -34,7 +34,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     	interval = 36;
     }else{
     	height = pindexLast->nHeight+1;
-    	interval = params.DifficultyAdjustmentInterval();
+        interval = 2016;
     }
 
     // Only change once per difficulty adjustment interval
