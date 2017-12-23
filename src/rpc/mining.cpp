@@ -697,7 +697,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 
     result.push_back(Pair("previousblockhash", pblock->hashPrevBlock.GetHex()));
     result.push_back(Pair("transactions", transactions));
-    result.push_back(Pair("coinbasetxn", transactions[0]));
+//    result.push_back(Pair("coinbasetxn", transactions[0]));
     assert(txCoinbase.isObject());
     result.push_back(Pair("coinbasetxn", txCoinbase));
 //    result.push_back(Pair("coinbaseaux", aux));
