@@ -473,10 +473,10 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
     if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
-        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Bitcoin is not connected!");
+        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Biteco is not connected!");
 
     if (IsInitialBlockDownload())
-        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Bitcoin is downloading blocks...");
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Biteco is downloading blocks...");
 
     if (chainActive.Tip()->nHeight > Params().GetConsensus().nLastPOWBlock)
         throw JSONRPCError(RPC_POW_FINISHED, "proof-of-work is already finished...");
@@ -892,7 +892,7 @@ UniValue estimatesmartfee(const JSONRPCRequest& request)
             "1. nblocks     (numeric)\n"
             "\nResult:\n"
             "{\n"
-            "  \"feerate\" : x.x,     (numeric) estimate fee-per-kilobyte (in BTC)\n"
+            "  \"feerate\" : x.x,     (numeric) estimate fee-per-kilobyte (in BEC)\n"
             "  \"blocks\" : n         (numeric) block number where estimate was found\n"
             "}\n"
             "\n"
