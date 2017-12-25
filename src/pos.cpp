@@ -109,6 +109,9 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, STAKE_MIN_CONFIRMATIONS - 1, nDepth))
        return state.DoS(100, error("CheckProofOfStake() : tried to stake at depth %d", nDepth + 1));
 
+    if (!CheckStakeKernelHash(pindexPrev, nBits, CCoins(txPrev, pindexPrev->nHeight), txin.prevout, tx.nTime))
+       return state.DoS(1, error("CheckProofOfStake() : INFO: check kernel failed on coinstake %s", tx.GetHash().ToString())); // may occur during initial download or if behind on block chain sync
+
     return true;
 }
 
