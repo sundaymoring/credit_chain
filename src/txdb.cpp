@@ -21,7 +21,7 @@ static const char DB_TXINDEX = 't';
 static const char DB_BLOCK_INDEX = 'b';
 static const char DB_TIMESTAMPINDEX = 's';
 static const char DB_BLOCKHASHINDEX = 'z';
-
+static const char DB_SPENTINDEX = 'p';
 
 static const char DB_BEST_BLOCK = 'B';
 static const char DB_FLAG = 'F';
@@ -273,4 +273,8 @@ bool CBlockTreeDB::ReadTimestampBlockIndex(const uint256 &hash, unsigned int &lt
 
     ltimestamp = lts.ltimestamp;
     return true;
+}
+
+bool CBlockTreeDB::ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value) {
+    return Read(std::make_pair(DB_SPENTINDEX, key), value);
 }

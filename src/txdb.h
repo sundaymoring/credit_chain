@@ -25,6 +25,8 @@ struct CTimestampIndexKey;
 struct CTimestampIndexIteratorKey;
 struct CTimestampBlockIndexKey;
 struct CTimestampBlockIndexValue;
+struct CSpentIndexKey;
+struct CSpentIndexValue;
 
 //! Compensate for extra memory peak (x1.5-x1.9) at flush time.
 static constexpr int DB_PEAK_USAGE_FACTOR = 2;
@@ -135,6 +137,8 @@ public:
     bool ReadTimestampBlockIndex(const uint256 &hash, unsigned int &logicalTS);
 
     bool blockOnchainActive(const uint256 &hash);
+
+    bool ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
 };
 
 #endif // BITCOIN_TXDB_H

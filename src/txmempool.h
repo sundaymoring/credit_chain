@@ -19,6 +19,7 @@
 #include "primitives/transaction.h"
 #include "sync.h"
 #include "random.h"
+#include "spentindex.h"
 
 #undef foreach
 #include "boost/multi_index_container.hpp"
@@ -506,6 +507,9 @@ private:
     typedef std::map<txiter, TxLinks, CompareIteratorByHash> txlinksMap;
     txlinksMap mapLinks;
 
+    typedef std::map<CSpentIndexKey, CSpentIndexValue, CSpentIndexKeyCompare> mapSpentIndex;
+    mapSpentIndex mapSpent;
+
     void UpdateParent(txiter entry, txiter parent, bool add);
     void UpdateChild(txiter entry, txiter child, bool add);
 
@@ -558,6 +562,10 @@ public:
     void PrioritiseTransaction(const uint256 hash, const std::string strHash, double dPriorityDelta, const CAmount& nFeeDelta);
     void ApplyDeltas(const uint256 hash, double &dPriorityDelta, CAmount &nFeeDelta) const;
     void ClearPrioritisation(const uint256 hash);
+
+    void addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view);
+    bool getSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
+    bool removeSpentIndex(const uint256 txhash);
 
 public:
     /** Remove a set of transactions from the mempool.
