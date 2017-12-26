@@ -642,6 +642,9 @@ public:
         // The default std::vector::clear() does not release memory.
         CScriptBase().swap(*this);
     }
+
+
+    bool IsPayToPublicKeyHash() const;
 };
 
 struct CScriptWitness

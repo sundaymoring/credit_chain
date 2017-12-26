@@ -1169,10 +1169,10 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
         int addressType;
 
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
-            addressHash = uint160(vector<unsigned char> (prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
+            addressHash = uint160(std::vector<unsigned char> (prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
             addressType = 2;
         } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
-            addressHash = uint160(vector<unsigned char> (prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
+            addressHash = uint160(std::vector<unsigned char> (prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
             addressType = 1;
         } else {
             addressHash.SetNull();
@@ -1182,12 +1182,12 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
         CSpentIndexKey key = CSpentIndexKey(input.prevout.hash, input.prevout.n);
         CSpentIndexValue value = CSpentIndexValue(txhash, j, -1, prevout.nValue, addressType, addressHash);
 
-        mapSpent.insert(make_pair(key, value));
+        mapSpent.insert(std::make_pair(key, value));
         inserted.push_back(key);
 
     }
 
-    mapSpentInserted.insert(make_pair(txhash, inserted));
+    mapSpentInserted.insert(std::make_pair(txhash, inserted));
 }
 
 bool CTxMemPool::getSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value)
