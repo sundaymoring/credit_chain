@@ -149,6 +149,9 @@ static const int MAX_UNCONNECTING_HEADERS = 10;
 
 static const bool DEFAULT_PEERBLOOMFILTERS = true;
 
+/** Default for -permitbaremultisig */
+static const bool DEFAULT_TIMESTAMPINDEX = false;
+
 struct BlockHasher
 {
     size_t operator()(const uint256& hash) const { return hash.GetCheapHash(); }
@@ -340,6 +343,128 @@ ThresholdState VersionBitsTipState(const Consensus::Params& params, Consensus::D
 
 /** Get the block height at which the BIP9 deployment switched into the state for the block building on the current tip. */
 int VersionBitsTipStateSinceHeight(const Consensus::Params& params, Consensus::DeploymentPos pos);
+
+
+struct CTimestampIndexIteratorKey {
+    unsigned int timestamp;
+
+//    size_t GetSerializeSize(int nType, int nVersion) const {
+//        return 4;
+//    }
+    template<typename Stream>
+    void Serialize(Stream& s) const {
+        ser_writedata32be(s, timestamp);
+    }
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        timestamp = ser_readdata32be(s);
+    }
+
+    CTimestampIndexIteratorKey(unsigned int time) {
+        timestamp = time;
+    }
+
+    CTimestampIndexIteratorKey() {
+        SetNull();
+    }
+
+    void SetNull() {
+        timestamp = 0;
+    }
+};
+
+struct CTimestampIndexKey {
+    unsigned int timestamp;
+    uint256 blockHash;
+
+//    size_t GetSerializeSize(int nType, int nVersion) const {
+//        return 36;
+//    }
+    template<typename Stream>
+    void Serialize(Stream& s) const {
+        ser_writedata32be(s, timestamp);
+        blockHash.Serialize(s);
+    }
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        timestamp = ser_readdata32be(s);
+        blockHash.Unserialize(s);
+    }
+
+    CTimestampIndexKey(unsigned int time, uint256 hash) {
+        timestamp = time;
+        blockHash = hash;
+    }
+
+    CTimestampIndexKey() {
+        SetNull();
+    }
+
+    void SetNull() {
+        timestamp = 0;
+        blockHash.SetNull();
+    }
+};
+
+struct CTimestampBlockIndexKey {
+    uint256 blockHash;
+
+//    size_t GetSerializeSize(int nType, int nVersion) const {
+//        return 32;
+//    }
+
+    template<typename Stream>
+    void Serialize(Stream& s) const {
+        blockHash.Serialize(s);
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        blockHash.Unserialize(s);
+    }
+
+    CTimestampBlockIndexKey(uint256 hash) {
+        blockHash = hash;
+    }
+
+    CTimestampBlockIndexKey() {
+        SetNull();
+    }
+
+    void SetNull() {
+        blockHash.SetNull();
+    }
+};
+
+struct CTimestampBlockIndexValue {
+    unsigned int ltimestamp;
+//    size_t GetSerializeSize(int nType, int nVersion) const {
+//        return 4;
+//    }
+
+    template<typename Stream>
+    void Serialize(Stream& s) const {
+        ser_writedata32be(s, ltimestamp);
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        ltimestamp = ser_readdata32be(s);
+    }
+
+    CTimestampBlockIndexValue (unsigned int time) {
+        ltimestamp = time;
+    }
+
+    CTimestampBlockIndexValue() {
+        SetNull();
+    }
+
+    void SetNull() {
+        ltimestamp = 0;
+    }
+};
+
 
 /** 
  * Count ECDSA signature operations the old-fashioned (pre-0.6) way
@@ -564,6 +689,11 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
  * is enable fork
  */
 bool IsEnableFork(const int height);
+
+/**
+  * for explorer
+  */
+bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes);
 
 /** Reject codes greater or equal to this can be returned by AcceptToMemPool
  * for transactions, to signal internal conditions. They cannot and should not

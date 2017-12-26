@@ -129,6 +129,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "echojson", 7, "arg7" },
     { "echojson", 8, "arg8" },
     { "echojson", 9, "arg9" },
+    { "getblockhashes", 0, "newer block timestamp" },
+    { "getblockhashes", 1, "older block timestamp" },
+    { "getblockhashes", 2, "arg2" },
 };
 
 class CRPCConvertTable

@@ -286,6 +286,11 @@ public:
      * Return true if the database managed by this class contains no entries.
      */
     bool IsEmpty();
+
+    /**
+     * Accessor for obfuscate_key.
+     */
+    const std::vector<unsigned char>& GetObfuscateKey() const;
 };
 
 #endif // BITCOIN_DBWRAPPER_H
