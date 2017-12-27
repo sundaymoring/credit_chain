@@ -1669,6 +1669,10 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
     if (blockUndo.vtxundo.size() + 1 != block.vtx.size())
         return error("DisconnectBlock(): block and undo data inconsistent");
 
+//    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+//    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+    std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
@@ -1704,9 +1708,11 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
                 if (!ApplyTxInUndo(undo, view, out))
                     fClean = false;
 
+                const CTxIn input = tx.vin[j];
+
                 if (fSpentIndex) {
                     // undo and delete the spent index
-                    spentIndex.push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue()));
+                    spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue()));
                 }
             }
         }
@@ -1967,9 +1973,13 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
     std::vector<PrecomputedTransactionData> txdata;
     txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
+
+    std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> > spentIndex;
+
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = *(block.vtx[i]);
+        const uint256 txhash = tx.GetHash();
 
         nInputs += tx.vin.size();
 
@@ -1989,10 +1999,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                     int addressType;
 
                     if (prevout.scriptPubKey.IsPayToScriptHash()) {
-                        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
+                        hashBytes = uint160(std::vector <unsigned char>(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
                         addressType = 2;
                     } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
-                        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
+                        hashBytes = uint160(std::vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
                         addressType = 1;
                     } else if (prevout.scriptPubKey.IsPayToPublicKey()) {
                         hashBytes = Hash160(prevout.scriptPubKey.begin()+1, prevout.scriptPubKey.begin()+34);
@@ -2005,16 +2015,16 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
                     if (fAddressIndex && addressType > 0) {
                         // record spending activity
-                        addressIndex.push_back(make_pair(CAddressIndexKey(addressType, hashBytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
+//                        addressIndex.push_back(std::make_pair(CAddressIndexKey(addressType, hashBytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
 
                         // remove address from unspent index
-                        addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+//                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(addressType, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
                     }
 
                     if (fSpentIndex) {
                         // add the spent index to determine the txid and input that spent an output
                         // and to find the amount and address from an input
-                        spentIndex.push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, addressType, hashBytes)));
+                        spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, addressType, hashBytes)));
                     }
                 }
 

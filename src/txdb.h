@@ -139,6 +139,7 @@ public:
     bool blockOnchainActive(const uint256 &hash);
 
     bool ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
+    bool UpdateSpentIndex(const std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >&vect);
 };
 
 #endif // BITCOIN_TXDB_H

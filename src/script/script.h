@@ -645,6 +645,8 @@ public:
 
 
     bool IsPayToPublicKeyHash() const;
+
+    bool IsPayToPublicKey() const;
 };
 
 struct CScriptWitness

@@ -278,3 +278,15 @@ bool CBlockTreeDB::ReadTimestampBlockIndex(const uint256 &hash, unsigned int &lt
 bool CBlockTreeDB::ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value) {
     return Read(std::make_pair(DB_SPENTINDEX, key), value);
 }
+
+bool CBlockTreeDB::UpdateSpentIndex(const std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >&vect) {
+    CDBBatch batch(*this);
+    for (std::vector<std::pair<CSpentIndexKey,CSpentIndexValue> >::const_iterator it=vect.begin(); it!=vect.end(); it++) {
+        if (it->second.IsNull()) {
+            batch.Erase(std::make_pair(DB_SPENTINDEX, it->first));
+        } else {
+            batch.Write(std::make_pair(DB_SPENTINDEX, it->first), it->second);
+        }
+    }
+    return WriteBatch(batch);
+}
