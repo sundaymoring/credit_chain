@@ -134,6 +134,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getblockhashes", 2, "arg2" },
     { "getspentinfo", 0, "verbose"},
     { "getaddresstxids", 0, "verbose"},
+    { "getaddressbalance", 0, "address"},
 };
 
 class CRPCConvertTable
