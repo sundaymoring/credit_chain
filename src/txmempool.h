@@ -20,6 +20,7 @@
 #include "sync.h"
 #include "random.h"
 #include "spentindex.h"
+#include "addressindex.h"
 
 #undef foreach
 #include "boost/multi_index_container.hpp"
@@ -507,6 +508,12 @@ private:
     typedef std::map<txiter, TxLinks, CompareIteratorByHash> txlinksMap;
     txlinksMap mapLinks;
 
+    typedef std::map<CMempoolAddressDeltaKey, CMempoolAddressDelta, CMempoolAddressDeltaKeyCompare> addressDeltaMap;
+    addressDeltaMap mapAddress;
+
+    typedef std::map<uint256, std::vector<CMempoolAddressDeltaKey> > addressDeltaMapInserted;
+    addressDeltaMapInserted mapAddressInserted;
+
     typedef std::map<CSpentIndexKey, CSpentIndexValue, CSpentIndexKeyCompare> mapSpentIndex;
     mapSpentIndex mapSpent;
 
@@ -569,6 +576,12 @@ public:
     void addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view);
     bool getSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
     bool removeSpentIndex(const uint256 txhash);
+
+
+    void addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view);
+    bool getAddressIndex(std::vector<std::pair<uint160, int> > &addresses,
+                         std::vector<std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta> > &results);
+    bool removeAddressIndex(const uint256 txhash);
 
 public:
     /** Remove a set of transactions from the mempool.

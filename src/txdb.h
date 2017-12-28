@@ -27,6 +27,9 @@ struct CTimestampBlockIndexKey;
 struct CTimestampBlockIndexValue;
 struct CSpentIndexKey;
 struct CSpentIndexValue;
+struct CAddressIndexKey;
+struct CAddressUnspentKey;
+struct CAddressUnspentValue;
 
 //! Compensate for extra memory peak (x1.5-x1.9) at flush time.
 static constexpr int DB_PEAK_USAGE_FACTOR = 2;
@@ -140,6 +143,16 @@ public:
 
     bool ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
     bool UpdateSpentIndex(const std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >&vect);
+
+    bool WriteAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount> > &vect);
+    bool ReadAddressIndex(uint160 addressHash, int type,
+                          std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
+                          int start = 0, int end = 0);
+    bool EraseAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount> > &vect);
+
+    bool UpdateAddressUnspentIndex(const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&vect);
+    bool ReadAddressUnspentIndex(uint160 addressHash, int type,
+                                 std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &vect);
 };
 
 #endif // BITCOIN_TXDB_H

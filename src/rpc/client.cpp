@@ -133,6 +133,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getblockhashes", 1, "older block timestamp" },
     { "getblockhashes", 2, "arg2" },
     { "getspentinfo", 0, "verbose"},
+    { "getaddresstxids", 0, "verbose"},
 };
 
 class CRPCConvertTable
