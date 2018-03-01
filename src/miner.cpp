@@ -134,6 +134,7 @@ void BlockAssembler::resetBlock()
     blockFinished = false;
 }
 
+//TODO: NO FOUNDER
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx)
 {
     int64_t nTimeStart = GetTimeMicros();
@@ -296,7 +297,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].SetEmpty();
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-//    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     nFeesIn = nFees;
     pblocktemplate->vTxFees[0] = -nFees;
 
@@ -310,10 +310,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     pblock->nNonce         = 0;
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
 
-    CValidationState state;
-//    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-//        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
-//    }
     int64_t nTime2 = GetTimeMicros();
 
     LogPrint("bench", "CreateNewBlock() packages: %.2fms (%d packages, %d updated descendants), validity: %.2fms (total %.2fms)\n", 0.001 * (nTime1 - nTimeStart), nPackagesSelected, nDescendantsUpdated, 0.001 * (nTime2 - nTime1), 0.001 * (nTime2 - nTimeStart));
@@ -836,7 +832,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
                 do {
-                    bool fvNodesEmpty = g_connman->isNodesEmpyt();
+                    bool fvNodesEmpty = (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0);
                     if (!fvNodesEmpty && !IsInitialBlockDownload())
                         break;
                     MilliSleep(1000);
@@ -902,7 +898,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
 
-                if (g_connman->isNodesEmpyt() && chainparams.MiningRequiresPeers())
+                if ((g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0) && chainparams.MiningRequiresPeers())
                     break;
                 if (nNonce >= 0xffff0000)
                     break;
@@ -1053,10 +1049,6 @@ void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("stake-miner");
 
-//    CReserveKey reservekey(pwallet);
-
-    std::vector<CNode*>& vNodes = g_connman->GetNode();
-
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
 
@@ -1075,7 +1067,7 @@ void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
             }
 
             if( chainparams.MiningRequiresPeers()){
-                while (vNodes.empty() || IsInitialBlockDownload())
+                while ((g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0) || IsInitialBlockDownload())
                 {
                     nLastCoinStakeSearchInterval = 0;
                     MilliSleep(1000);
