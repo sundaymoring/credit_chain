@@ -284,7 +284,6 @@ public:
     uint256 GetBlockHash() const
     {
         return phashBlock == NULL ? uint256() : *phashBlock;
-//        return *phashBlock;
     }
 
     int64_t GetBlockTime() const

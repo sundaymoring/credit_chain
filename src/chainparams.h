@@ -79,6 +79,7 @@ public:
     const ChainTxData& TxData() const { return chainTxData; }
 
     int LastPOWBlock() const { return consensus.nLastPOWBlock; }
+
 protected:
     CChainParams() {}
 
