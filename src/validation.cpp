@@ -1911,8 +1911,11 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         return true;
     }
 
-//    if (block.IsProofOfStake())
-        pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : pindex->GetBlockHash());
+    // Check proof of work
+    if (block.nBits != GetNextWorkRequired(pindex->pprev, &block, block.IsProofOfStake(), chainparams.GetConsensus()))
+        return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+
+    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : pindex->GetBlockHash());
 
     // Check proof-of-stake
     if (block.IsProofOfStake()) {
@@ -3370,9 +3373,9 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev, int64_t nAdjustedTime)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
-    // Check proof of work
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-        return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+//    // Check proof of work
+//    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
+//        return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
@@ -3471,50 +3474,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-weight", false, strprintf("%s : weight limit failed", __func__));
     }
 
-    // Coinbase transaction must include an output sending 10% of
-    // the block reward to a founders reward script, until the last founders
-    // reward block is reached, with exception of the genesis block.
-    // The last founders reward block is defined as the block just before the
-    // first subsidy halving block, which occurs at halving_interval + slow_start_shift
-    if (nHeight <= consensusParams.nLastPOWBlock){
-        bool found = false;
 
-        BOOST_FOREACH(const CTxOut& output, block.vtx[0]->vout) {
-            if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {
-                if (output.nValue == (GetBlockSubsidy(nHeight, consensusParams) / 10)) {
-                    found = true;
-                    break;
-                }
-            }
-        }
-        if (!found || block.IsProofOfStake())
-            return state.DoS(100,error("ConnectBlock(): founders reward missing"),REJECT_INVALID, "cb-no-founders-reward");
-    }
-    // Check founder rewards of POS blocks
-    if (nHeight > consensusParams.nLastPOWBlock && nHeight <= consensusParams.nLastRewardBlock && block.IsProofOfStake()){
-        bool found = false;
-        BOOST_FOREACH(const CTxOut& output, block.vtx[1]->vout) {
-            if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {
-                if (output.nValue == (GetBlockSubsidy(nHeight, consensusParams) / 10)) {
-                    found = true;
-                    break;
-                }
-            }
-        }
-        if (!found || block.IsProofOfWork())
-            return state.DoS(100,error("ConnectBlock(): founders reward missing"),REJECT_INVALID, "cb-no-founders-reward");
-
-    }
-
-//    if (IsEnableFork(nHeight)){
-
-//        // if forked, tx version must be CTransaction::CURRENT_VERSION_FORK
-//        for (const auto& tx : block.vtx) {
-//            if ( !(tx->IsCoinBase()||tx->IsCoinStake()) && !tx->IsVersionOfFork()) {
-//                return state.DoS(100, error("%s : reject proof-of-work at height %d", __func__, nHeight), REJECT_INVALID, "bad-tx-version");
-//            }
-//        }
-//    }
     if ((block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock) ||
             (block.IsProofOfStake() && nHeight <= consensusParams.nLastPOWBlock))
         return state.DoS(100, error("%s : reject proof-of-work or proof-of-stake at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");

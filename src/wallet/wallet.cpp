@@ -4280,14 +4280,6 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t 
     if (nReward < 0)
         return false;
 
-    int64_t vFoundersReward = 0;
-    if (nHeight<=Params().GetConsensus().nLastRewardBlock){
-        // Founders reward is 10% of the block subsidy
-        vFoundersReward = nReward / 10;
-        // Take some reward away from us
-        nReward -= vFoundersReward;
-    }
-
     nCredit = nCredit + nReward + nFees;
 
     if (nCredit >= GetStakeSplitThreshold())
@@ -4301,11 +4293,6 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, CBlock& block, int64_t 
     }
     else
         txNew.vout[1].nValue = nCredit;
-
-    // And give it to the founders
-    if (nHeight<=Params().GetConsensus().nLastRewardBlock){
-        txNew.vout.emplace_back(CTxOut(vFoundersReward, Params().GetFoundersRewardScriptAtHeight(nHeight)));
-    }
 
     // Sign
     int nIn = 0;

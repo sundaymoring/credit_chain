@@ -502,4 +502,6 @@ public:
     CBlockIndex* FindEarliestAtLeast(int64_t nTime) const;
 };
 
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
+
 #endif // BITCOIN_CHAIN_H
