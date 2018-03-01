@@ -99,9 +99,7 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(*(CBlockHeader*)this);
         READWRITE(vtx);
-        if (this->nVersion & VERSIONBITS_IS_POS){
-            READWRITE(vchBlockSig);
-        }
+        READWRITE(vchBlockSig);
     }
 
     void SetNull()

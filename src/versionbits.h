@@ -17,21 +17,8 @@ static const int32_t VERSIONBITS_LAST_OLD_BLOCK_VERSION = 4;
 /** What bits to set in version for versionbits blocks */
 static const int32_t VERSIONBITS_TOP_BITS = 0x20000000UL;
 
-static const int32_t VERSIONBITS_IS_POS = 0x40000000UL;
-
-/** b = bit28; if b==0, it must be pow, if b==1,both can*/
-//static  const int32_t VERSIONBITS_MASK_POW_POS = (1<<28);
-//#define VERSIONBITS_MUST_POW(ver) (!((ver)&VERSIONBITS_MASK_POW_POS))
-
-/** proof of stake top bits version*/
-//static const int32_t VERSIONBITS_TOP_BITS_STAKE = 0x40000000UL;
-
-/** proof of stake version*/
-//static const int32_t VERSIONBITS_PROOF_OF_STAKE = VERSIONBITS_TOP_BITS_STAKE | VERSIONBITS_MASK_POW_POS;
-//#define IS_VERSIONBITS_PROOF_OF_STAKE(ver)  ((ver & (VERSIONBITS_PROOF_OF_STAKE)) == (VERSIONBITS_PROOF_OF_STAKE))
-
 /** What bitmask determines whether versionbits is in use */
-static const int32_t VERSIONBITS_TOP_MASK = 0xA0000000UL;
+static const int32_t VERSIONBITS_TOP_MASK = 0xE0000000UL;
 /** Total bits available for versionbits */
 static const int32_t VERSIONBITS_NUM_BITS = 29;
 

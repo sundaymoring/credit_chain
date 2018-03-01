@@ -415,9 +415,7 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-
-        if (this->nVersion & VERSIONBITS_IS_POS)
-            READWRITE(nStakeModifier);
+        READWRITE(nStakeModifier);
     }
 
     uint256 GetBlockHash() const

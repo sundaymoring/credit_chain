@@ -1226,12 +1226,6 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     if (nHeight > consensusParams.nLastRewardBlock)
         return 0;
 
-    if (nHeight >= consensusParams.BECHeight && nHeight < consensusParams.BECHeight + 2000 )
-        return ( 1250 + 2500 * (nHeight - consensusParams.BECHeight)) * COIN;
-
-    if (nHeight >= consensusParams.BECHeight + 2000 && nHeight < consensusParams.BECHeight + 5000 )
-        return  500 * COIN * COIN_SCALE;
-
     int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
@@ -1858,9 +1852,6 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
 {
     LOCK(cs_main);
     int32_t nVersion = VERSIONBITS_TOP_BITS;
-
-    if (pindexPrev && pindexPrev->nHeight + 1 > params.nLastPOWBlock)
-        nVersion |= VERSIONBITS_IS_POS;
 
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; i++) {
         ThresholdState state = VersionBitsState(pindexPrev, params, (Consensus::DeploymentPos)i, versionbitscache);
@@ -3204,12 +3195,7 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
 
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
-#ifdef PROOF_OF_STAKE_ENABLE
-    // Check proof of work matches claimed amount
-    if (fCheckPOW && !(block.nVersion & VERSIONBITS_IS_POS) && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-#else
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-#endif
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
     // Check timestamp
@@ -3265,35 +3251,33 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     if (block.IsProofOfStake())
     {
-            // Coinbase output must be empty if proof-of-stake block
-            if (block.vtx[0]->vout.size() != 2 || !block.vtx[0]->vout[0].IsEmpty())
-                return state.DoS(100, error("CheckBlock(): coinbase output not empty for proof-of-stake block"),
-                                 REJECT_INVALID, "bad-cb-not-empty");
+        // Coinbase output must be empty if proof-of-stake block
+        if (block.vtx[0]->vout.size() != 2 || !block.vtx[0]->vout[0].IsEmpty())
+            return state.DoS(100, error("CheckBlock(): coinbase output not empty for proof-of-stake block"),
+                             REJECT_INVALID, "bad-cb-not-empty");
 
-            // Second transaction must be coinstake, the rest must not be
-            if (block.vtx.size() < 2 || !block.vtx[1]->IsCoinStake())
-                return state.DoS(100, error("CheckBlock(): second tx is not coinstake"),
-                                 REJECT_INVALID, "bad-cs-missing");
-            for (unsigned int i = 2; i < block.vtx.size(); i++)
-                if (block.vtx[i]->IsCoinStake())
-                    return state.DoS(100, error("CheckBlock(): more than one coinstake"),
-                                     REJECT_INVALID, "bad-cs-multiple");
+        // Second transaction must be coinstake, the rest must not be
+        if (block.vtx.size() < 2 || !block.vtx[1]->IsCoinStake())
+            return state.DoS(100, error("CheckBlock(): second tx is not coinstake"),
+                             REJECT_INVALID, "bad-cs-missing");
+        for (unsigned int i = 2; i < block.vtx.size(); i++)
+            if (block.vtx[i]->IsCoinStake())
+                return state.DoS(100, error("CheckBlock(): more than one coinstake"),
+                                 REJECT_INVALID, "bad-cs-multiple");
 
-            if (block.nTime != block.vtx[1]->nTime ||
-                block.vtx[1]->nTime & STAKE_TIMESTAMP_MASK){
-                return state.DoS(100,
-                                 error("%s : timestamp violation block-time=%u cs-time=%u",
-                                       __func__, block.nTime, block.vtx[1]->nTime),
-                                 REJECT_INVALID, "bad-cs-time");
-            }
-    }
+        if (block.nTime != block.vtx[1]->nTime ||
+            block.vtx[1]->nTime & STAKE_TIMESTAMP_MASK){
+            return state.DoS(100,
+                             error("%s : timestamp violation block-time=%u cs-time=%u",
+                                   __func__, block.nTime, block.vtx[1]->nTime),
+                             REJECT_INVALID, "bad-cs-time");
+        }
 
-    // Check proof-of-stake block signature
-    if ( block.IsProofOfStake() && (block.nVersion & VERSIONBITS_IS_POS)
-            && !CheckBlockSignature(block, block.GetHash()))
+        // Check proof-of-stake block signature
+        if (!CheckBlockSignature(block, block.GetHash()))
             return state.DoS(100, error("CheckBlock(): bad proof-of-stake block signature"),
-                    REJECT_INVALID, "bad-block-signature");
-
+                        REJECT_INVALID, "bad-block-signature");
+    }
 
     // Check transactions
     for (const auto& tx : block.vtx){
@@ -3412,9 +3396,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     // check for version 2, 3 and 4 upgrades
     if((block.nVersion < 2 && nHeight >= consensusParams.BIP34Height) ||
        (block.nVersion < 3 && nHeight >= consensusParams.BIP66Height) ||
-       (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height) ||
-       ( !(block.nVersion & VERSIONBITS_IS_POS) && nHeight>consensusParams.nLastPOWBlock) ||
-       (block.nVersion & VERSIONBITS_IS_POS && nHeight<=consensusParams.nLastPOWBlock))
+       (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height) )
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
@@ -3504,7 +3486,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     // reward block is reached, with exception of the genesis block.
     // The last founders reward block is defined as the block just before the
     // first subsidy halving block, which occurs at halving_interval + slow_start_shift
-    if (nHeight >= consensusParams.BECHeight && nHeight <= consensusParams.nLastPOWBlock){
+    if (nHeight <= consensusParams.nLastPOWBlock){
         bool found = false;
 
         BOOST_FOREACH(const CTxOut& output, block.vtx[0]->vout) {
@@ -3534,15 +3516,15 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
     }
 
-    if (IsEnableFork(nHeight)){
+//    if (IsEnableFork(nHeight)){
 
-        // if forked, tx version must be CTransaction::CURRENT_VERSION_FORK
-        for (const auto& tx : block.vtx) {
-            if ( !(tx->IsCoinBase()||tx->IsCoinStake()) && !tx->IsVersionOfFork()) {
-                return state.DoS(100, error("%s : reject proof-of-work at height %d", __func__, nHeight), REJECT_INVALID, "bad-tx-version");
-            }
-        }
-    }
+//        // if forked, tx version must be CTransaction::CURRENT_VERSION_FORK
+//        for (const auto& tx : block.vtx) {
+//            if ( !(tx->IsCoinBase()||tx->IsCoinStake()) && !tx->IsVersionOfFork()) {
+//                return state.DoS(100, error("%s : reject proof-of-work at height %d", __func__, nHeight), REJECT_INVALID, "bad-tx-version");
+//            }
+//        }
+//    }
     if ((block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock) ||
             (block.IsProofOfStake() && nHeight <= consensusParams.nLastPOWBlock))
         return state.DoS(100, error("%s : reject proof-of-work or proof-of-stake at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");
@@ -4113,9 +4095,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         nCheckDepth = 1000000000; // suffices until the year 19000
     if (nCheckDepth > chainActive.Height())
         nCheckDepth = chainActive.Height();
-    if (chainActive.Height() >= chainparams.GetConsensus().BECHeight){
-        nCheckDepth = std::min(chainActive.Height() - chainActive.Height(), nCheckDepth);
-    }
+
     nCheckLevel = std::max(0, std::min(4, nCheckLevel));
     LogPrintf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
     CCoinsViewCache coins(coinsview);
@@ -4837,10 +4817,6 @@ public:
         mapBlockIndex.clear();
     }
 } instance_of_cmaincleanup;
-
-bool IsEnableFork(const int height){
-    return height >= Params().GetConsensus().BECHeight;
-}
 
 bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes)
 {

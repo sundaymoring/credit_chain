@@ -907,11 +907,6 @@ extern VersionBitsCache versionbitscache;
 int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params);
 
 /**
- * is enable fork
- */
-bool IsEnableFork(const int height);
-
-/**
   * for explorer
   */
 bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes);

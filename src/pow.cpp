@@ -15,27 +15,13 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 {
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
-	if (pindexLast->nHeight+1 < params.BECHeight)
-        nProofOfWorkLimit = UintToArith256(uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff")).GetCompact();
-
     // Genesis block
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
 
-    if (pindexLast->nHeight+1 == params.BECHeight)
-    	return nProofOfWorkLimit;
-
-    if (pindexLast->nHeight+1 == params.BECHeight + 5000)
-        return nProofOfWorkLimit;
-
     int height, interval;
-    if (pindexLast->nHeight+1 > params.BECHeight) {
-    	height = pindexLast->nHeight+1 - params.BECHeight;
-    	interval = 36;
-    }else{
-    	height = pindexLast->nHeight+1;
-        interval = 2016;
-    }
+    height = pindexLast->nHeight+1;
+    interval = params.DifficultyAdjustmentInterval();
 
     // Only change once per difficulty adjustment interval
     if (height % interval != 0)
@@ -74,22 +60,12 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
         return pindexLast->nBits;
 
     int powTargetTimespan;
-    if (pindexLast->nHeight+1 > params.BECHeight) {
-    	powTargetTimespan = 36 * params.nPowTargetSpacing;
-    }else{
-    	powTargetTimespan = params.nPowTargetTimespan;
-    }
+    powTargetTimespan = params.nPowTargetTimespan;
+
 
     // Limit adjustment step
     int64_t nActualTimespan = pindexLast->GetBlockTime() - nFirstBlockTime;
     int64_t realActualTimespan = nActualTimespan;
-
-    if (pindexLast->nHeight+1 > params.BECHeight) {
-    	if (nActualTimespan < powTargetTimespan/2)
-    		nActualTimespan = 2 * powTargetTimespan * nActualTimespan / (2 * nActualTimespan + powTargetTimespan);
-    	if (nActualTimespan > powTargetTimespan*2)
-    		nActualTimespan = powTargetTimespan*2 + (nActualTimespan - powTargetTimespan*2)/2;
-    }
 
     if (nActualTimespan < powTargetTimespan/4)
         nActualTimespan = powTargetTimespan/4;
@@ -98,9 +74,6 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
 
     // Retarget
 	arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
-
-	if (pindexLast->nHeight+1 < params.BECHeight)
-		bnPowLimit = UintToArith256(uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
 
     arith_uint256 bnNew;
     arith_uint256 bnOld;

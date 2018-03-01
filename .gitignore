@@ -1,5 +1,6 @@
 *.tar.gz
 
+blackcoin14*
 bitcoin14_pos*
 core
 
