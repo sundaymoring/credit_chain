@@ -77,10 +77,10 @@ public:
         consensus.BIP34Hash = uint256S("0x000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8");
         consensus.BIP65Height = 388381; // 000000000000000004c2b624ed5d7756c508d90fd0da2c7c679febfa6c4735f0
         consensus.BIP66Height = 363725; // 00000000000000000379eaa19dce8c9b722d46ae6a57c2f1a988119488b50931
-        consensus.powLimit = uint256S("000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
-        consensus.nPowTargetSpacing = 20;
-        consensus.nPosTargetSpacing = 20;
+        consensus.nPowTargetSpacing = 60;
+        consensus.nPosTargetSpacing = 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
@@ -310,11 +310,6 @@ public:
             0
         };
 
-        vFoundersRewardAddress = {
-            "mjcDekMBYnVfd4PbV3Jewn1jr266MfdpEE", /* main-index: 0*/
-            "mqAepMZRo4oHNYgBkVLPt1EHyVY3e7NyMH", /* main-index: 1*/
-            "mnX7aWLqgRLpJEp91Zo1zMg4fEX7yGdFyD", /* main-index: 2*/
-        };
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);

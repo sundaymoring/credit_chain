@@ -14,7 +14,7 @@
 /** Amount in satoshis (Can be negative) */
 typedef int64_t CAmount;
 
-static const CAmount COIN_SCALE = 10000;
+static const CAmount COIN_SCALE = 1;
 
 static const CAmount COIN = 100000000 / COIN_SCALE;
 static const CAmount CENT = 1000000 / COIN_SCALE;

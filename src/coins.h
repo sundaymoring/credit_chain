@@ -200,9 +200,9 @@ public:
         // coinbase height
         ::Serialize(s, VARINT(nHeight));
 
-        if (this->nVersion == CTransaction::CURRENT_VERSION_FORK){
+
             ::Serialize( s, VARINT(nTime));
-        }
+
     }
 
     template<typename Stream>
@@ -238,11 +238,9 @@ public:
         }
         // coinbase height
         ::Unserialize(s, VARINT(nHeight));
-        if (this->nVersion == CTransaction::CURRENT_VERSION_FORK){
+
             ::Unserialize(s, VARINT(nTime));
-        } else {
-            nTime = 0;
-        }
+
         Cleanup();
     }
 

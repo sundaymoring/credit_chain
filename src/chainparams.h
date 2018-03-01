@@ -79,9 +79,7 @@ public:
     const ChainTxData& TxData() const { return chainTxData; }
 
     int LastPOWBlock() const { return consensus.nLastPOWBlock; }
-    /** Return the founder's reward address and script for a given block height */
-    std::string GetFoundersRewardAddressAtHeight(int height) const;
-    CScript GetFoundersRewardScriptAtHeight(int height) const;
+
 protected:
     CChainParams() {}
 
