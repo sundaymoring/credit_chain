@@ -178,8 +178,7 @@ public:
         bool fFirst = vout.size() > 0 && !vout[0].IsNull();
         bool fSecond = vout.size() > 1 && !vout[1].IsNull();
         assert(fFirst || fSecond || nMaskCode);
-        unsigned int nCode = 8*(nMaskCode - (fFirst || fSecond ? 0 : 1)) + (fCoinBase ? 1 : 0) + (fFirst ? 2 : 0) + (fSecond ? 4 : 0);
-        nCode |= (fCoinStake ? 1 : 0)<<31;
+        unsigned int nCode = 16*(nMaskCode - (fFirst || fSecond ? 0 : 1)) + (fCoinBase ? 1 : 0) + (fFirst ? 2 : 0) + (fSecond ? 4 : 0) + (fCoinStake ? 8 : 0);
         // version
         ::Serialize(s, VARINT(this->nVersion));
         // header code
@@ -199,10 +198,8 @@ public:
         }
         // coinbase height
         ::Serialize(s, VARINT(nHeight));
-
-
-            ::Serialize( s, VARINT(nTime));
-
+        // time
+        ::Serialize( s, VARINT(nTime));
     }
 
     template<typename Stream>
@@ -212,13 +209,12 @@ public:
         ::Unserialize(s, VARINT(this->nVersion));
         // header code
         ::Unserialize(s, VARINT(nCode));
-        fCoinStake = (nCode & (1<<31)) != 0;
-        nCode &= ~(1<<31);
         fCoinBase = nCode & 1;
+        fCoinStake = nCode & 8;
         std::vector<bool> vAvail(2, false);
         vAvail[0] = (nCode & 2) != 0;
         vAvail[1] = (nCode & 4) != 0;
-        unsigned int nMaskCode = (nCode / 8) + ((nCode & 6) != 0 ? 0 : 1);
+        unsigned int nMaskCode = (nCode / 16) + ((nCode & 6) != 0 ? 0 : 1);
         // spentness bitmask
         while (nMaskCode > 0) {
             unsigned char chAvail = 0;
@@ -238,8 +234,8 @@ public:
         }
         // coinbase height
         ::Unserialize(s, VARINT(nHeight));
-
-            ::Unserialize(s, VARINT(nTime));
+        // time
+        ::Unserialize(s, VARINT(nTime));
 
         Cleanup();
     }

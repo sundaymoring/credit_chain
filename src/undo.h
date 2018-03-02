@@ -31,34 +31,24 @@ public:
 
     template<typename Stream>
     void Serialize(Stream &s) const {
-        unsigned int nCode = nHeight*2+(fCoinBase ? 1 : 0) + ((fCoinStake ? 1 : 0)<<31);
-        ::Serialize(s, VARINT(nCode));
+        ::Serialize(s, VARINT(nHeight*4+(fCoinBase ? 1 : 0)+(fCoinStake ? 2 : 0)));
         if (nHeight > 0)
             ::Serialize(s, VARINT(this->nVersion));
+        ::Serialize(s, VARINT(nTime));
         ::Serialize(s, CTxOutCompressor(REF(txout)));
-
-        if (this->nVersion == CTransaction::CURRENT_VERSION_FORK){
-            ::Serialize(s, VARINT(nTime));
-        }
     }
 
     template<typename Stream>
     void Unserialize(Stream &s) {
         unsigned int nCode = 0;
         ::Unserialize(s, VARINT(nCode));
-        fCoinStake = (nCode & (1<<31)) != 0;
-        nCode &= ~(1<<31);
-        nHeight = nCode / 2;
+        nHeight = nCode / 4;
         fCoinBase = nCode & 1;
+        fCoinStake = nCode & 2;
         if (nHeight > 0)
             ::Unserialize(s, VARINT(this->nVersion));
+        ::Unserialize(s, VARINT(nTime));
         ::Unserialize(s, REF(CTxOutCompressor(REF(txout))));
-
-        if (this->nVersion == CTransaction::CURRENT_VERSION_FORK){
-            ::Unserialize(s, VARINT(nTime));
-        } else {
-            nTime = 0;
-        }
     }
 };
 

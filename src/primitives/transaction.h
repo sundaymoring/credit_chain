@@ -337,16 +337,6 @@ public:
         }
         return false;
     }
-
-    bool IsVersionOfOld() const
-    {
-        return this->nVersion == CURRENT_VERSION_OLD;
-    }
-
-    bool IsVersionOfFork() const
-    {
-        return this->nVersion == CURRENT_VERSION_FORK;
-    }
 };
 
 /** A mutable version of CTransaction. */
@@ -421,11 +411,7 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     s >> tx.nVersion;
-    if (tx.nVersion == CTransaction::CURRENT_VERSION_FORK){
-        s >> tx.nTime;
-    } else {
-        tx.nTime = 0;
-    }
+    s >> tx.nTime;
     unsigned char flags = 0;
     tx.vin.clear();
     tx.vout.clear();
@@ -461,9 +447,7 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
     const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     s << tx.nVersion;
-    if (tx.nVersion == CTransaction::CURRENT_VERSION_FORK){
-        s << tx.nTime;
-    }
+    s << tx.nTime;
     unsigned char flags = 0;
     // Consistency check
     if (fAllowWitness) {

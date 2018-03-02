@@ -584,9 +584,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
-    if (!tx.IsVersionOfFork())
-        return state.DoS(100, error("%s: tx version=%d error", __func__, tx.nVersion), REJECT_INVALID, "version");
-
     if (!CheckTransaction(tx, state))
         return false; // state filled in by CheckTransaction
 
@@ -1221,10 +1218,14 @@ bool ReadFromDisk(CMutableTransaction& tx, CDiskTxPos& txindex)
     return true;
 }
 
-//TODO: DO AS BLACKCOIN
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
+CAmount GetProofOfWorkSubsidy()
 {
-    //return total / powblock num.
+    return 10000 * COIN;
+}
+
+CAmount GetProofOfStakeSubsidy()
+{
+    return COIN * 3 / 2;
 }
 
 bool IsInitialBlockDownload()
@@ -2198,7 +2199,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
 
     if( block.IsProofOfWork()){
-        CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus());
+        CAmount blockReward = nFees + GetProofOfWorkSubsidy();
         if (block.vtx[0]->GetValueOut() > blockReward)
             return state.DoS(100,
                              error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
@@ -2206,7 +2207,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                    REJECT_INVALID, "bad-cb-amount");
     }
     if( block.IsProofOfStake()){
-        CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus());
+        CAmount blockReward = nFees + GetProofOfStakeSubsidy();
          if (nActualStakeReward > blockReward)
              return state.DoS(100,
                               error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d)",
@@ -3188,6 +3189,7 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
 
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
+    // TODO consider where CheckProofOfWork
     if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
@@ -3373,9 +3375,9 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev, int64_t nAdjustedTime)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
-//    // Check proof of work
-//    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-//        return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+    // Check difficulty pow and pos
+    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, nHeight > consensusParams.nLastPOWBlock, consensusParams))
+        return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
     // Check timestamp against prev
     if (block.GetBlockTime() <= pindexPrev->GetMedianTimePast())
@@ -3523,10 +3525,8 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     if (pindex == NULL)
         pindex = AddToBlockIndex(block);
 
-#ifdef PROOF_OF_STAKE_ENABLE
     if (pindex->nHeight > chainparams.GetConsensus().nLastPOWBlock)
         pindex->SetProofOfStake();
-#endif
 
     if (ppindex)
         *ppindex = pindex;

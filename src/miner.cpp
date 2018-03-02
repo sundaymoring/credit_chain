@@ -196,7 +196,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+    coinbaseTx.vout[0].nValue = GetProofOfWorkSubsidy();
     coinbaseTx.vout[0].nValue += nFees;
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
@@ -969,7 +969,6 @@ bool SignBlock(CBlock& block, CWallet& wallet, int64_t& nFees){
     CMutableTransaction txCoinBase(*block.vtx[0]);
     CMutableTransaction txCoinStake;
     txCoinStake.nTime = GetAdjustedTime();
-    txCoinStake.nVersion = CTransaction::CURRENT_VERSION_FORK;
 
     txCoinStake.nTime &= ~STAKE_TIMESTAMP_MASK;
 
