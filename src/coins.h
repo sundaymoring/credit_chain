@@ -91,7 +91,7 @@ public:
     int nVersion;
 
     //! time of the CTransaction
-    uint32_t nTime;
+    unsigned int nTime;
 
     void FromTx(const CTransaction &tx, int nHeightIn) {
         fCoinBase = tx.IsCoinBase();
@@ -199,7 +199,7 @@ public:
         // coinbase height
         ::Serialize(s, VARINT(nHeight));
         // time
-        ::Serialize( s, VARINT(nTime));
+        ::Serialize( s, nTime);
     }
 
     template<typename Stream>
@@ -235,7 +235,7 @@ public:
         // coinbase height
         ::Unserialize(s, VARINT(nHeight));
         // time
-        ::Unserialize(s, VARINT(nTime));
+        ::Unserialize(s, nTime);
 
         Cleanup();
     }

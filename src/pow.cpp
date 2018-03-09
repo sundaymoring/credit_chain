@@ -20,9 +20,9 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         if (pindexLast == NULL)
             return nTargetLimit;
 
-        if (!fProofOfStake && pindexLast->IsProofOfWork()){
-            return pindexLast->nBits;
-        }
+//        if (!fProofOfStake && pindexLast->IsProofOfWork()){
+//            return pindexLast->nBits;
+//        }
 
         const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
         if (pindexPrev->pprev == NULL)
