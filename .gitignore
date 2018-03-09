@@ -1,5 +1,6 @@
 *.tar.gz
 
+black14-revert*
 blackcoin14*
 bitcoin14_pos*
 core
