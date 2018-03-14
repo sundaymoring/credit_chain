@@ -2008,14 +2008,14 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     unsigned int flags = fStrictPayToScriptHash ? SCRIPT_VERIFY_P2SH : SCRIPT_VERIFY_NONE;
 
     // Start enforcing the DERSIG (BIP66) rule
-//    if (pindex->nHeight >= chainparams.GetConsensus().BIP66Height) {
-//        flags |= SCRIPT_VERIFY_DERSIG;
-//    }
+    if (pindex->nHeight >= chainparams.GetConsensus().BIP66Height) {
+        flags |= SCRIPT_VERIFY_DERSIG;
+    }
 
-//    // Start enforcing CHECKLOCKTIMEVERIFY (BIP65) rule
-//    if (pindex->nHeight >= chainparams.GetConsensus().BIP65Height) {
-//        flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
-//    }
+    // Start enforcing CHECKLOCKTIMEVERIFY (BIP65) rule
+    if (pindex->nHeight >= chainparams.GetConsensus().BIP65Height) {
+        flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
+    }
 
     // Start enforcing BIP68 (sequence locks) and BIP112 (CHECKSEQUENCEVERIFY) using versionbits logic.
     int nLockTimeFlags = 0;
@@ -3247,7 +3247,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (block.IsProofOfStake())
     {
         // Coinbase output must be empty if proof-of-stake block
-        if (block.vtx[0]->vout.size() != 1 || !block.vtx[0]->vout[0].IsEmpty())
+        if (block.vtx[0]->vout.size() != 2 || !block.vtx[0]->vout[0].IsEmpty())
             return state.DoS(100, error("CheckBlock(): coinbase output not empty for proof-of-stake block"),
                              REJECT_INVALID, "bad-cb-not-empty");
 
@@ -3376,9 +3376,6 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     // Check difficulty pow and pos
-    unsigned int nbits = GetNextWorkRequired(pindexPrev, &block, nHeight > consensusParams.nLastPOWBlock, consensusParams);
-    printf( "block.nBits=%u\n", block.nBits);
-    printf( "getnextworkrequired=%u\n", nbits);
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, nHeight > consensusParams.nLastPOWBlock, consensusParams))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
