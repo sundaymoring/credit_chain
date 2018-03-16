@@ -19,10 +19,10 @@ static const unsigned int MAX_BLOCK_BASE_SIZE = 1000000 * MAX_BLOCK_SIZE_SCALE;
 /** The maximum allowed number of signature check operations in a block (network rule) */
 static const int64_t MAX_BLOCK_SIGOPS_COST = 80000 * MAX_BLOCK_SIZE_SCALE;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
-static const int COINBASE_MATURITY = 10;
+static const int COINBASE_MATURITY = 100;
 
 /** Kernel input must have this number of confirmations (network rule) */
-static const int STAKE_MIN_CONFIRMATIONS = 10;
+static const int STAKE_MIN_CONFIRMATIONS = 100;
 
 /** Flags for nSequence and nLockTime locks */
 enum {

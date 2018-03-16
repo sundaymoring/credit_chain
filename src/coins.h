@@ -91,7 +91,7 @@ public:
     int nVersion;
 
     //! time of the CTransaction
-    unsigned int nTime;
+    uint32_t nTime;
 
     void FromTx(const CTransaction &tx, int nHeightIn) {
         fCoinBase = tx.IsCoinBase();

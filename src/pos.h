@@ -7,7 +7,7 @@
 
 // To decrease granularity of timestamp
 // Supposed to be 2^n-1
-static const int STAKE_TIMESTAMP_MASK = 15;
+static const int STAKE_TIMESTAMP_MASK = 10;
 
 static const int MAX_COINSATKE_INPUT = 10;
 /** Compute the hash modifier for proof-of-stake */
