@@ -1913,7 +1913,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     // Check proof of work
-    if (block.nBits != GetNextWorkRequired(pindex->pprev, &block, block.IsProofOfStake(), chainparams.GetConsensus()))
+    if (block.nBits != GetNextWorkRequired(pindex->pprev, &block, chainparams.GetConsensus()))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
     pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : pindex->GetBlockHash());
@@ -3376,7 +3376,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     // Check difficulty pow and pos
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, nHeight > consensusParams.nLastPOWBlock, consensusParams))
+    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
     // Check timestamp against prev
@@ -3389,9 +3389,9 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 
     // Reject outdated version blocks when 95% (75% on testnet) of the network has upgraded:
     // check for version 2, 3 and 4 upgrades
-    if((block.nVersion < 4 /* && nHeight >= consensusParams.BIP34Height) ||
+    if(block.nVersion < 4) /* && nHeight >= consensusParams.BIP34Height) ||
        (block.nVersion < 3 && nHeight >= consensusParams.BIP66Height) ||
-       (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height)*/ )
+       (block.nVersion < 4 && nHeight >= consensusParams.BIP65Height) )*/
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
 

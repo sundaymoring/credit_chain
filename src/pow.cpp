@@ -30,6 +30,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 	if (pindexPrevPrev->pprev == NULL)
 		return nTargetLimit; // second block
 
+	int height = pindexLast->nHeight+1;
 	int interval = params.DifficultyAdjustmentInterval();
     // Only change once per difficulty adjustment interval
     if (height % interval != 0)
