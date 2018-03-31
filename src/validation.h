@@ -482,7 +482,7 @@ struct CAddressUnspentKey {
 //    }
     template<typename Stream>
     void Serialize(Stream& s) const {
-        ser_writedata8(s, s.GetType());
+        ser_writedata8(s, type);
         hashBytes.Serialize(s);
         txhash.Serialize(s);
         ser_writedata32(s, index);
@@ -567,7 +567,7 @@ struct CAddressIndexKey {
 //    }
     template<typename Stream>
     void Serialize(Stream& s) const {
-        ser_writedata8(s, s.GetType());
+        ser_writedata8(s, type);
         hashBytes.Serialize(s);
         // Heights are stored big-endian for key sorting in LevelDB
         ser_writedata32be(s, blockHeight);
@@ -625,7 +625,7 @@ struct CAddressIndexIteratorKey {
 //    }
     template<typename Stream>
     void Serialize(Stream& s) const {
-        ser_writedata8(s, s.GetType());
+        ser_writedata8(s, type);
         hashBytes.Serialize(s);
     }
     template<typename Stream>
@@ -659,7 +659,7 @@ struct CAddressIndexIteratorHeightKey {
 //    }
     template<typename Stream>
     void Serialize(Stream& s) const {
-        ser_writedata8(s, s.GetType());
+        ser_writedata8(s, type);
         hashBytes.Serialize(s);
         ser_writedata32be(s, blockHeight);
     }

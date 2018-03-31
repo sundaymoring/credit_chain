@@ -861,12 +861,13 @@ void static BitcoinMiner(const CChainParams& chainparams)
             uint32_t nNonce = 0;
             while (true) {
                 // Check if something found
-                if (ScanHash(pblock, nNonce, &hash))
-                {
+//                if (ScanHash(pblock, nNonce, &hash))
+                while(true) {
+                    uint256 txid = tx.GetHash();
                     if (UintToArith256(hash) <= hashTarget)
                     {
                         // Found a solution
-                        pblock->nNonce = nNonce;
+//                        pblock->nNonce = nNonce;
                         assert(hash == pblock->GetHash());
 
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
@@ -882,6 +883,9 @@ void static BitcoinMiner(const CChainParams& chainparams)
 
                         break;
                     }
+                    pblock->nNonce += 1;
+                    if ((pblock->nNonce & 0xFF) == 0)
+                        break;
                 }
 
                 // Check for stop or if block needs to be rebuilt
