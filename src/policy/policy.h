@@ -93,6 +93,10 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
      */
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
+
+bool IsStandardIssureAsset(const CTransaction& tx);
+const std::vector<CTxOut>& GetStandardIssureAsset(const CTransaction& tx);
+
 int64_t FutureDrift(int64_t nTime);
 
 extern CFeeRate incrementalRelayFee;

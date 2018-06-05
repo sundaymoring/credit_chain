@@ -950,6 +950,7 @@ UniValue estimatesmartpriority(const JSONRPCRequest& request)
     return result;
 }
 
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------

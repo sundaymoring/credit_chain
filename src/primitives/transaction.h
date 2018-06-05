@@ -135,12 +135,22 @@ public:
     CAmount nValue;
     CScript scriptPubKey;
 
+    // token id and value, if only bitcoin out, assetID is 0, nAssetValue is 0.
+    // TODO uint272 --> base58 code
+    uint272 assetID;
+    CAmount nAssetValue;
+
+    bool IsToken() const{
+        return uint272() < assetID;
+    }
+
     CTxOut()
     {
         SetNull();
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
+    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 assetIdIn, CAmount nAssetValueIn);
 
     ADD_SERIALIZE_METHODS;
 
@@ -148,12 +158,17 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
+        READWRITE(assetID);
+        READWRITE(nAssetValue);
     }
 
     void SetNull()
     {
         nValue = -1;
         scriptPubKey.clear();
+
+        assetID.SetNull();
+        nAssetValue = 0;
     }
 
     bool IsNull() const
@@ -276,12 +291,22 @@ public:
     template <typename Stream>
     CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {}
 
+    bool isToken() const {
+        for (size_t i=0;i<vout.size(); i++){
+            if (vout[i].IsToken())
+                return true;
+        }
+        return false;
+    }
+
+    bool isIssureAsset() const;
+
     bool IsNull() const {
         return vin.empty() && vout.empty();
     }
 
     bool IsTokenTx() const {
-    	return (vout.size() > 1 && vout[0].nValue == 0 && vout[0].scriptPubKey[0] == OP_RETURN && vout[0].scriptPubKey[1] == 'T' && vout[0].scriptPubKey[2] == 'T' && vout[0].scriptPubKey[3] == 'K' && vout[0].scriptPubKey[4] == 0xcc);
+        return (vout.size() > 1 && vout[0].nValue == 0 && vout[0].scriptPubKey[0] == OP_RETURN && vout[0].scriptPubKey[1] == 'T' && vout[0].scriptPubKey[2] == 'T' && vout[0].scriptPubKey[3] == 'K' && vout[0].scriptPubKey[4] == 0xcc);
     }
 
     const uint256& GetHash() const {

@@ -47,6 +47,16 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
+    assetID = uint272();
+    nAssetValue = 0;
+}
+
+CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 assetIdIn, CAmount nAssetValueIn)
+{
+    nValue = nValueIn;
+    scriptPubKey = scriptPubKeyIn;
+    assetID = assetIdIn;
+    nAssetValue = nAssetValueIn;
 }
 
 std::string CTxOut::ToString() const
@@ -121,6 +131,15 @@ unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
 unsigned int CTransaction::GetTotalSize() const
 {
     return ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION);
+}
+
+bool CTransaction::isIssureAsset() const
+{
+    assert(vout.size()>0);
+    if (vout[0].nValue >0)
+        return false;
+
+    return true;
 }
 
 std::string CTransaction::ToString() const

@@ -158,4 +158,15 @@ inline uint256 uint256S(const std::string& str)
     return rv;
 }
 
+/** 272-bit opaque blob.
+ * @note This type is called uint160 for historical reasons only. It is an opaque
+ * blob of 272 bits and has no integer operations.
+ */
+class uint272 : public base_blob<272> {
+public:
+    uint272() {}
+    uint272(const base_blob<272>& b) : base_blob<272>(b) {}
+    explicit uint272(const std::vector<unsigned char>& vch) : base_blob<272>(vch) {}
+};
+
 #endif // BITCOIN_UINT256_H

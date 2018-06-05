@@ -12,6 +12,7 @@
 #include "memusage.h"
 #include "serialize.h"
 #include "uint256.h"
+#include "policy/policy.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -96,7 +97,11 @@ public:
     void FromTx(const CTransaction &tx, int nHeightIn) {
         fCoinBase = tx.IsCoinBase();
         fCoinStake = tx.IsCoinStake();
-        vout = tx.vout;
+        if (IsStandardIssureAsset(tx)){
+            vout = GetStandardIssureAsset(tx);
+        } else {
+            vout = tx.vout;
+        }
         nHeight = nHeightIn;
         nVersion = tx.nVersion;
         nTime = tx.nTime;
