@@ -40,6 +40,14 @@ std::vector<unsigned char> ToByteVector(const T& in)
     return std::vector<unsigned char>(in.begin(), in.end());
 }
 
+enum tokencode
+{
+	TTC_NONE = 0x00,
+	TTC_ISSUE = 0x01,
+	TTC_SEND = 0x02,
+	TTC_BURN = 0x03,
+};
+
 /** Script opcodes */
 enum opcodetype
 {

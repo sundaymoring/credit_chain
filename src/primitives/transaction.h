@@ -280,6 +280,10 @@ public:
         return vin.empty() && vout.empty();
     }
 
+    bool IsTokenTx() const {
+    	return (vout.size() > 1 && vout[0].nValue == 0 && vout[0].scriptPubKey[0] == OP_RETURN && vout[0].scriptPubKey[1] == 'T' && vout[0].scriptPubKey[2] == 'T' && vout[0].scriptPubKey[3] == 'K' && vout[0].scriptPubKey[4] == 0xcc);
+    }
+
     const uint256& GetHash() const {
         return hash;
     }
