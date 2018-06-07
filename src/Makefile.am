@@ -164,7 +164,8 @@ BITCOIN_CORE_H = \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
-  tytoken/token.h
+  tytoken/token.h \
+  tytoken/tokendb.h
 
 
 obj/build.h: FORCE
@@ -215,6 +216,7 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   tytoken/token.cpp \
+  tytoken/tokendb.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
