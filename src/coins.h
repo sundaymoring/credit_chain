@@ -97,11 +97,7 @@ public:
     void FromTx(const CTransaction &tx, int nHeightIn) {
         fCoinBase = tx.IsCoinBase();
         fCoinStake = tx.IsCoinStake();
-        if (IsStandardIssureAsset(tx)){
-            vout = GetStandardIssureAsset(tx);
-        } else {
-            vout = tx.vout;
-        }
+        vout = tx.vout;
         nHeight = nHeightIn;
         nVersion = tx.nVersion;
         nTime = tx.nTime;

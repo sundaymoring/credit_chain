@@ -169,4 +169,20 @@ public:
     explicit uint272(const std::vector<unsigned char>& vch) : base_blob<272>(vch) {}
 };
 
+// TODO improve algorithm
+inline uint272 uint272hex(const std::string& l, const unsigned int& r) {
+    uint272 rv;
+    char c[5];
+    sprintf(c,"%04x", r);
+    rv.SetHex(l+c);
+    return rv;
+}
+
+inline uint272 uint272hex(const uint256& l, const unsigned int& r){
+    std::string ll = l.ToString();
+    return uint272hex(ll, r);
+}
+
+static const uint272 UINT272_ZERO;
+
 #endif // BITCOIN_UINT256_H

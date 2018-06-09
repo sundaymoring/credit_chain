@@ -15,6 +15,7 @@ static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
 static const int WITNESS_SCALE_FACTOR = 4;
 
+
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
 {
@@ -135,13 +136,13 @@ public:
     CAmount nValue;
     CScript scriptPubKey;
 
-    // token id and value, if only bitcoin out, assetID is 0, nAssetValue is 0.
+    // token id and value, if only bitcoin out, tokenID is 0, nTokenValue is 0.
     // TODO uint272 --> base58 code
-    uint272 assetID;
-    CAmount nAssetValue;
+    uint272 tokenID;
+    CAmount nTokenValue;
 
     bool IsToken() const{
-        return uint272() < assetID;
+        return uint272() < tokenID;
     }
 
     CTxOut()
@@ -150,7 +151,7 @@ public:
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
-    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 assetIdIn, CAmount nAssetValueIn);
+    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 assetIdIn, CAmount nTokenValueIn);
 
     ADD_SERIALIZE_METHODS;
 
@@ -158,8 +159,8 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
-        READWRITE(assetID);
-        READWRITE(nAssetValue);
+        READWRITE(tokenID);
+        READWRITE(nTokenValue);
     }
 
     void SetNull()
@@ -167,8 +168,8 @@ public:
         nValue = -1;
         scriptPubKey.clear();
 
-        assetID.SetNull();
-        nAssetValue = 0;
+        tokenID.SetNull();
+        nTokenValue = 0;
     }
 
     bool IsNull() const
@@ -271,6 +272,8 @@ private:
     /** Memory only. */
     const uint256 hash;
 
+    tokencode tokenType;
+
     uint256 ComputeHash() const;
 
 public:
@@ -290,6 +293,10 @@ public:
      *  Unserialize is not possible, since it would require overwriting const fields. */
     template <typename Stream>
     CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {}
+
+    void SetTxType(tokencode t) {tokenType = t;}
+
+    const tokencode& GetTxType() const{return tokenType;}
 
     bool isToken() const {
         for (size_t i=0;i<vout.size(); i++){
@@ -376,6 +383,9 @@ struct CMutableTransaction
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     uint32_t nLockTime;
+
+    //memory only
+    tokencode tokenType;
 
     CMutableTransaction();
     CMutableTransaction(const CTransaction& tx);

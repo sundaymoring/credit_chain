@@ -139,8 +139,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getaddressutxos", 0, "verbose"},
     { "getaddressmempool", 0, "verbose"},
 
-    { "issureasset", 1, "type"},
-    { "issureasset", 2, "amount"},
+    { "issuretoken", 1, "type"},
+    { "issuretoken", 2, "amount"},
+    { "issuretoken", 2, "amount"},
 };
 
 class CRPCConvertTable

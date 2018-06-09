@@ -37,6 +37,8 @@
 #include "versionbits.h"
 #include "warnings.h"
 #include "pubkey.h"
+#include "tytoken/token.h"
+#include "tytoken/tokendb.h"
 
 #include <atomic>
 #include <sstream>
@@ -537,6 +539,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         for (const auto& txin : tx.vin)
             if (txin.prevout.IsNull())
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
+
     }
 
     return true;
@@ -2191,6 +2194,14 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             blockundo.vtxundo.push_back(CTxUndo());
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
+
+        // write token info into leveldb
+        //TODO decode other token info
+        if (!fJustCheck && GetTxTokenCode(tx) == TTC_ISSUE){
+            CTokenInfo tInfo;
+            tInfo.FromTx(tx);
+            pTokenInfos->WriteTokenInfo(tInfo);
+        }
 
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);

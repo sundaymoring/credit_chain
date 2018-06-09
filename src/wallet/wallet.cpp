@@ -1283,7 +1283,7 @@ isminetype CWallet::IsMine(const CTxOut& txout) const
     return ::IsMine(*this, txout.scriptPubKey);
 }
 
-CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) const
+CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter, const uint272& tokenID) const
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
@@ -1800,7 +1800,7 @@ CAmount CWalletTx::GetImmatureStakeCredit(bool fUseCache) const
     return 0;
 }
 
-CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
+CAmount CWalletTx::GetAvailableCredit(const uint272& tokenID, bool fUseCache) const
 {
     if (pwallet == 0)
         return 0;
@@ -1989,7 +1989,7 @@ void CWallet::ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman
  */
 
 
-CAmount CWallet::GetBalance() const
+CAmount CWallet::GetBalance(const uint272& tokenID, const bool fUseCache) const
 {
     CAmount nTotal = 0;
     {
@@ -1998,7 +1998,7 @@ CAmount CWallet::GetBalance() const
         {
             const CWalletTx* pcoin = &(*it).second;
             if (pcoin->IsTrusted())
-                nTotal += pcoin->GetAvailableCredit();
+                nTotal += pcoin->GetAvailableCredit(tokenID, fUseCache);
         }
     }
 
@@ -2395,7 +2395,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
     for (size_t idx = 0; idx < tx.vout.size(); idx++)
     {
         const CTxOut& txOut = tx.vout[idx];
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1, UINT272_ZERO, 0};
         vecSend.push_back(recipient);
     }
 
@@ -2444,7 +2444,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
 }
 
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
-                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign)
+                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode tokenType)
 {
     CAmount nValue = 0;
     int nChangePosRequest = nChangePosInOut;
@@ -2465,6 +2465,12 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     {
         strFailReason = _("Transaction must have at least one recipient");
         return false;
+    }
+    if (tokenType == TTC_ISSUE){
+        if( vecSend.size() < 2 || vecSend[0].nAmount != 0 || vecSend[1].nTokenAmount <= 0){
+            strFailReason = _("issure token transaction format illegal");
+            return false;
+        }
     }
 
     wtxNew.fTimeReceivedIsTxTime = true;
@@ -2530,7 +2536,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 // vouts to the payees
                 for (const auto& recipient : vecSend)
                 {
-                    CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+                    CTxOut txout(recipient.nAmount, recipient.scriptPubKey, recipient.tokenID, recipient.nTokenAmount);
 
                     if (recipient.fSubtractFeeFromAmount)
                     {
@@ -2616,7 +2622,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         scriptChange = GetScriptForDestination(vchPubKey.GetID());
                     }
 
-                    CTxOut newTxOut(nChange, scriptChange);
+                    CTxOut newTxOut(nChange, scriptChange, uint272(), 0);
 
                     // We do not move dust-change to fees, because the sender would end up paying more than requested.
                     // This would be against the purpose of the all-inclusive feature.
@@ -2679,9 +2685,17 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 // to avoid conflicting with other possible uses of nSequence,
                 // and in the spirit of "smallest possible change from prior
                 // behavior."
-                for (const auto& coin : setCoins)
+                CAmount maxBitcoinIn = 0;
+                for (const auto& coin : setCoins){
                     txNew.vin.push_back(CTxIn(coin.first->GetHash(),coin.second,CScript(),
                                               std::numeric_limits<unsigned int>::max() - (fWalletRbf ? 2 : 1)));
+                    if (tokenType == TTC_ISSUE){
+                        if (coin.first->tx->vout[coin.second].nValue > maxBitcoinIn){
+                            maxBitcoinIn = coin.first->tx->vout[coin.second].nValue;
+                            txNew.vout[1].tokenID = uint272hex(coin.first->tx->GetHash(), coin.second);
+                        }
+                    }
+                }
 
                 // Fill in dummy signatures for fee calculation.
                 if (!DummySignTx(txNew, setCoins)) {

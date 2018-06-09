@@ -249,6 +249,34 @@ bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, vecto
     return true;
 }
 
+
+bool ExtractPushDatas(const CScript& scriptReturn, txnouttype& typeRet, std::vector<unsigned char>& vReturnData)
+{
+    vReturnData.clear();
+    typeRet = TX_NONSTANDARD;
+    vector<valtype> vSolutions;
+    if (!Solver(scriptReturn, typeRet, vSolutions))
+        return false;
+
+//    if (typeRet != TX_NULL_DATA){
+//        return false;
+//    }
+    if (typeRet == TX_NULL_DATA){
+        CScript::const_iterator pc = scriptReturn.begin();
+        while (pc<scriptReturn.end()){
+            opcodetype opcode;
+            std::vector<unsigned char> t;
+            if (!scriptReturn.GetOp(pc, opcode, t))
+                return false;
+            if (0x00 <= opcode && opcode <= OP_PUSHDATA4)
+                vReturnData.insert(vReturnData.end(), t.begin(), t.end());
+        }
+    }
+
+    return true;
+}
+
+
 namespace
 {
 class CScriptVisitor : public boost::static_visitor<bool>

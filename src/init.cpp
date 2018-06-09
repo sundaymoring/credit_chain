@@ -240,6 +240,8 @@ void Shutdown()
         pcoinsdbview = NULL;
         delete pblocktree;
         pblocktree = NULL;
+        delete pTokenInfos;
+        pTokenInfos = NULL;
     }
 #ifdef ENABLE_WALLET
     if (pwalletMain)
