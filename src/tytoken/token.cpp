@@ -7,6 +7,7 @@
 #include "consensus/validation.h"
 #include "script/standard.h"
 #include "net.h"
+#include "policy/policy.h"
 
 #include "util.h"
 
@@ -62,7 +63,7 @@ bool WalletTxBuilder(const std::string& assetAddress, int64_t tokenAmount, const
 
     std::vector<CRecipient> vecRecipients;
     vecRecipients.push_back(CRecipient{scptReturn, 0, false, uint272(), 0});
-    vecRecipients.push_back(CRecipient{scptToken, 1*COIN, false, uint272(), tokenAmount});
+    vecRecipients.push_back(CRecipient{scptToken, GetDustThreshold(scptToken), false, uint272(), tokenAmount});
 
     // Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
      if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, NULL, true, TTC_ISSUE)) {

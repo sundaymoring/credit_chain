@@ -8,6 +8,7 @@
 #include "tytoken/tokendb.h"
 #include "wallet/wallet.h"
 #include "net.h"
+#include "policy/policy.h"
 
 #include <stdexcept>
 #include <univalue.h>
@@ -63,13 +64,18 @@ UniValue listtokens(const JSONRPCRequest& request){
 
 static void SendToken(const CTxDestination &address, uint272 tokenID, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew)
 {
-    CAmount curBalance = pwalletMain->GetBalance(tokenID, false);
+    CAmount curTokenBalance = pwalletMain->GetBalance(tokenID, false);
+    CAmount curBtcBalance = pwalletMain->GetBalance(UINT272_ZERO, false);
 
     // Check amount
     if (nValue <= 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
 
-    if (nValue > curBalance)
+    if (nValue > curTokenBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient token funds");
+
+    //TODO use right min tbc, not 0
+    if (curBtcBalance <= 0)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
     if (pwalletMain->GetBroadcastTransactions() && !g_connman)
@@ -84,12 +90,10 @@ static void SendToken(const CTxDestination &address, uint272 tokenID, CAmount nV
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, UINT272_ZERO, 0};
+    CRecipient recipient = {scriptPubKey, GetDustThreshold(scriptPubKey), fSubtractFeeFromAmount, tokenID, nValue};
 
     vecSend.push_back(recipient);
-    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
-        if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_SEND)) {
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     CValidationState state;

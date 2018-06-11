@@ -151,7 +151,7 @@ public:
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
-    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 assetIdIn, CAmount nTokenValueIn);
+    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 tokenIDIn, CAmount nTokenValueIn);
 
     ADD_SERIALIZE_METHODS;
 
@@ -272,6 +272,7 @@ private:
     /** Memory only. */
     const uint256 hash;
 
+    //TODO useless ,delete
     tokencode tokenType;
 
     uint256 ComputeHash() const;

@@ -98,8 +98,13 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
-        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-        out.push_back(Pair("valueSat", txout.nValue));
+        out.push_back(Pair("btcValue", ValueFromAmount(txout.nValue)));
+        out.push_back(Pair("btcValueSat", txout.nValue));
+        if (UINT272_ZERO != txout.tokenID){
+            out.push_back(Pair("tokenValue", ValueFromAmount(txout.nTokenValue)));
+            out.push_back(Pair("tokenValueSat", txout.nTokenValue));
+            out.push_back(Pair("tokenID", txout.tokenID.ToString()));
+        }
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);

@@ -107,4 +107,7 @@ extern unsigned int nBytesPerSigOp;
 int64_t GetVirtualTransactionSize(int64_t nWeight, int64_t nSigOpCost);
 int64_t GetVirtualTransactionSize(const CTransaction& tx, int64_t nSigOpCost = 0);
 
+/** Determines the minimum output amount to be spent by an output. */
+int64_t GetDustThreshold(const CScript& scriptPubKey);
+
 #endif // BITCOIN_POLICY_POLICY_H

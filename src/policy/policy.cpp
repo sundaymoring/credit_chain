@@ -309,3 +309,17 @@ int64_t GetVirtualTransactionSize(const CTransaction& tx, int64_t nSigOpCost)
 {
     return GetVirtualTransactionSize(GetTransactionWeight(tx), nSigOpCost);
 }
+
+/**
+ * Determines the minimum output amount to be spent by an output, based on the
+ * scriptPubKey size in relation to the minimum relay fee.
+ *
+ * @param scriptPubKey[in]  The scriptPubKey
+ * @return The dust threshold value
+ */
+int64_t GetDustThreshold(const CScript& scriptPubKey)
+{
+    CTxOut txOut(0, scriptPubKey);
+
+    return txOut.GetDustThreshold(minRelayTxFee);
+}

@@ -51,11 +51,11 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
     nTokenValue = 0;
 }
 
-CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 assetIdIn, CAmount nTokenValueIn)
+CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 tokenIDIn, CAmount nTokenValueIn)
 {
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
-    tokenID = assetIdIn;
+    tokenID = tokenIDIn;
     nTokenValue = nTokenValueIn;
 }
 

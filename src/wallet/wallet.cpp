@@ -1287,7 +1287,7 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter, cons
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
-    return ((IsMine(txout) & filter) ? txout.nValue : 0);
+    return ((IsMine(txout) & filter) ? (tokenID==UINT272_ZERO ? txout.nValue : txout.nTokenValue) : 0);
 }
 
 bool CWallet::IsChange(const CTxOut& txout) const
@@ -1816,10 +1816,10 @@ CAmount CWalletTx::GetAvailableCredit(const uint272& tokenID, bool fUseCache) co
     uint256 hashTx = GetHash();
     for (unsigned int i = 0; i < tx->vout.size(); i++)
     {
-        if (!pwallet->IsSpent(hashTx, i))
+        if (!pwallet->IsSpent(hashTx, i) && tokenID==tx->vout[i].tokenID)
         {
             const CTxOut &txout = tx->vout[i];
-            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE, tokenID);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
@@ -2093,7 +2093,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     return nTotal;
 }
 
-void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
+void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, const uint272& tokenID, bool isAllToken) const
 {
     vCoins.clear();
 
@@ -2155,7 +2155,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
                 isminetype mine = IsMine(pcoin->tx->vout[i]);
-                if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
+                if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO && (isAllToken? isAllToken : tokenID==pcoin->tx->vout[i].tokenID) &&
                     !IsLockedCoin((*it).first, i) && (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i))))
                         vCoins.push_back(COutput(pcoin, i, nDepth,
@@ -2214,7 +2214,7 @@ static void ApproximateBestSubset(vector<pair<CAmount, pair<const CWalletTx*,uns
 }
 
 bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors, vector<COutput> vCoins,
-                                 set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const
+                                 set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const uint272& tokenID) const
 {
     setCoinsRet.clear();
     nValueRet = 0;
@@ -2242,7 +2242,9 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
             continue;
 
         int i = output.i;
-        CAmount n = pcoin->tx->vout[i].nValue;
+        CAmount n = (UINT272_ZERO < tokenID && tokenID==pcoin->tx->vout[i].tokenID ?
+                    pcoin->tx->vout[i].nTokenValue :
+                    (UINT272_ZERO == tokenID ? pcoin->tx->vout[i].nValue : 0));
 
         pair<CAmount,pair<const CWalletTx*,unsigned int> > coin = make_pair(n,make_pair(pcoin, i));
 
@@ -2252,7 +2254,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
             nValueRet += coin.first;
             return true;
         }
-        else if (n < nTargetValue + MIN_CHANGE)
+        else if (n < nTargetValue + (UINT272_ZERO<tokenID ? 0 :MIN_CHANGE))
         {
             vValue.push_back(coin);
             nTotalLower += n;
@@ -2318,7 +2320,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     return true;
 }
 
-bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl) const
+bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, const uint272& tokenID) const
 {
     vector<COutput> vCoins(vAvailableCoins);
 
@@ -2329,7 +2331,7 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
         {
             if (!out.fSpendable)
                  continue;
-            nValueRet += out.tx->tx->vout[out.i].nValue;
+            nValueRet += (UINT272_ZERO < tokenID ? out.tx->tx->vout[out.i].nValue : out.tx->tx->vout[out.i].nTokenValue);
             setCoinsRet.insert(make_pair(out.tx, out.i));
         }
         return (nValueRet >= nTargetValue);
@@ -2351,7 +2353,7 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
             // Clearly invalid input, fail
             if (pcoin->tx->vout.size() <= outpoint.n)
                 return false;
-            nValueFromPresetInputs += pcoin->tx->vout[outpoint.n].nValue;
+            nValueFromPresetInputs += UINT272_ZERO < tokenID ? pcoin->tx->vout[outpoint.n].nValue : pcoin->tx->vout[outpoint.n].nTokenValue;
             setPresetCoins.insert(make_pair(pcoin, outpoint.n));
         } else
             return false; // TODO: Allow non-wallet inputs
@@ -2370,13 +2372,13 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
     bool fRejectLongChains = GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
 
     bool res = nTargetValue <= nValueFromPresetInputs ||
-        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 6, 0, vCoins, setCoinsRet, nValueRet) ||
-        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 1, 0, vCoins, setCoinsRet, nValueRet) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, 2, vCoins, setCoinsRet, nValueRet)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::min((size_t)4, nMaxChainLength/3), vCoins, setCoinsRet, nValueRet)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength/2, vCoins, setCoinsRet, nValueRet)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength, vCoins, setCoinsRet, nValueRet)) ||
-        (bSpendZeroConfChange && !fRejectLongChains && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::numeric_limits<uint64_t>::max(), vCoins, setCoinsRet, nValueRet));
+        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 6, 0, vCoins, setCoinsRet, nValueRet, tokenID) ||
+        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 1, 0, vCoins, setCoinsRet, nValueRet, tokenID) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, 2, vCoins, setCoinsRet, nValueRet, tokenID)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::min((size_t)4, nMaxChainLength/3), vCoins, setCoinsRet, nValueRet, tokenID)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength/2, vCoins, setCoinsRet, nValueRet, tokenID)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength, vCoins, setCoinsRet, nValueRet, tokenID)) ||
+        (bSpendZeroConfChange && !fRejectLongChains && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::numeric_limits<uint64_t>::max(), vCoins, setCoinsRet, nValueRet, tokenID));
 
     // because SelectCoinsMinConf clears the setCoinsRet, we now add the possible inputs to the coinset
     setCoinsRet.insert(setPresetCoins.begin(), setPresetCoins.end());
@@ -2443,34 +2445,54 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
     return true;
 }
 
+//TODO consider coinControl,  now coinControl is NULL
+//TODO make new function 'CreateTokenTansaction' for token
+//TODO avoid fee change to token output
+//TODO consider token dust output
+//TODO now if tokensend, bitcoin input 1 coin.  change real input after finish code
+//TODO output nTokenValue will effect Witness sign, now ignore
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode tokenType)
 {
-    CAmount nValue = 0;
-    int nChangePosRequest = nChangePosInOut;
-    unsigned int nSubtractFeeFromAmount = 0;
-    for (const auto& recipient : vecSend)
-    {
-        if (nValue < 0 || recipient.nAmount < 0)
-        {
-            strFailReason = _("Transaction amounts must not be negative");
-            return false;
-        }
-        nValue += recipient.nAmount;
-
-        if (recipient.fSubtractFeeFromAmount)
-            nSubtractFeeFromAmount++;
-    }
     if (vecSend.empty())
     {
         strFailReason = _("Transaction must have at least one recipient");
         return false;
+    }
+
+    CAmount nBtcValue = 0, nTokenValue = 0;
+    int nChangePosRequest = nChangePosInOut;
+    unsigned int nSubtractFeeFromAmount = 0;
+    uint272 tokenID = (tokenType==TTC_SEND ? vecSend[0].tokenID : UINT272_ZERO);
+    for (const auto& recipient : vecSend)
+    {
+        if ((nBtcValue < 0 && nTokenValue < 0) || recipient.nAmount < 0)
+        {
+            strFailReason = _("Transaction amounts must not be negative");
+            return false;
+        }
+        if (tokenType==TTC_SEND){
+            nTokenValue += recipient.nTokenAmount;
+            if (tokenID != recipient.tokenID){
+                strFailReason = _("Transaction not support multi token exchange");
+                return false;
+            }
+        } else {
+            nBtcValue += recipient.nAmount;
+        }
+
+        // only bitcoin can SubtractFeeFromAmount, token coin must not SubtractFeeFromAmount
+        if (recipient.fSubtractFeeFromAmount && tokenType==TTC_BITCOIN)
+            nSubtractFeeFromAmount++;
     }
     if (tokenType == TTC_ISSUE){
         if( vecSend.size() < 2 || vecSend[0].nAmount != 0 || vecSend[1].nTokenAmount <= 0){
             strFailReason = _("issure token transaction format illegal");
             return false;
         }
+    } else if (tokenType == TTC_SEND){
+        // 2 ,one for token charge output, one for fee
+        nBtcValue += (vecSend.size()+2) * GetDustThreshold(vecSend[0].scriptPubKey);
     }
 
     wtxNew.fTimeReceivedIsTxTime = true;
@@ -2513,11 +2535,17 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
 
     {
-        set<pair<const CWalletTx*,unsigned int> > setCoins;
+        set<pair<const CWalletTx*,unsigned int> > setBtcCoins;
+        set<pair<const CWalletTx*,unsigned int> > setTokenCoins;
+        set<pair<const CWalletTx*,unsigned int> > setTotalCoins;
         LOCK2(cs_main, cs_wallet);
         {
-            std::vector<COutput> vAvailableCoins;
-            AvailableCoins(vAvailableCoins, true, coinControl);
+            std::vector<COutput> vAvailableBtcCoins;
+            std::vector<COutput> vAvailableTokenCoins;
+            AvailableCoins(vAvailableBtcCoins, true, coinControl);
+            if (tokenType==TTC_SEND){
+                AvailableCoins(vAvailableTokenCoins, true, coinControl, false, tokenID);
+            }
 
             nFeeRet = 0;
             // Start with no fee and loop until there is enough fee
@@ -2529,16 +2557,20 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 wtxNew.fFromMe = true;
                 bool fFirst = true;
 
-                CAmount nValueToSelect = nValue;
-                if (nSubtractFeeFromAmount == 0)
-                    nValueToSelect += nFeeRet;
+                CAmount nBtcValueToSelect = nBtcValue, nTokenValueToSelect = nTokenValue;
+                if ((nSubtractFeeFromAmount == 0 && tokenType==TTC_BITCOIN) || tokenType==TTC_SEND)
+                    nBtcValueToSelect += nFeeRet;
                 double dPriority = 0;
                 // vouts to the payees
                 for (const auto& recipient : vecSend)
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey, recipient.tokenID, recipient.nTokenAmount);
+//                    if (tokenType==TTC_SEND){
+//                        //TODO consider CTxOut copy ok?
+//                        txout = CTxOut(GetDustThreshold(recipient.scriptPubKey), recipient.scriptPubKey, recipient.tokenID, recipient.nTokenAmount);
+//                    }
 
-                    if (recipient.fSubtractFeeFromAmount)
+                    if (recipient.fSubtractFeeFromAmount && tokenType==TTC_BITCOIN)
                     {
                         txout.nValue -= nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
 
@@ -2551,7 +2583,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                     if (txout.IsDust(dustRelayFee))
                     {
-                        if (recipient.fSubtractFeeFromAmount && nFeeRet > 0)
+                        if (recipient.fSubtractFeeFromAmount && tokenType==TTC_BITCOIN && nFeeRet > 0)
                         {
                             if (txout.nValue < 0)
                                 strFailReason = _("The transaction amount is too small to pay the fee");
@@ -2565,15 +2597,45 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     txNew.vout.push_back(txout);
                 }
 
-                // Choose coins to use
-                CAmount nValueIn = 0;
-                setCoins.clear();
-                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl))
+                // choose bitcoins to use
+                CAmount nBtcValueIn = 0;
+                setBtcCoins.clear();
+                if (!SelectCoins(vAvailableBtcCoins, nBtcValueToSelect, setBtcCoins, nBtcValueIn, coinControl))
                 {
-                    strFailReason = _("Insufficient funds");
+                    strFailReason = _("Insufficient bitcoin funds");
                     return false;
                 }
-                for (const auto& pcoin : setCoins)
+                // Choose token coins to use
+                CAmount nTokenValueIn = 0;
+                setTokenCoins.clear();
+                if (tokenType == TTC_SEND){
+                    if (!SelectCoins(vAvailableTokenCoins, nTokenValueToSelect, setTokenCoins, nTokenValueIn, coinControl, tokenID))
+                    {
+                        strFailReason = _("Insufficient token funds");
+                        return false;
+                    }
+                    // add token input bitcoin
+                    for (const auto& pcoin : setTokenCoins ){
+                        nBtcValueIn += pcoin.first->tx->vout[pcoin.second].nValue;
+                    }
+                }
+
+                if (tokenType==TTC_SEND){
+                    for (const auto& pcoin : setTokenCoins){
+                        CAmount nCredit = pcoin.first->tx->vout[pcoin.second].nTokenValue;
+                        //The coin age after the next block (depth+1) is used instead of the current,
+                        //reflecting an assumption the user would accept a bit more delay for
+                        //a chance at a free transaction.
+                        //But mempool inputs might still be in the mempool, so their age stays 0
+                        int age = pcoin.first->GetDepthInMainChain();
+                        assert(age >= 0);
+                        if (age != 0)
+                            age += 1;
+                        dPriority += (double)nCredit * age;
+                    }
+                }
+
+                for (const auto& pcoin : setBtcCoins)
                 {
                     CAmount nCredit = pcoin.first->tx->vout[pcoin.second].nValue;
                     //The coin age after the next block (depth+1) is used instead of the current,
@@ -2587,8 +2649,9 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     dPriority += (double)nCredit * age;
                 }
 
-                const CAmount nChange = nValueIn - nValueToSelect;
-                if (nChange > 0)
+                const CAmount nBtcChange = nBtcValueIn - nBtcValueToSelect;
+                const CAmount nTokenChange = nTokenValueIn - nTokenValueToSelect;
+                if (nBtcChange > 0)
                 {
                     // Fill a vout to ourself
                     // TODO: pass in scriptChange instead of reservekey so
@@ -2622,13 +2685,17 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         scriptChange = GetScriptForDestination(vchPubKey.GetID());
                     }
 
-                    CTxOut newTxOut(nChange, scriptChange, uint272(), 0);
+                    CTxOut newTxOut(nBtcChange, scriptChange, uint272(), 0);
 
                     // We do not move dust-change to fees, because the sender would end up paying more than requested.
                     // This would be against the purpose of the all-inclusive feature.
                     // So instead we raise the change and deduct from the recipient.
                     if (nSubtractFeeFromAmount > 0 && newTxOut.IsDust(dustRelayFee))
                     {
+                        if (tokenType == TTC_SEND){
+                            strFailReason = _("The transaction input amount is too small to send after the fee has been deducted");
+                            return false;
+                        }
                         CAmount nDust = newTxOut.GetDustThreshold(dustRelayFee) - newTxOut.nValue;
                         newTxOut.nValue += nDust; // raise change until no more dust
                         for (unsigned int i = 0; i < vecSend.size(); i++) // subtract from first recipient
@@ -2651,7 +2718,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     if (newTxOut.IsDust(dustRelayFee))
                     {
                         nChangePosInOut = -1;
-                        nFeeRet += nChange;
+                        nFeeRet += nBtcChange;
                         reservekey.ReturnKey();
                     }
                     else
@@ -2675,6 +2742,29 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     nChangePosInOut = -1;
                 }
 
+                // TODO consider nTokenChange is dust output? now do not judge
+                if (nTokenChange>0 && tokenType==TTC_SEND){
+                    // Reserve a new key pair from key pool
+                    CPubKey vchPubKey;
+                    bool ret;
+                    ret = reservekey.GetReservedKey(vchPubKey);
+                    if (!ret)
+                    {
+                        strFailReason = _("Keypool ran out, please call keypoolrefill first");
+                        return false;
+                    }
+
+                    CScript scriptChange = GetScriptForDestination(vchPubKey.GetID());
+
+                    CTxOut newTxOut(GetDustThreshold(scriptChange), scriptChange, tokenID, nTokenChange);
+
+                    // Insert change txn at random position:
+                    int nTokenChangePosInOut = GetRandInt(txNew.vout.size()+1);
+
+                    vector<CTxOut>::iterator position = txNew.vout.begin()+nTokenChangePosInOut;
+                    txNew.vout.insert(position, newTxOut);
+                }
+
                 // Fill vin
                 //
                 // Note how the sequence number is set to non-maxint so that
@@ -2686,7 +2776,11 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 // and in the spirit of "smallest possible change from prior
                 // behavior."
                 CAmount maxBitcoinIn = 0;
-                for (const auto& coin : setCoins){
+                setTotalCoins = setBtcCoins;
+                if (tokenType == TTC_SEND){
+                    setTotalCoins.insert(setTokenCoins.begin(), setTokenCoins.end());
+                }
+                for (const auto& coin : setTotalCoins){
                     txNew.vin.push_back(CTxIn(coin.first->GetHash(),coin.second,CScript(),
                                               std::numeric_limits<unsigned int>::max() - (fWalletRbf ? 2 : 1)));
                     if (tokenType == TTC_ISSUE){
@@ -2696,9 +2790,8 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         }
                     }
                 }
-
                 // Fill in dummy signatures for fee calculation.
-                if (!DummySignTx(txNew, setCoins)) {
+                if (!DummySignTx(txNew, setTotalCoins)) {
                     strFailReason = _("Signing transaction failed");
                     return false;
                 }
@@ -2786,7 +2879,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
         {
             CTransaction txNewConst(txNew);
             int nIn = 0;
-            for (const auto& coin : setCoins)
+            for (const auto& coin : setTotalCoins)
             {
                 const CScript& scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
                 SignatureData sigdata;
