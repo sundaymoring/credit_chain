@@ -1287,7 +1287,7 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter, cons
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
-    return ((IsMine(txout) & filter) ? (tokenID==UINT272_ZERO ? txout.nValue : txout.nTokenValue) : 0);
+    return ((IsMine(txout) & filter) ? (tokenID==TOKENID_ZERO ? txout.nValue : txout.nTokenValue) : 0);
 }
 
 bool CWallet::IsChange(const CTxOut& txout) const
@@ -2242,9 +2242,9 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
             continue;
 
         int i = output.i;
-        CAmount n = (UINT272_ZERO < tokenID && tokenID==pcoin->tx->vout[i].tokenID ?
+        CAmount n = (TOKENID_ZERO < tokenID && tokenID==pcoin->tx->vout[i].tokenID ?
                     pcoin->tx->vout[i].nTokenValue :
-                    (UINT272_ZERO == tokenID ? pcoin->tx->vout[i].nValue : 0));
+                    (TOKENID_ZERO == tokenID ? pcoin->tx->vout[i].nValue : 0));
 
         pair<CAmount,pair<const CWalletTx*,unsigned int> > coin = make_pair(n,make_pair(pcoin, i));
 
@@ -2254,7 +2254,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
             nValueRet += coin.first;
             return true;
         }
-        else if (n < nTargetValue + (UINT272_ZERO<tokenID ? 0 :MIN_CHANGE))
+        else if (n < nTargetValue + (TOKENID_ZERO<tokenID ? 0 :MIN_CHANGE))
         {
             vValue.push_back(coin);
             nTotalLower += n;
@@ -2331,7 +2331,7 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
         {
             if (!out.fSpendable)
                  continue;
-            nValueRet += (UINT272_ZERO < tokenID ? out.tx->tx->vout[out.i].nValue : out.tx->tx->vout[out.i].nTokenValue);
+            nValueRet += (TOKENID_ZERO < tokenID ? out.tx->tx->vout[out.i].nValue : out.tx->tx->vout[out.i].nTokenValue);
             setCoinsRet.insert(make_pair(out.tx, out.i));
         }
         return (nValueRet >= nTargetValue);
@@ -2353,7 +2353,7 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
             // Clearly invalid input, fail
             if (pcoin->tx->vout.size() <= outpoint.n)
                 return false;
-            nValueFromPresetInputs += UINT272_ZERO < tokenID ? pcoin->tx->vout[outpoint.n].nValue : pcoin->tx->vout[outpoint.n].nTokenValue;
+            nValueFromPresetInputs += TOKENID_ZERO < tokenID ? pcoin->tx->vout[outpoint.n].nValue : pcoin->tx->vout[outpoint.n].nTokenValue;
             setPresetCoins.insert(make_pair(pcoin, outpoint.n));
         } else
             return false; // TODO: Allow non-wallet inputs
@@ -2397,7 +2397,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
     for (size_t idx = 0; idx < tx.vout.size(); idx++)
     {
         const CTxOut& txOut = tx.vout[idx];
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1, UINT272_ZERO, 0};
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1, TOKENID_ZERO, 0};
         vecSend.push_back(recipient);
     }
 
@@ -2451,6 +2451,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
 //TODO consider token dust output
 //TODO now if tokensend, bitcoin input 1 coin.  change real input after finish code
 //TODO output nTokenValue will effect Witness sign, now ignore
+//TODO btc fee is too high, make sure is right
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode tokenType)
 {
@@ -2463,7 +2464,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     CAmount nBtcValue = 0, nTokenValue = 0;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
-    uint272 tokenID = (tokenType==TTC_SEND ? vecSend[0].tokenID : UINT272_ZERO);
+    uint272 tokenID = (tokenType==TTC_SEND ? vecSend[0].tokenID : TOKENID_ZERO);
     for (const auto& recipient : vecSend)
     {
         if ((nBtcValue < 0 && nTokenValue < 0) || recipient.nAmount < 0)
@@ -2685,7 +2686,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         scriptChange = GetScriptForDestination(vchPubKey.GetID());
                     }
 
-                    CTxOut newTxOut(nBtcChange, scriptChange, uint272(), 0);
+                    CTxOut newTxOut(nBtcChange, scriptChange, TOKENID_ZERO, 0);
 
                     // We do not move dust-change to fees, because the sender would end up paying more than requested.
                     // This would be against the purpose of the all-inclusive feature.

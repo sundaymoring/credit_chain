@@ -183,6 +183,7 @@ inline uint272 uint272hex(const uint256& l, const unsigned int& r){
     return uint272hex(ll, r);
 }
 
-static const uint272 UINT272_ZERO;
+typedef uint272 CTokenID;
+static const CTokenID TOKENID_ZERO;
 
 #endif // BITCOIN_UINT256_H

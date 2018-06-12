@@ -100,7 +100,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("btcValue", ValueFromAmount(txout.nValue)));
         out.push_back(Pair("btcValueSat", txout.nValue));
-        if (UINT272_ZERO != txout.tokenID){
+        if (TOKENID_ZERO != txout.tokenID){
             out.push_back(Pair("tokenValue", ValueFromAmount(txout.nTokenValue)));
             out.push_back(Pair("tokenValueSat", txout.nTokenValue));
             out.push_back(Pair("tokenID", txout.tokenID.ToString()));

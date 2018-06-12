@@ -62,8 +62,8 @@ bool WalletTxBuilder(const std::string& assetAddress, int64_t tokenAmount, const
     scptToken = GetScriptForDestination(addr.Get());
 
     std::vector<CRecipient> vecRecipients;
-    vecRecipients.push_back(CRecipient{scptReturn, 0, false, uint272(), 0});
-    vecRecipients.push_back(CRecipient{scptToken, GetDustThreshold(scptToken), false, uint272(), tokenAmount});
+    vecRecipients.push_back(CRecipient{scptReturn, 0, false, TOKENID_ZERO, 0});
+    vecRecipients.push_back(CRecipient{scptToken, GetDustThreshold(scptToken), false, TOKENID_ZERO, tokenAmount});
 
     // Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
      if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, NULL, true, TTC_ISSUE)) {
@@ -111,7 +111,7 @@ tokencode GetTxTokenCode(const CTransaction& tx)
 
     if (whichType != TX_NULL_DATA){
         for (const auto& out:tx.vout){
-            if (out.tokenID != UINT272_ZERO && out.nTokenValue >0)
+            if (out.tokenID != TOKENID_ZERO && out.nTokenValue >0)
                 return TTC_SEND;
         }
         return TTC_BITCOIN;

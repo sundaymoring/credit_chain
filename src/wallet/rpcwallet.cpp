@@ -361,7 +361,7 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, UINT272_ZERO, 0};
+    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount, TOKENID_ZERO, 0};
 
     vecSend.push_back(recipient);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
@@ -964,7 +964,7 @@ UniValue sendmany(const JSONRPCRequest& request)
                 fSubtractFeeFromAmount = true;
         }
 
-        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, UINT272_ZERO, 0};
+        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, TOKENID_ZERO, 0};
         vecSend.push_back(recipient);
     }
 
@@ -2472,7 +2472,7 @@ UniValue listunspent(const JSONRPCRequest& request)
     vector<COutput> vecOutputs;
     assert(pwalletMain != NULL);
     LOCK2(cs_main, pwalletMain->cs_wallet);
-    pwalletMain->AvailableCoins(vecOutputs, !include_unsafe, NULL, true, UINT272_ZERO, true);
+    pwalletMain->AvailableCoins(vecOutputs, !include_unsafe, NULL, true, TOKENID_ZERO, true);
     BOOST_FOREACH(const COutput& out, vecOutputs) {
         if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
             continue;

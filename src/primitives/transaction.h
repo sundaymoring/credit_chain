@@ -142,7 +142,7 @@ public:
     CAmount nTokenValue;
 
     bool IsToken() const{
-        return uint272() < tokenID;
+        return TOKENID_ZERO < tokenID;
     }
 
     CTxOut()
@@ -222,7 +222,7 @@ public:
 
     bool IsDust(const CFeeRate &minRelayTxFee) const
     {
-        return (nValue < GetDustThreshold(minRelayTxFee));
+        return (std::min(nValue, nTokenValue) < GetDustThreshold(minRelayTxFee));
     }
 
     friend bool operator==(const CTxOut& a, const CTxOut& b)
@@ -272,9 +272,6 @@ private:
     /** Memory only. */
     const uint256 hash;
 
-    //TODO useless ,delete
-    tokencode tokenType;
-
     uint256 ComputeHash() const;
 
 public:
@@ -295,10 +292,6 @@ public:
     template <typename Stream>
     CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {}
 
-    void SetTxType(tokencode t) {tokenType = t;}
-
-    const tokencode& GetTxType() const{return tokenType;}
-
     bool isToken() const {
         for (size_t i=0;i<vout.size(); i++){
             if (vout[i].IsToken())
@@ -306,8 +299,6 @@ public:
         }
         return false;
     }
-
-    bool isIssureAsset() const;
 
     bool IsNull() const {
         return vin.empty() && vout.empty();

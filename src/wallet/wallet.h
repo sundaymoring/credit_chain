@@ -413,7 +413,7 @@ public:
     CAmount GetCredit(const isminefilter& filter) const;
     CAmount GetImmatureCredit(bool fUseCache=true) const;
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
-    CAmount GetAvailableCredit(const uint272& tokenID=UINT272_ZERO, bool fUseCache=true) const;
+    CAmount GetAvailableCredit(const uint272& tokenID=TOKENID_ZERO, bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;
     CAmount GetAvailableWatchOnlyCredit(const bool& fUseCache=true) const;
     CAmount GetChange() const;
@@ -590,7 +590,7 @@ private:
      * all coins from coinControl are selected; Never select unconfirmed coins
      * if they are not ours
      */
-    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, const uint272& tokenID=UINT272_ZERO) const;
+    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, const uint272& tokenID=TOKENID_ZERO) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -728,7 +728,7 @@ public:
     /**
      * populate vCoins with vector of available COutputs.
      */
-    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, const uint272& tokenID=UINT272_ZERO, bool isAllToken=false) const;
+    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, const uint272& tokenID=TOKENID_ZERO, bool isAllToken=false) const;
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -736,7 +736,7 @@ public:
      * completion the coin set and corresponding actual target value is
      * assembled
      */
-    bool SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, uint64_t nMaxAncestors, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const uint272& tokenID=UINT272_ZERO) const;
+    bool SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, uint64_t nMaxAncestors, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const uint272& tokenID=TOKENID_ZERO) const;
 
     bool IsSpent(const uint256& hash, unsigned int n) const;
 
@@ -808,7 +808,7 @@ public:
     void ReacceptWalletTransactions();
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
-    CAmount GetBalance(const uint272& tokenID=UINT272_ZERO, const bool fUseCache=true) const;
+    CAmount GetBalance(const uint272& tokenID=TOKENID_ZERO, const bool fUseCache=true) const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetStakeBalance() const;
@@ -878,7 +878,7 @@ public:
      */
     CAmount GetDebit(const CTxIn& txin, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
-    CAmount GetCredit(const CTxOut& txout, const isminefilter& filter, const uint272& tokenID=UINT272_ZERO) const;
+    CAmount GetCredit(const CTxOut& txout, const isminefilter& filter, const uint272& tokenID=TOKENID_ZERO) const;
     bool IsChange(const CTxOut& txout) const;
     CAmount GetChange(const CTxOut& txout) const;
     bool IsMine(const CTransaction& tx) const;

@@ -19,6 +19,15 @@ UniValue issuretoken(const JSONRPCRequest& request){
     if (request.fHelp || request.params.size() != 4)
         throw runtime_error(
             "issuretoken assetaddress type amount name\n"
+            "\nReturns the txid when issure token success.\n"
+            "\nArguments:\n"
+            "1. address     (string, required) The bitcoin address to own token\n.\n"
+            "2. height      (numeric, optional, default=-1) To estimate at the time of the given height.\n"
+            "\nResult:\n"
+            "x             (numeric) Hashes per second estimated\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getnetworkhashps", "")
+            + HelpExampleRpc("getnetworkhashps", "")
             );
 
     std::string assetAddress =request.params[0].get_str();
@@ -62,10 +71,11 @@ UniValue listtokens(const JSONRPCRequest& request){
     return result;
 }
 
+// TODO getbalance use cache
 static void SendToken(const CTxDestination &address, uint272 tokenID, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew)
 {
     CAmount curTokenBalance = pwalletMain->GetBalance(tokenID, false);
-    CAmount curBtcBalance = pwalletMain->GetBalance(UINT272_ZERO, false);
+    CAmount curBtcBalance = pwalletMain->GetBalance(TOKENID_ZERO, false);
 
     // Check amount
     if (nValue <= 0)

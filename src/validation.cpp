@@ -507,6 +507,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
 
     // Check for negative or overflow output values
+    uint272 tokenID;
     CAmount nValueOut = 0;
     for (const auto& txout : tx.vout)
     {
@@ -517,6 +518,13 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         nValueOut += txout.nValue;
         if (!MoneyRange(nValueOut))
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+        if (txout.tokenID != TOKENID_ZERO){
+            if (tokenID==TOKENID_ZERO){
+                tokenID = txout.tokenID;
+            } else if (tokenID != txout.tokenID){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-multitoken");
+            }
+        }
     }
 
     // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
