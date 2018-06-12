@@ -2463,7 +2463,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     CAmount nBtcValue = 0, nTokenValue = 0;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
-    uint272 tokenID = (tokenType==TTC_SEND ? vecSend[0].tokenID : UINT272_ZERO);
+    CTokenID tokenID = (tokenType==TTC_SEND ? vecSend[0].tokenID : CTokenID());
     for (const auto& recipient : vecSend)
     {
         if ((nBtcValue < 0 && nTokenValue < 0) || recipient.nAmount < 0)

@@ -103,32 +103,72 @@ static void SendToken(const CTxDestination &address, uint272 tokenID, CAmount nV
     }
 }
 
-UniValue sendToAddressToken(const JSONRPCRequest& request){
-    if (request.fHelp || request.params.size() <3)
-        throw runtime_error(
-            "issuretoken assetaddress type amount name\n"
-            );
+UniValue sendtokentoaddress(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
 
-    CBitcoinAddress address(request.params[0].get_str());
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 6)
+        throw runtime_error(
+            "sendtoaddress \"address\" amount ( \"comment\" \"comment_to\" subtractfeefromamount )\n"
+            "\nSend an amount to a given address.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"tokenid\"            (string, required) Choose the tokenid to send.\n"
+            "2. \"address\"            (string, required) The bitcoin address to send to.\n"
+            "3. \"amount\"             (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+            "4. \"comment\"            (string, optional) A comment used to store what the transaction is for. \n"
+            "                             This is not part of the transaction, just kept in your wallet.\n"
+            "5. \"comment_to\"         (string, optional) A comment to store the name of the person or organization \n"
+            "                             to which you're sending the transaction. This is not part of the \n"
+            "                             transaction, just kept in your wallet.\n"
+            "6. subtractfeefromamount  (boolean, optional, default=false) The fee will be deducted from the amount being sent.\n"
+            "                             The recipient will receive less bitcoins than you enter in the amount field.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sendtoaddress", "tokenID", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
+            + HelpExampleCli("sendtoaddress", "tokenID", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleCli("sendtoaddress", "tokenID", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"\" \"\" true")
+            + HelpExampleRpc("sendtoaddress", "tokenID", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.1, \"donation\", \"seans outpost\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CTokenID tokenID;
+    tokenID.SetHex(request.params[0].get_str());
+    if (!tokenID.IsValid())
+    	throw JSONRPCError(RPC_TOKEN_INVALID, "Invalid Token Id");
+    CTokenInfo tokenInfo;
+    if ( !GetTokenInfo(tokenID, &tokenInfo)){
+    	throw JSONRPCError(RPC_TOKEN_NOT_FOUND, "Token Id Not Found");
+    }
+
+    CBitcoinAddress address(request.params[1].get_str());
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
-
-    uint272 tokenID;
-    tokenID.SetHex(request.params[1].get_str());
 
     // Amount
     CAmount nAmount = AmountFromValue(request.params[2]);
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
-    bool fSubtractFeeFromAmount = false;
+    // Wallet comments
     CWalletTx wtx;
+    if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
+        wtx.mapValue["comment"] = request.params[3].get_str();
+    if (request.params.size() > 4 && !request.params[4].isNull() && !request.params[4].get_str().empty())
+        wtx.mapValue["to"]      = request.params[4].get_str();
+
+    bool fSubtractFeeFromAmount = false;
+    if (request.params.size() > 5)
+        fSubtractFeeFromAmount = request.params[5].get_bool();
+
+    EnsureWalletIsUnlocked();
 
     SendToken(address.Get(), tokenID, nAmount, fSubtractFeeFromAmount, wtx);
 
     return wtx.GetHash().GetHex();
-
-
 }
 
 static const CRPCCommand commands[] =
