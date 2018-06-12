@@ -2464,7 +2464,8 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     CAmount nBtcValue = 0, nTokenValue = 0;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
-    uint272 tokenID = (tokenType==TTC_SEND ? vecSend[0].tokenID : TOKENID_ZERO);
+
+    CTokenID tokenID = (tokenType==TTC_SEND ? vecSend[0].tokenID : TOKENID_ZERO);
     for (const auto& recipient : vecSend)
     {
         if ((nBtcValue < 0 && nTokenValue < 0) || recipient.nAmount < 0)
@@ -2483,7 +2484,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
         }
 
         // only bitcoin can SubtractFeeFromAmount, token coin must not SubtractFeeFromAmount
-        if (recipient.fSubtractFeeFromAmount && tokenType==TTC_BITCOIN)
+        if (recipient.fSubtractFeeFromAmount && tokenType==TTC_NONE)
             nSubtractFeeFromAmount++;
     }
     if (tokenType == TTC_ISSUE){
@@ -2559,7 +2560,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 bool fFirst = true;
 
                 CAmount nBtcValueToSelect = nBtcValue, nTokenValueToSelect = nTokenValue;
-                if ((nSubtractFeeFromAmount == 0 && tokenType==TTC_BITCOIN) || tokenType==TTC_SEND)
+                if ((nSubtractFeeFromAmount == 0 && tokenType==TTC_NONE) || tokenType==TTC_SEND)
                     nBtcValueToSelect += nFeeRet;
                 double dPriority = 0;
                 // vouts to the payees
@@ -2571,7 +2572,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 //                        txout = CTxOut(GetDustThreshold(recipient.scriptPubKey), recipient.scriptPubKey, recipient.tokenID, recipient.nTokenAmount);
 //                    }
 
-                    if (recipient.fSubtractFeeFromAmount && tokenType==TTC_BITCOIN)
+                    if (recipient.fSubtractFeeFromAmount && tokenType==TTC_NONE)
                     {
                         txout.nValue -= nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
 
@@ -2584,7 +2585,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                     if (txout.IsDust(dustRelayFee))
                     {
-                        if (recipient.fSubtractFeeFromAmount && tokenType==TTC_BITCOIN && nFeeRet > 0)
+                        if (recipient.fSubtractFeeFromAmount && tokenType==TTC_NONE && nFeeRet > 0)
                         {
                             if (txout.nValue < 0)
                                 strFailReason = _("The transaction amount is too small to pay the fee");

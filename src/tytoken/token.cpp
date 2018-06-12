@@ -88,25 +88,30 @@ bool WalletTxBuilder(const std::string& assetAddress, int64_t tokenAmount, const
 //#endif
 }
 
+//TODO is TTC_BITCOIN  need define again
 tokencode GetTxTokenCode(const CTransaction& tx)
 {
     assert(tx.vout.size()>0);
     if (tx.IsCoinBase() || tx.IsCoinStake())
-        return TTC_BITCOIN;
+//        return TTC_BITCOIN;
+        return TTC_NONE;
     // vout[0] op_return
     // vout[1] dust bitcoin, token own address
     // vout[2] charge address
     if (tx.vout.size() < 2)
-        return TTC_BITCOIN;
+//        return TTC_BITCOIN;
+        return TTC_NONE;
 
     if (tx.vout[0].nValue >0)
-        return TTC_BITCOIN;
+//        return TTC_BITCOIN;
+        return TTC_NONE;
 
     txnouttype whichType;
     std::vector<unsigned char> vPushData;
     // get the scriptPubKey corresponding to this input:
     if (!ExtractPushDatas(tx.vout[0].scriptPubKey, whichType, vPushData)){
-        return TTC_UNKNOW;
+//        return TTC_UNKNOW;
+        return TTC_NONE;
     }
 
     if (whichType != TX_NULL_DATA){
@@ -114,7 +119,8 @@ tokencode GetTxTokenCode(const CTransaction& tx)
             if (out.tokenID != TOKENID_ZERO && out.nTokenValue >0)
                 return TTC_SEND;
         }
-        return TTC_BITCOIN;
+//        return TTC_BITCOIN;
+        return TTC_NONE;
     } else {
         if (vPushData[0] == 'T'&&
                 vPushData[1] == 'T' &&
@@ -124,5 +130,6 @@ tokencode GetTxTokenCode(const CTransaction& tx)
         }
     }
 
-    return TTC_UNKNOW;
+//    return TTC_UNKNOW;
+    return TTC_NONE;
 }

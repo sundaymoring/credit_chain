@@ -42,11 +42,10 @@ std::vector<unsigned char> ToByteVector(const T& in)
 
 enum tokencode
 {
-    TTC_UNKNOW = 0,
-    TTC_BITCOIN = 1,
-    TTC_ISSUE = 2,
-    TTC_SEND = 3,
-    TTC_BURN = 4,
+	TTC_NONE = 0x00,
+	TTC_ISSUE = 0x01,
+	TTC_SEND = 0x02,
+	TTC_BURN = 0x03,
 };
 
 /** Script opcodes */
