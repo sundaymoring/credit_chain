@@ -6,14 +6,19 @@
 #include "amount.h"
 
 class CTransaction;
+class CTokenIssure;
 
 struct CTokenInfo {
 
     // TODO change or add what u want
     uint272 tokenID;
     CAmount amount;
+    std::string shortName;
+    std::string fullName;
+    std::string description;
+    std::string url;
     std::string address;
-    std::string name;
+    uint256 txHash;
 
     ADD_SERIALIZE_METHODS;
 
@@ -21,11 +26,15 @@ struct CTokenInfo {
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(tokenID);
         READWRITE(amount);
+        READWRITE(shortName);
+        READWRITE(fullName);
+        READWRITE(description);
+        READWRITE(url);
         READWRITE(address);
-        READWRITE(name);
+        READWRITE(txHash);
     }
 
-    void FromTx(const CTransaction& tx);
+    void FromTx(const CTransaction& tx, const CTokenIssure& issure);
 };
 
 

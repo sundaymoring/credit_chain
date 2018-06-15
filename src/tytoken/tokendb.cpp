@@ -2,6 +2,7 @@
 #include "primitives/transaction.h"
 #include "script/standard.h"
 #include "base58.h"
+#include "tytoken/token.h"
 
 static const char DB_TOKEN = 'T';
 
@@ -39,13 +40,18 @@ const std::vector<CTokenInfo> CTokenDB::ListTokenInfos()
     return infos;
 }
 
-void CTokenInfo::FromTx(const CTransaction& tx)
+void CTokenInfo::FromTx(const CTransaction& tx, const CTokenIssure& issure)
 {
     //TODO extract name
     tokenID = tx.vout[1].tokenID;
     amount = tx.vout[1].nTokenValue;
+    shortName = issure.shortName;
+    fullName = issure.fullName;
+    description = issure.description;
+    url = issure.url;
     CTxDestination destination;
     if (ExtractDestination(tx.vout[1].scriptPubKey, destination) ){
         address = CBitcoinAddress(destination).ToString();
     }
+    txHash = tx.GetHash();
 }

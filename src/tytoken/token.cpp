@@ -1,6 +1,5 @@
 #include "tytoken/token.h"
 
-#include "base58.h"
 #include "wallet/coincontrol.h"
 #include "wallet/wallet.h"
 #include "script/script.h"
@@ -8,35 +7,70 @@
 #include "script/standard.h"
 #include "net.h"
 #include "policy/policy.h"
+#include "script/standard.h"
 
 #include "util.h"
 
 #include <vector>
 
-/**
- * Pushes bytes to the end of a vector.
- */
-#define PUSH_BACK_BYTES(vector, value)\
-    vector.insert(vector.end(), reinterpret_cast<unsigned char *>(&(value)),\
-    reinterpret_cast<unsigned char *>(&(value)) + sizeof((value)));
 
-std::vector<unsigned char> CreatePayload_IssuanceFixed(uint16_t propertyType, uint64_t amount, std::string name)
+//TODO bitcoin sendfrom assetAddress, and token in assetAddress. now bitcoin sendfrom other address.
+bool CTokenIssure::createTokenTransaction(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason)
 {
-    std::vector<unsigned char> payload;
-    uint16_t messageType = TOKEN_OP_ISSURE;
+    if (pwalletMain == NULL) return false;
 
-    //TODO int convert net byte serlize
-    if (name.size() > 255) name = name.substr(0,255);
-    payload.push_back('T');
-    payload.push_back('T');
-    PUSH_BACK_BYTES(payload, messageType)
-    PUSH_BACK_BYTES(payload, propertyType);
-    PUSH_BACK_BYTES(payload, amount);
-    size_t nameLen = name.length();
-    PUSH_BACK_BYTES(payload, nameLen);
-    payload.insert(payload.end(), name.begin(), name.end());
+    CScript scriptReturn, scriptToken;
+    CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
+    ds << *this;
+    scriptReturn << OP_RETURN << std::vector<unsigned char>(ds.begin(), ds.end());
+    scriptToken = GetScriptForDestination(tokenAddress.Get());
 
-    return payload;
+    std::vector<CRecipient> vecRecipients;
+    vecRecipients.push_back(CRecipient{scriptReturn, 0, false, TOKENID_ZERO, 0});
+    vecRecipients.push_back(CRecipient{scriptToken, GetDustThreshold(scriptToken), false, TOKENID_ZERO, nValue});
+
+    CWalletTx wtxNew;
+    int64_t nFeeRet = 0;
+    int nChangePosInOut = 2;
+    CReserveKey reserveKey(pwalletMain);
+    if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, NULL, true, TTC_ISSUE)) {
+        LogPrintf("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
+        return false;
+    }
+
+    // Commit the transaction to the wallet and broadcast)
+    LogPrintf("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRet);
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)){
+        strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
+        return false;
+    }
+    txid = wtxNew.GetHash();
+
+    return true;
+}
+
+bool CTokenIssure::decodeTokenTransaction(const CTransaction &tx, std::string strFailReason)
+{
+    if ( TTC_ISSUE != tx.GetTokenCode() ){
+        strFailReason = "token procotol is not issure";
+        return false;
+    }
+
+    txnouttype type;
+    std::vector<unsigned char> vReturnData;
+    bool ret = ExtractPushDatas(tx.vout[0].scriptPubKey, type, vReturnData);
+    if (!ret || type!=TX_NULL_DATA){
+        strFailReason = "issure token procotol error";
+        return false;
+    }
+    CDataStream ds(vReturnData, SER_NETWORK, CLIENT_VERSION);
+    ds >> *this;
+
+    //TODO check token is already exist
+    //TODO check value is equal to vout[1] nTokenvalue
+
+    return true;
 }
 
 // TODO can data remove
@@ -44,7 +78,6 @@ std::vector<unsigned char> CreatePayload_IssuanceFixed(uint16_t propertyType, ui
 bool WalletTxBuilder(const std::string& assetAddress, int64_t tokenAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit)
 {
 //#ifdef ENABLE_WALLET
-    if (pwalletMain == NULL) return false;
 
     CWalletTx wtxNew;
     int64_t nFeeRet = 0;
@@ -133,3 +166,4 @@ tokencode GetTxTokenCode(const CTransaction& tx)
 //    return TTC_UNKNOW;
     return TTC_NONE;
 }
+

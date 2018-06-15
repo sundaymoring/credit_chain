@@ -19,39 +19,50 @@ using namespace std;
 bool EnsureWalletIsAvailable(bool avoidException);
 
 UniValue issuretoken(const JSONRPCRequest& request){
-    if (request.fHelp || request.params.size() != 4)
+    if (request.fHelp || request.params.size() < 7)
         throw runtime_error(
             "issuretoken assetaddress type amount name\n"
             "\nReturns the txid when issure token success.\n"
+
             "\nArguments:\n"
-            "1. address     (string, required) The bitcoin address to own token\n.\n"
-            "2. height      (numeric, optional, default=-1) To estimate at the time of the given height.\n"
+            "1. fromaddress          (string, required) the address to own token\n"
+            "2. type                 (number, required) the type of the tokens to create: (1 for indivisible tokens, 2 for divisible tokens)\n"
+            "3. amount               (string, required) the number of tokens to create\n"
+            "4. short name           (string, required) the short name of the new tokens to create\n"
+            "5. full name            (string, required) the full name of the new tokens to create\n"
+            "6. description          (string, required) a description for the new tokens (can be \"\")\n"
+            "7. url                  (string, required) an URL for further information about the new tokens (can be \"\")\n"
+
             "\nResult:\n"
-            "x             (numeric) Hashes per second estimated\n"
+            "\"hash\"                  (string) the hex-encoded transaction hash\n"
+
             "\nExamples:\n"
-            + HelpExampleCli("getnetworkhashps", "")
-            + HelpExampleRpc("getnetworkhashps", "")
+                + HelpExampleCli("issuretoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" 1 1000000 \"btc\" \"bitcoin\" \"bitcoin is first Cryptocurrency\" \"https://bitcoin.org\"")
             );
 
-    std::string assetAddress =request.params[0].get_str();
-    int type = request.params[1].get_int();
-    CAmount amount = request.params[2].get_int64() * COIN;
-    std::string tokenName = request.params[3].get_str();
-
-    // create a payload for the transaction
-    vector<unsigned char> payload = CreatePayload_IssuanceFixed(uint16_t(type), amount, tokenName);
-
-    // request the wallet build the transaction (and if needed commit it)
-    uint256 txid;
-    std::string rawHex;
-    bool ret = WalletTxBuilder(assetAddress, amount, payload, txid, rawHex);
-
-    UniValue result(UniValue::VOBJ);
-    result.push_back(Pair("result", ret?"ok":"false"));
-    if(ret){
-        result.push_back(Pair("txid", txid.ToString()));
+    CBitcoinAddress tokenAddress(request.params[0].get_str());
+    if (!tokenAddress.IsValid()){
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
     }
-    return result;
+    uint8_t isDivisible = uint8_t(request.params[1].get_int());
+    CAmount amount = request.params[2].get_int64() * COIN;
+    std::string shortName = request.params[3].get_str();
+    std::string fullName = request.params[4].get_str();
+    std::string description = request.params[5].get_str();
+    std::string url = request.params[6].get_str();
+
+    shortName = shortName.length()>255 ? shortName.substr(0,255) : shortName;
+    fullName = fullName.length()>255 ? fullName.substr(0,255) : fullName;
+    description = description.length()>255 ? description.substr(0,255) : description;
+    url = url.length()>255 ? url.substr(0,255) : url;
+
+    uint256 txid;
+    std::string strFailReason;
+    CTokenIssure tIssure(isDivisible, amount, shortName, fullName, description, url);
+    bool ret = tIssure.createTokenTransaction(tokenAddress, txid,  strFailReason);
+
+    return ret ? txid.ToString() : strFailReason;
+
 }
 
 UniValue listtokens(const JSONRPCRequest& request){
@@ -68,7 +79,12 @@ UniValue listtokens(const JSONRPCRequest& request){
         UniValue one(UniValue::VOBJ);
         one.push_back(Pair("id", info.tokenID.ToString()));
         one.push_back(Pair("amout", info.amount));
+        one.push_back(Pair("shortName", info.shortName));
+        one.push_back(Pair("fullName", info.fullName));
+        one.push_back(Pair("description", info.description));
+        one.push_back(Pair("url", info.url));
         one.push_back(Pair("address", info.address));
+        one.push_back(Pair("txid", info.txHash.ToString()));
         result.push_back(one);
     }
     return result;
@@ -140,10 +156,10 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
             "\nResult:\n"
             "\"txid\"                  (string) The transaction id.\n"
             "\nExamples:\n"
-            + HelpExampleCli("sendtoaddress", "tokenID, \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
-            + HelpExampleCli("sendtoaddress", "tokenID, \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"donation\" \"seans outpost\"")
-            + HelpExampleCli("sendtoaddress", "tokenID, \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"\" \"\" true")
-            + HelpExampleRpc("sendtoaddress", "tokenID, \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.1, \"donation\", \"seans outpost\"")
+            + HelpExampleCli("sendtoaddress", "\"tokenID\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
+            + HelpExampleCli("sendtoaddress", "\"tokenID\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleCli("sendtoaddress", "\"tokenID\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"\" \"\" true")
+            + HelpExampleRpc("sendtoaddress", "\"tokenID\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.1, \"donation\", \"seans outpost\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);

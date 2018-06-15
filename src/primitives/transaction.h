@@ -223,7 +223,7 @@ public:
 
     bool IsDust(const CFeeRate &minRelayTxFee) const
     {
-        return (std::min(nValue, nTokenValue) < GetDustThreshold(minRelayTxFee));
+        return (std::max(nValue, nTokenValue) < GetDustThreshold(minRelayTxFee));
     }
 
     friend bool operator==(const CTxOut& a, const CTxOut& b)
@@ -293,20 +293,28 @@ public:
     template <typename Stream>
     CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {}
 
-    bool isToken() const {
-        for (size_t i=0;i<vout.size(); i++){
-            if (vout[i].IsToken())
-                return true;
-        }
-        return false;
-    }
+//    bool isToken() const {
+//        for (size_t i=0;i<vout.size(); i++){
+//            if (vout[i].IsToken())
+//                return true;
+//        }
+//        return false;
+//    }
 
     bool IsNull() const {
         return vin.empty() && vout.empty();
     }
 
     bool IsTokenTx() const {
-        return (vout.size() > 1 && vout[0].nValue == 0 && vout[0].scriptPubKey[0] == OP_RETURN && vout[0].scriptPubKey[1] == 'T' && vout[0].scriptPubKey[2] == 'T' && vout[0].scriptPubKey[3] == 'K' && vout[0].scriptPubKey[4] == 0xcc);
+        return (vout.size() > 1 && vout[0].nValue == 0 && vout[0].scriptPubKey[0] == OP_RETURN && vout[0].scriptPubKey[2] == 'T' && vout[0].scriptPubKey[3] == 'T' && vout[0].scriptPubKey[4] == 'K' && vout[0].scriptPubKey[5] == 0xcc);
+    }
+
+    unsigned char GetTokenCode() const {
+        if (!IsTokenTx()) {
+            return TTC_NONE;
+        }else{
+            return vout[0].scriptPubKey[7];
+        }
     }
 
     const uint256& GetHash() const {
