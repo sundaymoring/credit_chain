@@ -14,6 +14,11 @@
 #include <vector>
 
 
+bool CTokenProtocol::tryDecodeTransaction( const CTransaction& tx){
+
+    return true;
+}
+
 //TODO bitcoin sendfrom assetAddress, and token in assetAddress. now bitcoin sendfrom other address.
 bool CTokenIssure::createTokenTransaction(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason)
 {
@@ -52,10 +57,10 @@ bool CTokenIssure::createTokenTransaction(const CBitcoinAddress& tokenAddress, u
 
 bool CTokenIssure::decodeTokenTransaction(const CTransaction &tx, std::string strFailReason)
 {
-    if ( TTC_ISSUE != tx.GetTokenCode() ){
-        strFailReason = "token procotol is not issure";
-        return false;
-    }
+//    if ( TTC_ISSUE != tx.GetTokenCode() ){
+//        strFailReason = "token procotol is not issure";
+//        return false;
+//    }
 
     txnouttype type;
     std::vector<unsigned char> vReturnData;
@@ -72,6 +77,42 @@ bool CTokenIssure::decodeTokenTransaction(const CTransaction &tx, std::string st
 
     return true;
 }
+
+
+bool CTokenSend::createTokenTransaction(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason){
+    if (pwalletMain == NULL) return false;
+
+    CScript scriptReturn, scriptToken;
+    CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
+    ds << *this;
+    scriptReturn << OP_RETURN << std::vector<unsigned char>(ds.begin(), ds.end());
+    scriptToken = GetScriptForDestination(tokenAddress.Get());
+
+    std::vector<CRecipient> vecRecipients;
+    vecRecipients.push_back(CRecipient{scriptReturn, 0, false, tokenID, 0});
+    vecRecipients.push_back(CRecipient{scriptToken, GetDustThreshold(scriptToken), false, tokenID, tokenValue});
+
+    CWalletTx wtxNew;
+    int64_t nFeeRet = 0;
+    int nChangePosInOut = 2;
+    CReserveKey reserveKey(pwalletMain);
+    if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, NULL, true, TTC_SEND)) {
+        LogPrintf("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
+        return false;
+    }
+
+    // Commit the transaction to the wallet and broadcast)
+    LogPrintf("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRet);
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)){
+        strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
+        return false;
+    }
+    txid = wtxNew.GetHash();
+
+    return true;
+}
+
 
 // TODO can data remove
 // This function requests the wallet create an Omni transaction using the supplied parameters and payload
@@ -126,24 +167,21 @@ tokencode GetTxTokenCode(const CTransaction& tx)
 {
     assert(tx.vout.size()>0);
     if (tx.IsCoinBase() || tx.IsCoinStake())
-//        return TTC_BITCOIN;
         return TTC_NONE;
+
     // vout[0] op_return
     // vout[1] dust bitcoin, token own address
     // vout[2] charge address
     if (tx.vout.size() < 2)
-//        return TTC_BITCOIN;
         return TTC_NONE;
 
     if (tx.vout[0].nValue >0)
-//        return TTC_BITCOIN;
         return TTC_NONE;
 
     txnouttype whichType;
     std::vector<unsigned char> vPushData;
     // get the scriptPubKey corresponding to this input:
     if (!ExtractPushDatas(tx.vout[0].scriptPubKey, whichType, vPushData)){
-//        return TTC_UNKNOW;
         return TTC_NONE;
     }
 
@@ -152,18 +190,16 @@ tokencode GetTxTokenCode(const CTransaction& tx)
             if (out.tokenID != TOKENID_ZERO && out.nTokenValue >0)
                 return TTC_SEND;
         }
-//        return TTC_BITCOIN;
         return TTC_NONE;
     } else {
-        if (vPushData[0] == 'T'&&
-                vPushData[1] == 'T' &&
-                vPushData[2] == 1){
-
-            return TTC_ISSUE;
+        if (vPushData[0] == 'T'&& vPushData[1] == 'T' && vPushData[2] == 'K'){
+            if (vPushData[5]>=TTC_ISSUE && vPushData[5]<=TTC_BURN){
+                return tokencode(vPushData[5]);
+            }
+            return TTC_NONE;
         }
     }
 
-//    return TTC_UNKNOW;
     return TTC_NONE;
 }
 

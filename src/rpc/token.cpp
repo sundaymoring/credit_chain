@@ -166,6 +166,10 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
 
     CTokenID tokenID;
     tokenID.SetHex(request.params[0].get_str());
+
+
+
+
     //TODO relize function tokenID.IsValid() GetTokenInfo()
 //    if (!tokenID.IsValid())
 //    	throw JSONRPCError(RPC_TOKEN_INVALID, "Invalid Token Id");
@@ -196,9 +200,17 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked();
 
-    SendToken(address.Get(), tokenID, nAmount, fSubtractFeeFromAmount, wtx);
 
-    return wtx.GetHash().GetHex();
+    uint256 txid;
+    std::string strFailReason;
+    CTokenSend tSend;
+    bool ret = tSend.createTokenTransaction(address, tokenID, nAmount, txid,  strFailReason);
+
+    return ret ? txid.ToString() : strFailReason;
+
+//    SendToken(address.Get(), tokenID, nAmount, fSubtractFeeFromAmount, wtx);
+
+//    return wtx.GetHash().GetHex();
 }
 
 static const CRPCCommand commands[] =

@@ -223,7 +223,7 @@ public:
 
     bool IsDust(const CFeeRate &minRelayTxFee) const
     {
-        return (std::max(nValue, nTokenValue) < GetDustThreshold(minRelayTxFee));
+        return nValue < GetDustThreshold(minRelayTxFee);
     }
 
     friend bool operator==(const CTxOut& a, const CTxOut& b)

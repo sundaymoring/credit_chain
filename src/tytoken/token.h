@@ -37,7 +37,8 @@ public:
         }
         READWRITE(code);
     }
-    virtual bool createTokenTransaction(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason) = 0;
+    virtual bool createTokenTransaction(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason){}
+    bool tryDecodeTransaction( const CTransaction& tx);
 };
 
 
@@ -73,13 +74,18 @@ public:
     bool decodeTokenTransaction(const CTransaction& tx, std::string strFailReason);
 };
 
-class CToken {
+//TODO add send protocol data
+class CTokenSend : public CTokenProtocol{
 public:
-    CToken(){}
-    ~CToken(){}
+    CTokenSend() : CTokenProtocol(TTC_SEND) {}
 
-    uint272 tokenID;
-    std::string name;
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        CTokenProtocol::SerializationOp(s, ser_action);
+    }
+    bool createTokenTransaction(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason);
 };
 
 bool WalletTxBuilder(const std::string& assetAddress, int64_t referenceAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit=true);

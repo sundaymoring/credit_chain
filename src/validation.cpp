@@ -2205,8 +2205,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         // write token info into leveldb
         //TODO decode other token info
-//        if (!fJustCheck && GetTxTokenCode(tx) == TTC_ISSUE){
-        if (!fJustCheck && tx.GetTokenCode() == TTC_ISSUE){
+//        if (!fJustCheck && tx.GetTokenCode() == TTC_ISSUE){
+        if (!fJustCheck && GetTxTokenCode(tx) == TTC_ISSUE){
             CTokenIssure issure;
             std::string strFail;
             if (!issure.decodeTokenTransaction(tx, strFail)){
