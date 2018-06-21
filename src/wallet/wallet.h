@@ -275,29 +275,37 @@ public:
     int64_t nOrderPos; //!< position in ordered transaction list
 
     // memory only
-    mutable bool fDebitCached;
-//    mutable std::map<uint272,bool> mfDebitCached;
     mutable bool fCreditCached;
-//    mutable std::map<uint272,bool> mfCreditCached;
     mutable bool fImmatureCreditCached;
-//    mutable std::map<uint272,bool> mfImmatureCreditCached;
-    mutable bool fAvailableCreditCached;
-//    mutable std::map<uint272,bool> mfAvailableCreditCached;
+    mutable std::map<CTokenID,bool> mfAvailableCreditCached;
     mutable bool fImmatureStakeCreditCached;
-    mutable bool fWatchDebitCached;
-    mutable bool fWatchCreditCached;
     mutable bool fImmatureWatchCreditCached;
     mutable bool fAvailableWatchCreditCached;
+
+    mutable bool fDebitCached;
+    mutable bool fWatchDebitCached;
+    mutable bool fWatchCreditCached;
+
     mutable bool fChangeCached;
-    mutable CAmount nDebitCached;
+
     mutable CAmount nCreditCached;
+    mutable std::map<CTokenID,CAmount> mnCreditCached;
     mutable CAmount nImmatureCreditCached;
+    mutable std::map<CTokenID,CAmount> mnImmatureCreditCached;
     mutable CAmount nImmatureStakeCreditCached;
-    mutable CAmount nAvailableCreditCached;
-    mutable CAmount nWatchDebitCached;
+    mutable std::map<CTokenID,CAmount> mnAvailableCreditCached;
     mutable CAmount nWatchCreditCached;
+    mutable std::map<CTokenID,CAmount> mnWatchCreditCached;
+    //TODO the following two are for qt, change it later
     mutable CAmount nImmatureWatchCreditCached;
     mutable CAmount nAvailableWatchCreditCached;
+
+    mutable CAmount nDebitCached;
+    mutable std::map<CTokenID,CAmount> mnDebitCached;
+    mutable CAmount nWatchDebitCached;
+    mutable std::map<CTokenID,CAmount> mnWatchDebitCached;
+
+    //TODO useless, change it later
     mutable CAmount nChangeCached;
 
     CWalletTx()
@@ -323,7 +331,7 @@ public:
         fDebitCached = false;
         fCreditCached = false;
         fImmatureCreditCached = false;
-        fAvailableCreditCached = false;
+        mfAvailableCreditCached.clear();
         fImmatureStakeCreditCached = false;
         fWatchDebitCached = false;
         fWatchCreditCached = false;
@@ -331,11 +339,14 @@ public:
         fAvailableWatchCreditCached = false;
         fChangeCached = false;
         nDebitCached = 0;
+        mnDebitCached.clear();
         nCreditCached = 0;
         nImmatureCreditCached = 0;
         nImmatureStakeCreditCached = 0;
-        nAvailableCreditCached = 0;
+//        nAvailableCreditCached = 0;
+        mnAvailableCreditCached.clear();
         nWatchDebitCached = 0;
+        mnWatchDebitCached.clear();
         nWatchCreditCached = 0;
         nAvailableWatchCreditCached = 0;
         nImmatureWatchCreditCached = 0;
@@ -391,7 +402,7 @@ public:
     void MarkDirty()
     {
         fCreditCached = false;
-        fAvailableCreditCached = false;
+        mfAvailableCreditCached.clear();
         fImmatureCreditCached = false;
         fImmatureStakeCreditCached = false;
         fWatchDebitCached = false;
@@ -409,13 +420,16 @@ public:
     }
 
     //! filter decides which addresses will count towards the debit
-    CAmount GetDebit(const isminefilter& filter) const;
-    CAmount GetCredit(const isminefilter& filter) const;
-    CAmount GetImmatureCredit(bool fUseCache=true) const;
+    CAmount GetDebit(const isminefilter& filter, std::map<CTokenID, CAmount>* pTokens = NULL) const;
+    CAmount GetCredit(const isminefilter& filter, std::map<CTokenID, CAmount>* pTokens = NULL) const;
+
+    CAmount GetImmatureCredit(bool fUseCache=true, std::map<CTokenID, CAmount>* pTokens = NULL) const;
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
+
     CAmount GetAvailableCredit(const uint272& tokenID=TOKENID_ZERO, bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;
     CAmount GetAvailableWatchOnlyCredit(const bool& fUseCache=true) const;
+
     CAmount GetChange() const;
 
     void GetAmounts(std::list<COutputEntry>& listReceived,
@@ -876,18 +890,19 @@ public:
      * Returns amount of debit if the input matches the
      * filter, otherwise returns 0
      */
-    CAmount GetDebit(const CTxIn& txin, const isminefilter& filter) const;
+    CAmount GetDebit(const CTxIn& txin, const isminefilter& filter, std::pair<CTokenID, CAmount>* pToken=NULL) const;
     isminetype IsMine(const CTxOut& txout) const;
     CAmount GetCredit(const CTxOut& txout, const isminefilter& filter, const uint272& tokenID=TOKENID_ZERO) const;
+    CAmount GetCredit(const CTxOut& txout, const isminefilter& filter, std::pair<CTokenID, CAmount>* pToken=NULL) const;
     bool IsChange(const CTxOut& txout) const;
     CAmount GetChange(const CTxOut& txout) const;
     bool IsMine(const CTransaction& tx) const;
     /** should probably be renamed to IsRelevantToMe */
     bool IsFromMe(const CTransaction& tx) const;
-    CAmount GetDebit(const CTransaction& tx, const isminefilter& filter) const;
+    CAmount GetDebit(const CTransaction& tx, const isminefilter& filter, std::map<CTokenID, CAmount>* pTokens = NULL) const;
     /** Returns whether all of the inputs match the filter */
     bool IsAllFromMe(const CTransaction& tx, const isminefilter& filter) const;
-    CAmount GetCredit(const CTransaction& tx, const isminefilter& filter) const;
+    CAmount GetCredit(const CTransaction& tx, const isminefilter& filter, std::map<CTokenID, CAmount>* pTokens = NULL) const;
     CAmount GetChange(const CTransaction& tx) const;
     void SetBestChain(const CBlockLocator& loc) override;
 
