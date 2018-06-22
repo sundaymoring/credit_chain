@@ -46,20 +46,20 @@ UniValue issuretoken(const JSONRPCRequest& request){
     }
     uint8_t isDivisible = uint8_t(request.params[1].get_int());
     CAmount amount = request.params[2].get_int64() * COIN;
-    std::string shortName = request.params[3].get_str();
+    std::string symbol = request.params[3].get_str();
     std::string fullName = request.params[4].get_str();
     std::string description = request.params[5].get_str();
     std::string url = request.params[6].get_str();
 
-    shortName = shortName.length()>255 ? shortName.substr(0,255) : shortName;
+    symbol = symbol.length()>255 ? symbol.substr(0,255) : symbol;
     fullName = fullName.length()>255 ? fullName.substr(0,255) : fullName;
     description = description.length()>255 ? description.substr(0,255) : description;
     url = url.length()>255 ? url.substr(0,255) : url;
 
     uint256 txid;
     std::string strFailReason;
-    CTokenIssure tIssure(isDivisible, amount, shortName, fullName, description, url);
-    bool ret = tIssure.createTokenTransaction(tokenAddress, txid,  strFailReason);
+    CTokenIssure tIssure(isDivisible, amount, symbol, fullName, description, url);
+    bool ret = tIssure.issureToken(tokenAddress, txid,  strFailReason);
 
     return ret ? txid.ToString() : strFailReason;
 
@@ -69,7 +69,25 @@ UniValue listtokens(const JSONRPCRequest& request){
 
     if (request.fHelp )
         throw runtime_error(
-            "list all token infos\n"
+            "listtokens\n"
+            "\nlist all token infos\n"
+            "\nResult:\n"
+            "[\n"
+            "    {\n"
+            "        \"id\": \"tokenid\",\n"
+            "        \"amout\": n,\n"
+            "        \"shortName\": \"sn\",\n"
+            "        \"fullName\": \"fullname\",\n"
+            "        \"description\": \"description of token\",\n"
+            "        \"url\": \"url of token\",\n"
+            "        \"address\": \"token owner\",\n"
+            "        \"txid\": \"generate token transaction\"\n"
+            "    }\n"
+            "    ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listtokens", "")
+            + HelpExampleRpc("listtokens", "")
             );
 
     UniValue result(UniValue::VARR);
@@ -79,7 +97,7 @@ UniValue listtokens(const JSONRPCRequest& request){
         UniValue one(UniValue::VOBJ);
         one.push_back(Pair("id", info.tokenID.ToString()));
         one.push_back(Pair("amout", info.amount));
-        one.push_back(Pair("shortName", info.shortName));
+        one.push_back(Pair("symbol", info.symbol));
         one.push_back(Pair("fullName", info.fullName));
         one.push_back(Pair("description", info.description));
         one.push_back(Pair("url", info.url));
@@ -88,48 +106,6 @@ UniValue listtokens(const JSONRPCRequest& request){
         result.push_back(one);
     }
     return result;
-}
-
-// TODO getbalance use cache
-static void SendToken(const CTxDestination &address, uint272 tokenID, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew)
-{
-    CAmount curTokenBalance = pwalletMain->GetBalance(tokenID, false);
-    CAmount curBtcBalance = pwalletMain->GetBalance(TOKENID_ZERO, false);
-
-    // Check amount
-    if (nValue <= 0)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
-
-    if (nValue > curTokenBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient token funds");
-
-    //TODO use right min tbc, not 0
-    if (curBtcBalance <= 0)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
-
-    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
-        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
-
-    // Parse Bitcoin address
-    CScript scriptPubKey = GetScriptForDestination(address);
-
-    // Create and send the transaction
-    CReserveKey reservekey(pwalletMain);
-    CAmount nFeeRequired;
-    std::string strError;
-    vector<CRecipient> vecSend;
-    int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, GetDustThreshold(scriptPubKey), fSubtractFeeFromAmount, tokenID, nValue};
-
-    vecSend.push_back(recipient);
-    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_SEND)) {
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-    CValidationState state;
-    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
-        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
 }
 
 UniValue sendtokentoaddress(const JSONRPCRequest& request)
@@ -167,16 +143,10 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
     CTokenID tokenID;
     tokenID.SetHex(request.params[0].get_str());
 
-
-
-
-    //TODO relize function tokenID.IsValid() GetTokenInfo()
-//    if (!tokenID.IsValid())
-//    	throw JSONRPCError(RPC_TOKEN_INVALID, "Invalid Token Id");
-//    CTokenInfo tokenInfo;
-//    if ( !GetTokenInfo(tokenID, &tokenInfo)){
-//    	throw JSONRPCError(RPC_TOKEN_NOT_FOUND, "Token Id Not Found");
-//    }
+    CTokenInfo tokenInfo;
+    if ( !pTokenInfos->GetTokenInfo(tokenID, tokenInfo)){
+        throw JSONRPCError(RPC_TOKEN_NOT_FOUND, "Token Id Not Found");
+    }
 
     CBitcoinAddress address(request.params[1].get_str());
     if (!address.IsValid())
@@ -185,7 +155,7 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
     // Amount
     CAmount nAmount = AmountFromValue(request.params[2]);
     if (nAmount <= 0)
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send`");
 
     // Wallet comments
     CWalletTx wtx;
@@ -194,9 +164,9 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
     if (request.params.size() > 4 && !request.params[4].isNull() && !request.params[4].get_str().empty())
         wtx.mapValue["to"]      = request.params[4].get_str();
 
-    bool fSubtractFeeFromAmount = false;
-    if (request.params.size() > 5)
-        fSubtractFeeFromAmount = request.params[5].get_bool();
+//    bool fSubtractFeeFromAmount = false;
+//    if (request.params.size() > 5)
+//        fSubtractFeeFromAmount = request.params[5].get_bool();
 
     EnsureWalletIsUnlocked();
 
@@ -204,13 +174,9 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
     uint256 txid;
     std::string strFailReason;
     CTokenSend tSend;
-    bool ret = tSend.createTokenTransaction(address, tokenID, nAmount, txid,  strFailReason);
+    bool ret = tSend.sendToken(address, tokenID, nAmount, txid,  strFailReason);
 
     return ret ? txid.ToString() : strFailReason;
-
-//    SendToken(address.Get(), tokenID, nAmount, fSubtractFeeFromAmount, wtx);
-
-//    return wtx.GetHash().GetHex();
 }
 
 static const CRPCCommand commands[] =

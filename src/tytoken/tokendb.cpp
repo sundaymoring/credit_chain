@@ -12,7 +12,7 @@ CTokenDB::CTokenDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir(
 {
 }
 
-bool CTokenDB::GetTokenInfo(const uint272& tokenId, CTokenInfo &tokenInfo)
+bool CTokenDB::GetTokenInfo(const CTokenID& tokenId, CTokenInfo &tokenInfo)
 {
     return db.Read(std::make_pair(DB_TOKEN, tokenId), tokenInfo);
 }
@@ -22,7 +22,7 @@ bool CTokenDB::WriteTokenInfo(const CTokenInfo &tokenInfo)
     return db.Write(std::make_pair(DB_TOKEN, tokenInfo.tokenID), tokenInfo);
 }
 
-bool CTokenDB::EraseTokenInfo(const uint272& tokenID)
+bool CTokenDB::EraseTokenInfo(const CTokenID& tokenID)
 {
     return db.Erase(std::make_pair(DB_TOKEN, tokenID));
 }
@@ -45,7 +45,7 @@ void CTokenInfo::FromTx(const CTransaction& tx, const CTokenIssure& issure)
     //TODO extract name
     tokenID = tx.vout[1].tokenID;
     amount = tx.vout[1].nTokenValue;
-    shortName = issure.shortName;
+    symbol = issure.symbol;
     fullName = issure.fullName;
     description = issure.description;
     url = issure.url;

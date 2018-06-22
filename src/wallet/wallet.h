@@ -139,7 +139,7 @@ struct CRecipient
     CScript scriptPubKey;
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
-    uint272 tokenID;
+    CTokenID tokenID;
     CAmount nTokenAmount;
 };
 

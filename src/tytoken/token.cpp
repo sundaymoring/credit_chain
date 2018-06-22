@@ -8,22 +8,64 @@
 #include "net.h"
 #include "policy/policy.h"
 #include "script/standard.h"
+#include "rpc/server.h"
+#include "utilmoneystr.h"
 
 #include "util.h"
 
 #include <vector>
 
 
-bool CTokenProtocol::tryDecodeTransaction( const CTransaction& tx){
+static bool createTokenTransaction(const std::vector<CRecipient>& vecRecipients, uint256& txid, int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode tokenType)
+{
+    if (pwalletMain == NULL) return false;
 
+    if (vecRecipients.size() < 2){
+        strFailReason = _("token transaction recipient number should less than 2");
+        return false;
+    }
+
+    CAmount curBtcBalance = pwalletMain->GetBalance(TOKENID_ZERO, false);
+    if (curBtcBalance <= vecRecipients[1].nAmount)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    // Check token amount
+    if (vecRecipients[1].nTokenAmount <= 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid token amount");
+    if (vecRecipients[1].tokenID != TOKENID_ZERO){
+        CAmount curTokenBalance = pwalletMain->GetBalance(vecRecipients[1].tokenID, false);
+        if (vecRecipients[1].nTokenAmount > curTokenBalance)
+            throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient token funds");
+    }
+
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    CWalletTx wtxNew;
+    CAmount nFeeRequired;
+    CReserveKey reserveKey(pwalletMain);
+    if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRequired, nChangePosInOut, strFailReason, coinControl, sign, tokenType)) {
+        if (nFeeRequired + vecRecipients[1].nAmount > curBtcBalance){
+            std::string strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+            throw JSONRPCError(RPC_WALLET_ERROR, strError);
+        }
+        return false;
+    }
+
+    // Commit the transaction to the wallet and broadcast)
+    LogPrintf("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRequired);
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)){
+        std::string strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    txid = wtxNew.GetHash();
     return true;
 }
 
 //TODO bitcoin sendfrom assetAddress, and token in assetAddress. now bitcoin sendfrom other address.
-bool CTokenIssure::createTokenTransaction(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason)
+bool CTokenIssure::issureToken(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason)
 {
-    if (pwalletMain == NULL) return false;
-
     CScript scriptReturn, scriptToken;
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
     ds << *this;
@@ -34,25 +76,9 @@ bool CTokenIssure::createTokenTransaction(const CBitcoinAddress& tokenAddress, u
     vecRecipients.push_back(CRecipient{scriptReturn, 0, false, TOKENID_ZERO, 0});
     vecRecipients.push_back(CRecipient{scriptToken, GetDustThreshold(scriptToken), false, TOKENID_ZERO, nValue});
 
-    CWalletTx wtxNew;
-    int64_t nFeeRet = 0;
     int nChangePosInOut = 2;
-    CReserveKey reserveKey(pwalletMain);
-    if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, NULL, true, TTC_ISSUE)) {
-        LogPrintf("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
-        return false;
-    }
 
-    // Commit the transaction to the wallet and broadcast)
-    LogPrintf("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRet);
-    CValidationState state;
-    if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)){
-        strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
-        return false;
-    }
-    txid = wtxNew.GetHash();
-
-    return true;
+    return createTokenTransaction(vecRecipients, txid, nChangePosInOut, strFailReason, NULL, true, TTC_ISSUE);
 }
 
 bool CTokenIssure::decodeTokenTransaction(const CTransaction &tx, std::string strFailReason)
@@ -79,9 +105,8 @@ bool CTokenIssure::decodeTokenTransaction(const CTransaction &tx, std::string st
 }
 
 
-bool CTokenSend::createTokenTransaction(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason){
-    if (pwalletMain == NULL) return false;
-
+bool CTokenSend::sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason)
+{
     CScript scriptReturn, scriptToken;
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
     ds << *this;
@@ -92,74 +117,8 @@ bool CTokenSend::createTokenTransaction(const CBitcoinAddress& tokenAddress, con
     vecRecipients.push_back(CRecipient{scriptReturn, 0, false, tokenID, 0});
     vecRecipients.push_back(CRecipient{scriptToken, GetDustThreshold(scriptToken), false, tokenID, tokenValue});
 
-    CWalletTx wtxNew;
-    int64_t nFeeRet = 0;
-    int nChangePosInOut = 2;
-    CReserveKey reserveKey(pwalletMain);
-    if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, NULL, true, TTC_SEND)) {
-        LogPrintf("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
-        return false;
-    }
-
-    // Commit the transaction to the wallet and broadcast)
-    LogPrintf("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRet);
-    CValidationState state;
-    if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)){
-        strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
-        return false;
-    }
-    txid = wtxNew.GetHash();
-
-    return true;
-}
-
-
-// TODO can data remove
-// This function requests the wallet create an Omni transaction using the supplied parameters and payload
-bool WalletTxBuilder(const std::string& assetAddress, int64_t tokenAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit)
-{
-//#ifdef ENABLE_WALLET
-
-    CWalletTx wtxNew;
-    int64_t nFeeRet = 0;
-    int nChangePosInOut = 2;
-    std::string strFailReason;
-    std::vector<std::pair<CScript, int64_t> > vecSend;
-    CReserveKey reserveKey(pwalletMain);
-
-    //TODO bitcoin sendfrom assetAddress, and token in assetAddress. now bitcoin sendfrom other address.
-
-    // Encode the data outputs
-    CBitcoinAddress addr = CBitcoinAddress(assetAddress);
-    CScript scptReturn, scptToken;
-    scptReturn << OP_RETURN << data;
-    scptToken = GetScriptForDestination(addr.Get());
-
-    std::vector<CRecipient> vecRecipients;
-    vecRecipients.push_back(CRecipient{scptReturn, 0, false, TOKENID_ZERO, 0});
-    vecRecipients.push_back(CRecipient{scptToken, GetDustThreshold(scptToken), false, TOKENID_ZERO, tokenAmount});
-
-    // Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
-     if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, NULL, true, TTC_ISSUE)) {
-        LogPrintf("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
-        return false;
-    }
-
-    // If this request is only to create, but not commit the transaction then display it and exit
-    if (!commit) {
-//        rawHex = EncodeHexTx(wtxNew);
-        return true;
-    } else {
-        // Commit the transaction to the wallet and broadcast)
-        LogPrintf("%s: %s; nFeeRet = %d\n", __func__, wtxNew.tx->ToString(), nFeeRet);
-        CValidationState state;
-        if (!pwalletMain->CommitTransaction(wtxNew, reserveKey, g_connman.get(), state)) return false;
-        txid = wtxNew.GetHash();
-        return true;
-    }
-//#else
-//    return MP_ERR_WALLET_ACCESS;
-//#endif
+    int nChangePosInOut = -1;
+    return createTokenTransaction(vecRecipients, txid, nChangePosInOut, strFailReason, NULL, true, TTC_SEND);
 }
 
 //TODO is TTC_BITCOIN  need define again

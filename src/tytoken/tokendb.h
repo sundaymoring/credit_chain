@@ -11,9 +11,9 @@ class CTokenIssure;
 struct CTokenInfo {
 
     // TODO change or add what u want
-    uint272 tokenID;
+    CTokenID tokenID;
     CAmount amount;
-    std::string shortName;
+    std::string symbol;
     std::string fullName;
     std::string description;
     std::string url;
@@ -26,7 +26,7 @@ struct CTokenInfo {
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(tokenID);
         READWRITE(amount);
-        READWRITE(shortName);
+        READWRITE(symbol);
         READWRITE(fullName);
         READWRITE(description);
         READWRITE(url);
@@ -44,9 +44,9 @@ public:
     CDBWrapper db;
     CTokenDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
-    bool GetTokenInfo(const uint272& tokenId, CTokenInfo& tokenInfo);
+    bool GetTokenInfo(const CTokenID& tokenId, CTokenInfo& tokenInfo);
     bool WriteTokenInfo(const CTokenInfo& tokenInfo);
-    bool EraseTokenInfo(const uint272& tokenID);
+    bool EraseTokenInfo(const CTokenID& tokenID);
     const std::vector<CTokenInfo> ListTokenInfos();
 };
 

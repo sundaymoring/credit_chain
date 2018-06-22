@@ -6,7 +6,6 @@
 #include "script/script.h"
 #include "base58.h"
 
-
 #include <string>
 #include <vector>
 #include <stdint.h>
@@ -14,6 +13,7 @@
 class CTokenProtocol {
 public:
     char header[3];
+    //TODO one byte is version
     uint8_t unknown[2];
     uint8_t code;
 
@@ -37,24 +37,22 @@ public:
         }
         READWRITE(code);
     }
-    virtual bool createTokenTransaction(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason){}
-    bool tryDecodeTransaction( const CTransaction& tx);
 };
 
 
 
 class CTokenIssure : public CTokenProtocol {
 public:
-    uint8_t nIsDivisible;
+    uint8_t nType;
     CAmount nValue;
-    std::string shortName;
+    std::string symbol;
     std::string fullName;
     std::string description;
     std::string url;
 
     CTokenIssure() : CTokenProtocol(TTC_ISSUE) {}
     CTokenIssure(const uint8_t nIsDivisibleIn, const CAmount nValueIn, const std::string& shortNameIn, const std::string& fullNameIn, const std::string& descriptionIn,const std::string& urlIn)
-        :CTokenProtocol(TTC_ISSUE), nIsDivisible(nIsDivisibleIn), nValue(nValueIn), shortName(shortNameIn), fullName(fullNameIn), description(descriptionIn), url(urlIn){
+        :CTokenProtocol(TTC_ISSUE), nType(nIsDivisibleIn), nValue(nValueIn), symbol(shortNameIn), fullName(fullNameIn), description(descriptionIn), url(urlIn){
     }
 
     ADD_SERIALIZE_METHODS;
@@ -62,15 +60,15 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         CTokenProtocol::SerializationOp(s, ser_action);
-        READWRITE(nIsDivisible);
+        READWRITE(nType);
         READWRITE(nValue);
-        READWRITE(shortName);
+        READWRITE(symbol);
         READWRITE(fullName);
         READWRITE(description);
         READWRITE(url);
     }
 
-    bool createTokenTransaction(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason);
+    bool issureToken(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason);
     bool decodeTokenTransaction(const CTransaction& tx, std::string strFailReason);
 };
 
@@ -85,10 +83,8 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         CTokenProtocol::SerializationOp(s, ser_action);
     }
-    bool createTokenTransaction(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason);
+    bool sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason);
 };
-
-bool WalletTxBuilder(const std::string& assetAddress, int64_t referenceAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit=true);
 
 tokencode GetTxTokenCode(const CTransaction& tx);
 
