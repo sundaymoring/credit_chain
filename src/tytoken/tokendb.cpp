@@ -45,6 +45,7 @@ void CTokenInfo::FromTx(const CTransaction& tx, const CTokenIssure& issure)
     //TODO extract name
     tokenID = tx.vout[1].tokenID;
     amount = tx.vout[1].nTokenValue;
+    type = issure.nType;
     symbol = issure.symbol;
     fullName = issure.fullName;
     description = issure.description;

@@ -13,6 +13,7 @@ struct CTokenInfo {
     // TODO change or add what u want
     CTokenID tokenID;
     CAmount amount;
+    uint8_t type;
     std::string symbol;
     std::string fullName;
     std::string description;
@@ -20,12 +21,16 @@ struct CTokenInfo {
     std::string address;
     uint256 txHash;
 
+    CTokenInfo() : tokenID(TOKENID_ZERO), amount(0), type(0){
+    }
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(tokenID);
         READWRITE(amount);
+        READWRITE(type);
         READWRITE(symbol);
         READWRITE(fullName);
         READWRITE(description);

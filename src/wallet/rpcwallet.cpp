@@ -745,6 +745,7 @@ UniValue getbalance(const JSONRPCRequest& request)
     return ValueFromAmount(nBalance);
 }
 
+
 UniValue getunconfirmedbalance(const JSONRPCRequest &request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))

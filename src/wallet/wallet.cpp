@@ -25,6 +25,7 @@
 #include "util.h"
 #include "ui_interface.h"
 #include "utilmoneystr.h"
+#include "tytoken/token.h"
 
 #include "pos.h"
 
@@ -1577,11 +1578,16 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
             address = CNoDestination();
         }
 
-        COutputEntry output = {address, txout.nValue, (int)i};
+        COutputEntry output = {address, txout.nValue, (int)i, txout.tokenID, txout.nTokenValue};
 
         // If we are debited by the transaction, add the output as a "sent" entry
-        if (nDebit > 0)
+        if (nDebit > 0 && txout.tokenID==TOKENID_ZERO)
             listSent.push_back(output);
+        else if (txout.tokenID != TOKENID_ZERO){
+            if (TTC_ISSUE != GetTxTokenCode(*tx)){
+                listSent.push_back(output);
+            }
+        }
 
         // If we are receiving the output, add it as a "received" entry
         if (fIsMine & filter)
@@ -1591,7 +1597,7 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
 }
 
 void CWalletTx::GetAccountAmounts(const string& strAccount, CAmount& nReceived,
-                                  CAmount& nSent, CAmount& nFee, const isminefilter& filter) const
+                                  CAmount& nSent, CAmount& nFee, const isminefilter& filter, const CTokenID& tokenID) const
 {
     nReceived = nSent = nFee = 0;
 
@@ -1604,7 +1610,7 @@ void CWalletTx::GetAccountAmounts(const string& strAccount, CAmount& nReceived,
     if (strAccount == strSentAccount)
     {
         BOOST_FOREACH(const COutputEntry& s, listSent)
-            nSent += s.amount;
+            nSent += (tokenID == TOKENID_ZERO ? s.amount : (tokenID == s.tokenID ? s.tokenAmount : 0));
         nFee = allFee;
     }
     {
@@ -1615,11 +1621,11 @@ void CWalletTx::GetAccountAmounts(const string& strAccount, CAmount& nReceived,
             {
                 map<CTxDestination, CAddressBookData>::const_iterator mi = pwallet->mapAddressBook.find(r.destination);
                 if (mi != pwallet->mapAddressBook.end() && (*mi).second.name == strAccount)
-                    nReceived += r.amount;
+                    nReceived += (tokenID == TOKENID_ZERO ? r.amount : (tokenID == r.tokenID ? r.tokenAmount : 0));
             }
             else if (strAccount.empty())
             {
-                nReceived += r.amount;
+                nReceived += (tokenID == TOKENID_ZERO ? r.amount : (tokenID == r.tokenID ? r.tokenAmount : 0));
             }
         }
     }
@@ -1882,6 +1888,45 @@ CAmount CWalletTx::GetImmatureStakeCredit(bool fUseCache) const
     return 0;
 }
 
+bool CWalletTx::GetAllTokenAvailableCredit(std::map<CTokenID, CAmount>* pTokens) const
+{
+    assert(pTokens);
+    if (pwallet == 0)
+        return false;
+
+    // Must wait until coinbase is safely deep enough in the chain before valuing it
+    if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity() > 0)
+        return false;
+
+    CAmount nCredit = 0;
+    uint256 hashTx = GetHash();
+    for (unsigned int i = 0; i < tx->vout.size(); i++)
+    {
+        if (!pwallet->IsSpent(hashTx, i))
+        {
+            const CTxOut &txout = tx->vout[i];
+            std::pair<CTokenID, CAmount> token;
+            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE, &token);
+            if (!MoneyRange(nCredit))
+                throw std::runtime_error("CWalletTx::GetAllTokenAvailableCredit() : btc value out of range");
+            if (token.first == TOKENID_ZERO){
+                continue;
+            }
+            if ((*pTokens).count(token.first)){
+                CAmount tokenCredit = (*pTokens)[token.first];
+                tokenCredit += token.second;
+                (*pTokens)[token.first] = tokenCredit;
+            } else {
+                (*pTokens).insert(token);
+            }
+            if (!MoneyRange((*pTokens)[token.first]))
+                throw std::runtime_error("CWalletTx::GetAllTokenAvailableCredit() : token value out of range");
+        }
+    }
+
+    return true;
+}
+
 CAmount CWalletTx::GetAvailableCredit(const uint272& tokenID, bool fUseCache) const
 {
     if (pwallet == 0)
@@ -1898,6 +1943,7 @@ CAmount CWalletTx::GetAvailableCredit(const uint272& tokenID, bool fUseCache) co
     uint256 hashTx = GetHash();
     for (unsigned int i = 0; i < tx->vout.size(); i++)
     {
+        //TODO not include token out bitcoin value
         if (!pwallet->IsSpent(hashTx, i) && tokenID==tx->vout[i].tokenID)
         {
             const CTxOut &txout = tx->vout[i];
@@ -1906,8 +1952,8 @@ CAmount CWalletTx::GetAvailableCredit(const uint272& tokenID, bool fUseCache) co
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
     }
-    mnAvailableCreditCached.insert(std::make_pair(tokenID, nCredit));
-    mfAvailableCreditCached.insert(std::make_pair(tokenID, true));
+    mnAvailableCreditCached[tokenID] = nCredit;
+    mfAvailableCreditCached[tokenID] = true;
     return nCredit;
 }
 
@@ -2084,6 +2130,22 @@ CAmount CWallet::GetBalance(const uint272& tokenID, const bool fUseCache) const
     }
 
     return nTotal;
+}
+
+std::map<CTokenID, CAmount> CWallet::GetAllTokenBalance(const bool fUseCache) const
+{
+    std::map<CTokenID, CAmount> tokenBalances;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (pcoin->IsTrusted())
+                pcoin->GetAllTokenAvailableCredit(&tokenBalances);
+        }
+    }
+
+    return std::move(tokenBalances);
 }
 
 CAmount CWallet::GetUnconfirmedBalance() const
@@ -3517,13 +3579,13 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
     return ret;
 }
 
-CAmount CWallet::GetAccountBalance(const std::string& strAccount, int nMinDepth, const isminefilter& filter)
+CAmount CWallet::GetAccountBalance(const std::string& strAccount, int nMinDepth, const isminefilter& filter, const CTokenID& tokenID)
 {
     CWalletDB walletdb(strWalletFile);
-    return GetAccountBalance(walletdb, strAccount, nMinDepth, filter);
+    return GetAccountBalance(walletdb, strAccount, nMinDepth, filter, tokenID);
 }
 
-CAmount CWallet::GetAccountBalance(CWalletDB& walletdb, const std::string& strAccount, int nMinDepth, const isminefilter& filter)
+CAmount CWallet::GetAccountBalance(CWalletDB& walletdb, const std::string& strAccount, int nMinDepth, const isminefilter& filter, const CTokenID& tokenID)
 {
     CAmount nBalance = 0;
 
@@ -3539,7 +3601,7 @@ CAmount CWallet::GetAccountBalance(CWalletDB& walletdb, const std::string& strAc
 
         if (nReceived != 0 && wtx.GetDepthInMainChain() >= nMinDepth)
             nBalance += nReceived;
-        nBalance -= nSent + nFee;
+        nBalance -= nSent + (tokenID==TOKENID_ZERO ? nFee : 0);
     }
 
     // Tally internal accounting entries

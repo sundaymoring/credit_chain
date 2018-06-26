@@ -169,6 +169,8 @@ struct COutputEntry
     CTxDestination destination;
     CAmount amount;
     int vout;
+    CTokenID tokenID;
+    CAmount tokenAmount;
 };
 
 /** A transaction with a merkle branch linking it to the block chain. */
@@ -403,6 +405,7 @@ public:
     {
         fCreditCached = false;
         mfAvailableCreditCached.clear();
+        mnAvailableCreditCached.clear();
         fImmatureCreditCached = false;
         fImmatureStakeCreditCached = false;
         fWatchDebitCached = false;
@@ -426,6 +429,8 @@ public:
     CAmount GetImmatureCredit(bool fUseCache=true, std::map<CTokenID, CAmount>* pTokens = NULL) const;
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
 
+    // TODO how to use cache
+    bool GetAllTokenAvailableCredit(std::map<CTokenID, CAmount>* pTokens) const;
     CAmount GetAvailableCredit(const uint272& tokenID=TOKENID_ZERO, bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;
     CAmount GetAvailableWatchOnlyCredit(const bool& fUseCache=true) const;
@@ -436,7 +441,7 @@ public:
                     std::list<COutputEntry>& listSent, CAmount& nFee, std::string& strSentAccount, const isminefilter& filter) const;
 
     void GetAccountAmounts(const std::string& strAccount, CAmount& nReceived,
-                           CAmount& nSent, CAmount& nFee, const isminefilter& filter) const;
+                           CAmount& nSent, CAmount& nFee, const isminefilter& filter, const CTokenID& tokenId = TOKENID_ZERO) const;
 
     bool IsFromMe(const isminefilter& filter) const
     {
@@ -823,6 +828,7 @@ public:
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
     CAmount GetBalance(const uint272& tokenID=TOKENID_ZERO, const bool fUseCache=true) const;
+    std::map<CTokenID, CAmount> GetAllTokenBalance(const bool fUseCache=false) const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetStakeBalance() const;
@@ -881,8 +887,8 @@ public:
     std::set< std::set<CTxDestination> > GetAddressGroupings();
     std::map<CTxDestination, CAmount> GetAddressBalances();
 
-    CAmount GetAccountBalance(const std::string& strAccount, int nMinDepth, const isminefilter& filter);
-    CAmount GetAccountBalance(CWalletDB& walletdb, const std::string& strAccount, int nMinDepth, const isminefilter& filter);
+    CAmount GetAccountBalance(const std::string& strAccount, int nMinDepth, const isminefilter& filter, const CTokenID& tokenID = TOKENID_ZERO);
+    CAmount GetAccountBalance(CWalletDB& walletdb, const std::string& strAccount, int nMinDepth, const isminefilter& filter, const CTokenID& tokenID = TOKENID_ZERO);
     std::set<CTxDestination> GetAccountAddresses(const std::string& strAccount) const;
 
     isminetype IsMine(const CTxIn& txin) const;
