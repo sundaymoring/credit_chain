@@ -14,7 +14,6 @@ struct CTokenInfo {
     CTokenID tokenID;
     uint8_t type;
     CAmount amount;
-    uint8_t type;
     std::string symbol;
     std::string fullName;
     std::string description;
@@ -32,7 +31,6 @@ struct CTokenInfo {
         READWRITE(tokenID);
         READWRITE(type);
         READWRITE(amount);
-        READWRITE(type);
         READWRITE(symbol);
         READWRITE(fullName);
         READWRITE(description);
