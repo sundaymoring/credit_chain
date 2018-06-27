@@ -21,7 +21,7 @@ struct CTokenInfo {
     std::string address;
     uint256 txHash;
 
-    CTokenInfo() : tokenID(TOKENID_ZERO), amount(0), type(0){
+    CTokenInfo() : tokenID(TOKENID_ZERO), type(0), amount(0){
     }
 
     ADD_SERIALIZE_METHODS;

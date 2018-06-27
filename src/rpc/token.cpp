@@ -40,6 +40,8 @@ UniValue issuretoken(const JSONRPCRequest& request){
                 + HelpExampleCli("issuretoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" 1 1000000 \"btc\" \"bitcoin\" \"bitcoin is first Cryptocurrency\" \"https://bitcoin.org\"")
             );
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     CBitcoinAddress tokenAddress(request.params[0].get_str());
     if (!tokenAddress.IsValid()){
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
@@ -90,21 +92,23 @@ UniValue listtokens(const JSONRPCRequest& request){
             + HelpExampleRpc("listtokens", "")
             );
 
+    LOCK(cs_main);
+
     UniValue result(UniValue::VARR);
 
     std::vector<CTokenInfo> infos = pTokenInfos->ListTokenInfos();
-    for (const auto& info : infos){
-        UniValue one(UniValue::VOBJ);
-        one.push_back(Pair("id", info.tokenID.ToString()));
-        one.push_back(Pair("amout", info.amount));
-        one.push_back(Pair("type", info.type));
-        one.push_back(Pair("symbol", info.symbol));
-        one.push_back(Pair("fullName", info.fullName));
-        one.push_back(Pair("description", info.description));
-        one.push_back(Pair("url", info.url));
-        one.push_back(Pair("address", info.address));
-        one.push_back(Pair("txid", info.txHash.ToString()));
-        result.push_back(one);
+    BOOST_FOREACH (const auto& info, infos){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("id", info.tokenID.ToString()));
+        entry.push_back(Pair("amout", info.amount));
+        entry.push_back(Pair("type", info.type));
+        entry.push_back(Pair("symbol", info.symbol));
+        entry.push_back(Pair("fullName", info.fullName));
+        entry.push_back(Pair("description", info.description));
+        entry.push_back(Pair("url", info.url));
+        entry.push_back(Pair("address", info.address));
+        entry.push_back(Pair("txid", info.txHash.ToString()));
+        result.push_back(entry);
     }
     return result;
 }
@@ -289,11 +293,11 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
     }
 
     UniValue result(UniValue::VARR);
-    for (const auto& t : mTokenBalances){
-        UniValue one(UniValue::VOBJ);
-        one.push_back(Pair("tokenid", t.first.ToString()));
-        one.push_back(Pair("tokenvalue", t.second));
-        result.push_back(one);
+    BOOST_FOREACH (const auto& t, mTokenBalances){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("tokenid", t.first.ToString()));
+        entry.push_back(Pair("tokenvalue", t.second));
+        result.push_back(entry);
     }
     return result;
 }
@@ -302,10 +306,10 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
-    { "token",              "issuretoken",            &issuretoken,            true,  {"asset_address","type","amount","name"} },
-    { "token",              "listtokens",             &listtokens,             true,  {} },
-    { "token",              "sendtoaddresstoken",     &sendtokentoaddress,     true,  {"toaddress", "tokenID", "amount"} },
-    { "wallet",             "gettokenbalance",        &gettokenbalance,        false, {"tokenid","account","minconf","include_watchonly"} },
+    { "token",              "issuretoken",            &issuretoken,            false,  {"asset_address","type","amount","name"} },
+    { "token",              "listtokens",             &listtokens,             false,  {} },
+    { "token",              "sendtoaddresstoken",     &sendtokentoaddress,     false,  {"toaddress", "tokenID", "amount"} },
+    { "wallet",             "gettokenbalance",        &gettokenbalance,        false,  {"tokenid","account","minconf","include_watchonly"} },
 };
 
 void RegisterTokenRPCCommands(CRPCTable &t)

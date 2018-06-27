@@ -31,13 +31,17 @@ const std::vector<CTokenInfo> CTokenDB::ListTokenInfos()
 {
     std::vector<CTokenInfo> infos;
     CDBIterator* iter = db.NewIterator();
-    for(iter->SeekToFirst(); iter->Valid(); iter->Next()){
-        CTokenInfo t;
-        if( iter->GetValue(t) )
-            infos.push_back(t);
+    for (iter->SeekToFirst(); iter->Valid(); iter->Next()){
+        std::pair<char, CTokenID> k;
+        iter->GetKey(k);
+        if (k.first == DB_TOKEN){
+            CTokenInfo v;
+            if (iter->GetValue(v))
+                infos.push_back(v);
+        }
     }
     delete iter;
-    return infos;
+    return std::move(infos);
 }
 
 void CTokenInfo::FromTx(const CTransaction& tx, const CTokenIssure& issure)

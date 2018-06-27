@@ -1792,6 +1792,10 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
                     }
                 }
             }
+
+            if (GetTxTokenCode(tx) == TTC_ISSUE){
+                pTokenInfos->EraseTokenInfo(tx.vout[1].tokenID);
+            }
         }
     }
 
