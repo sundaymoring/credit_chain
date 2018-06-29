@@ -21,6 +21,7 @@
 #include "hash.h"
 #include "spentindex.h"
 #include "base58.h"
+#include "tytoken/tokendb.h"
 
 #include <stdint.h>
 
@@ -1835,7 +1836,14 @@ UniValue getaddressdeltas(const JSONRPCRequest& request)
         }
 
         UniValue delta(UniValue::VOBJ);
-        delta.push_back(Pair("satoshis", it->second.nBtcValue));
+        delta.push_back(Pair("btcamount", it->second.nBtcValue));
+        if (it->second.tokenID != TOKENID_ZERO){
+            delta.push_back(Pair("tokenid", it->second.tokenID.ToString()));
+            CTokenInfo info;
+            if (pTokenInfos->GetTokenInfo(it->second.tokenID, info))
+                delta.push_back(Pair("symbol", info.symbol));
+            delta.push_back(Pair("tokenamount", it->second.nTokenValue));
+        }
         delta.push_back(Pair("txid", it->first.txhash.GetHex()));
         delta.push_back(Pair("index", (int)it->first.index));
         delta.push_back(Pair("blockindex", (int)it->first.txindex));
@@ -1944,7 +1952,14 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
         output.push_back(Pair("txid", it->first.txhash.GetHex()));
         output.push_back(Pair("outputIndex", (int)it->first.index));
         output.push_back(Pair("script", HexStr(it->second.script.begin(), it->second.script.end())));
-        output.push_back(Pair("satoshis", it->second.outValue.nBtcValue));
+        output.push_back(Pair("btcamount", it->second.outValue.nBtcValue));
+        if (it->second.outValue.tokenID != TOKENID_ZERO){
+            output.push_back(Pair("tokenid", it->second.outValue.tokenID.ToString()));
+            CTokenInfo info;
+            if (pTokenInfos->GetTokenInfo(it->second.outValue.tokenID, info))
+                output.push_back(Pair("symbol", info.symbol));
+            output.push_back(Pair("tokenamount", it->second.outValue.nTokenValue));
+        }
         output.push_back(Pair("height", it->second.blockHeight));
         output.push_back(Pair("txtime", it->second.nTime));
         utxos.push_back(output);
