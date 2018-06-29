@@ -369,6 +369,9 @@ UniValue getaddresstokenbalance(const JSONRPCRequest& request)
     BOOST_FOREACH (const auto& t, tokenValue){
         UniValue entry(UniValue::VOBJ);
         entry.push_back(Pair("tokenid", t.first.ToString()));
+        CTokenInfo info;
+        if (pTokenInfos->GetTokenInfo(t.first, info))
+            entry.push_back(Pair("symbol", info.symbol));
         entry.push_back(Pair("balance", t.second.second));
         entry.push_back(Pair("received", t.second.first));
         result.push_back(entry);
@@ -376,14 +379,93 @@ UniValue getaddresstokenbalance(const JSONRPCRequest& request)
     return result;
 }
 
+
+UniValue getreceivedtokenbyaddress(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+        throw runtime_error(
+            "getreceivedbyaddress \"address\" ( minconf )\n"
+            "\nReturns the total amount received by the given address in transactions with at least minconf confirmations.\n"
+            "\nArguments:\n"
+            "1. \"address\"         (string, required) The bitcoin address for transactions.\n"
+            "2. minconf             (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
+            "\nResult:\n"
+            "[\n"
+            "   {\n"
+            "       \"tokenid\"  (string) The token ID at this address\n"
+            "       \"amount\"   (numeric) The total amount in tokenID received at this address.\n"
+            "   }\n"
+            "   ...\n"
+            "]\n"
+            "\nExamples:\n"
+            "\nThe amount from transactions with at least 1 confirmation\n"
+            + HelpExampleCli("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\"") +
+            "\nThe amount including unconfirmed transactions, zero confirmations\n"
+            + HelpExampleCli("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\" 0") +
+            "\nThe amount with at least 6 confirmation, very safe\n"
+            + HelpExampleCli("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\" 6") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("getreceivedbyaddress", "\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\", 6")
+       );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // Bitcoin address
+    CBitcoinAddress address = CBitcoinAddress(request.params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+    CScript scriptPubKey = GetScriptForDestination(address.Get());
+    if (!IsMine(*pwalletMain, scriptPubKey))
+        return ValueFromAmount(0);
+
+    // Minimum confirmations
+    int nMinDepth = 1;
+    if (request.params.size() > 1)
+        nMinDepth = request.params[1].get_int();
+
+    // Tally
+    std::map<CTokenID, CAmount> mTokenAmount;
+
+    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
+    {
+        const CWalletTx& wtx = (*it).second;
+        if (wtx.IsCoinBase() || !CheckFinalTx(*wtx.tx))
+            continue;
+
+        BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
+            if (txout.scriptPubKey == scriptPubKey && txout.tokenID != TOKENID_ZERO)
+                if (wtx.GetDepthInMainChain() >= nMinDepth){
+                    if (mTokenAmount.find(txout.tokenID) == mTokenAmount.end())
+                        mTokenAmount[txout.tokenID] = 0;
+                    mTokenAmount[txout.tokenID] += txout.nTokenValue;
+                }
+    }
+
+    UniValue result(UniValue::VARR);
+    BOOST_FOREACH (const auto& t, mTokenAmount){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("tokenid", t.first.ToString()));
+        CTokenInfo info;
+        if (pTokenInfos->GetTokenInfo(t.first, info))
+            entry.push_back(Pair("symbol", info.symbol));
+        entry.push_back(Pair("amout", t.second));
+        result.push_back(entry);
+    }
+    return result;
+}
+
 static const CRPCCommand commands[] =
-{ //  category              name                      actor (function)         okSafeMode
-  //  --------------------- ------------------------  -----------------------  ----------
-    { "token",              "issuretoken",            &issuretoken,            false,  {"asset_address","type","amount","name"} },
-    { "token",              "listtokens",             &listtokens,             false,  {} },
-    { "token",              "sendtoaddresstoken",     &sendtokentoaddress,     false,  {"toaddress", "tokenID", "amount"} },
-    { "token",              "gettokenbalance",        &gettokenbalance,        false,  {"tokenid","account","minconf","include_watchonly"} },
-    { "token",              "getaddresstokenbalance", &getaddresstokenbalance, false,  {"verbose"} },
+{ //  category      name                            actor (function)                okSafeMode
+  //  -----------   ----------------------------    ---------------------------     ----------
+    { "token",      "issuretoken",                  &issuretoken,                   false,  {"asset_address","type","amount","name"} },
+    { "token",      "listtokens",                   &listtokens,                    false,  {} },
+    { "token",      "sendtoaddresstoken",           &sendtokentoaddress,            false,  {"toaddress", "tokenID", "amount"} },
+    { "token",      "gettokenbalance",              &gettokenbalance,               false,  {"tokenid","account","minconf","include_watchonly"} },
+    { "token",      "getaddresstokenbalance",       &getaddresstokenbalance,        false,  {"verbose"} },
+    { "token",      "getreceivedtokenbyaddress",    &getreceivedtokenbyaddress,     false,  {"address","minconf"} },
 };
 
 void RegisterTokenRPCCommands(CRPCTable &t)
