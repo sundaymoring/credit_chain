@@ -282,7 +282,7 @@ bool IsStandardIssureAsset(const CTransaction& tx)
 }
 
 //TODO useless
-const std::vector<CTxOut>& GetStandardIssureAsset(const CTransaction& tx)
+const std::vector<CTxOut> GetStandardIssureAsset(const CTransaction& tx)
 {
     assert(IsStandardIssureAsset(tx));
     std::vector<CTxOut> issureOut;

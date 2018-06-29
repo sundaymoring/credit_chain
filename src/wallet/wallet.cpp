@@ -2163,6 +2163,21 @@ CAmount CWallet::GetUnconfirmedBalance() const
     return nTotal;
 }
 
+std::map<CTokenID, CAmount> CWallet::GetUnconfirmedTokenBalance() const
+{
+    std::map<CTokenID, CAmount> mTokenTotal;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool())
+                pcoin->GetAllTokenAvailableCredit(&mTokenTotal);
+        }
+    }
+    return std::move(mTokenTotal);
+}
+
 CAmount CWallet::GetImmatureBalance() const
 {
     CAmount nTotal = 0;

@@ -430,6 +430,7 @@ public:
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
 
     // TODO how to use cache
+    // TODO map use std smart pointer
     bool GetAllTokenAvailableCredit(std::map<CTokenID, CAmount>* pTokens) const;
     CAmount GetAvailableCredit(const uint272& tokenID=TOKENID_ZERO, bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;
@@ -830,6 +831,7 @@ public:
     CAmount GetBalance(const uint272& tokenID=TOKENID_ZERO, const bool fUseCache=true) const;
     std::map<CTokenID, CAmount> GetAllTokenBalance(const bool fUseCache=false) const;
     CAmount GetUnconfirmedBalance() const;
+    std::map<CTokenID, CAmount> GetUnconfirmedTokenBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetStakeBalance() const;
     CAmount GetWatchOnlyBalance() const;

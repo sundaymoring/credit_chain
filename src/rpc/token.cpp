@@ -457,6 +457,33 @@ UniValue getreceivedtokenbyaddress(const JSONRPCRequest& request)
     return result;
 }
 
+UniValue getunconfirmedtokenbalance(const JSONRPCRequest &request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() > 0)
+        throw runtime_error(
+                "getunconfirmedbalance\n"
+                "Returns the server's total unconfirmed balance\n");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    std::map<CTokenID, CAmount> mTokenAmount = pwalletMain->GetUnconfirmedTokenBalance();
+
+    UniValue result(UniValue::VARR);
+    BOOST_FOREACH (const auto& t, mTokenAmount){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("tokenid", t.first.ToString()));
+        CTokenInfo info;
+        if (pTokenInfos->GetTokenInfo(t.first, info))
+            entry.push_back(Pair("symbol", info.symbol));
+        entry.push_back(Pair("amout", t.second));
+        result.push_back(entry);
+    }
+    return result;
+}
+
 static const CRPCCommand commands[] =
 { //  category      name                            actor (function)                okSafeMode
   //  -----------   ----------------------------    ---------------------------     ----------
@@ -466,6 +493,7 @@ static const CRPCCommand commands[] =
     { "token",      "gettokenbalance",              &gettokenbalance,               false,  {"tokenid","account","minconf","include_watchonly"} },
     { "token",      "getaddresstokenbalance",       &getaddresstokenbalance,        false,  {"verbose"} },
     { "token",      "getreceivedtokenbyaddress",    &getreceivedtokenbyaddress,     false,  {"address","minconf"} },
+    { "token",      "getunconfirmedtokenbalance",   &getunconfirmedtokenbalance,    false,  {} },
 };
 
 void RegisterTokenRPCCommands(CRPCTable &t)
