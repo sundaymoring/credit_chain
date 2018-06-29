@@ -103,18 +103,24 @@ public:
 
     ADD_SERIALIZE_METHODS;
 
+    //TODO compress tokenID
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         if (!ser_action.ForRead()) {
-            uint64_t nVal = CompressAmount(txout.nValue);
-            READWRITE(VARINT(nVal));
+            uint64_t nBtcVal = CompressAmount(txout.nValue);
+            READWRITE(VARINT(nBtcVal));
+            uint64_t nTokenVal = CompressAmount(txout.nTokenValue);
+            READWRITE(VARINT(nTokenVal));
         } else {
-            uint64_t nVal = 0;
-            READWRITE(VARINT(nVal));
-            txout.nValue = DecompressAmount(nVal);
+            uint64_t nBtcVal = 0, nTokenVal = 0;
+            READWRITE(VARINT(nBtcVal));
+            txout.nValue = DecompressAmount(nBtcVal);
+            READWRITE(VARINT(nTokenVal));
+            txout.nTokenValue = DecompressAmount(nTokenVal);
         }
         CScriptCompressor cscript(REF(txout.scriptPubKey));
         READWRITE(cscript);
+        READWRITE(txout.tokenID);
     }
 };
 

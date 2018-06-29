@@ -27,7 +27,9 @@ struct COutValue {
     COutValue(const CAmount& nBtcValueIn, const CTokenID& tokenIDIn, const CAmount& nTokenValueIn) : nBtcValue(nBtcValueIn), tokenID(tokenIDIn), nTokenValue(nTokenValueIn){}
 
     COutValue() {
-        SetNull();
+        nBtcValue = 0;
+        nTokenValue = 0;
+        tokenID.SetNull();
     }
 
     void SetNull() {

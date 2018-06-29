@@ -780,6 +780,7 @@ struct CCoinsStats
     uint64_t nSerializedSize;
     uint256 hashSerialized;
     CAmount nTotalAmount;
+    std::map<CTokenID, CAmount> mTotalTokenAmount;
 
     CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nSerializedSize(0), nTotalAmount(0) {}
 };
@@ -797,6 +798,7 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
     }
     ss << stats.hashBlock;
     CAmount nTotalAmount = 0;
+    std::map<CTokenID, CAmount> mTotalTokenAmount;
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         uint256 key;
@@ -811,6 +813,12 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
                     ss << VARINT(i+1);
                     ss << out;
                     nTotalAmount += out.nValue;
+                    if (out.tokenID!=TOKENID_ZERO){
+                        if (mTotalTokenAmount.find(out.tokenID) == mTotalTokenAmount.end()){
+                            mTotalTokenAmount[out.tokenID] = 0;
+                        }
+                        mTotalTokenAmount[out.tokenID] += out.nTokenValue;
+                    }
                 }
             }
             stats.nSerializedSize += 32 + pcursor->GetValueSize();
@@ -822,6 +830,7 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
     }
     stats.hashSerialized = ss.GetHash();
     stats.nTotalAmount = nTotalAmount;
+    stats.mTotalTokenAmount = mTotalTokenAmount;
     return true;
 }
 
@@ -896,6 +905,8 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
             + HelpExampleRpc("gettxoutsetinfo", "")
         );
 
+    LOCK(cs_main);
+
     UniValue ret(UniValue::VOBJ);
 
     CCoinsStats stats;
@@ -908,6 +919,19 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
         ret.push_back(Pair("bytes_serialized", (int64_t)stats.nSerializedSize));
         ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
         ret.push_back(Pair("total_amount", ValueFromAmount(stats.nTotalAmount)));
+        UniValue objToken(UniValue::VARR);
+        BOOST_FOREACH (const auto& t, stats.mTotalTokenAmount){
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("tokenid", t.first.ToString()));
+            CTokenInfo info;
+            if (pTokenInfos->GetTokenInfo(t.first, info))
+                entry.push_back(Pair("symbol", info.symbol));
+            entry.push_back(Pair("total_amount", t.second));
+            objToken.push_back(entry);
+        }
+        if (stats.mTotalTokenAmount.size()){
+            ret.push_back(Pair("token_details", objToken));
+        }
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
     }
