@@ -121,6 +121,7 @@ bool CTokenSend::sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& 
     return createTokenTransaction(vecRecipients, txid, nChangePosInOut, strFailReason, NULL, true, TTC_SEND);
 }
 
+//TODO solve it like witness
 //TODO is TTC_BITCOIN  need define again
 tokencode GetTxTokenCode(const CTransaction& tx)
 {

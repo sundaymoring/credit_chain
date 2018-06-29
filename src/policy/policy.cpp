@@ -281,6 +281,7 @@ bool IsStandardIssureAsset(const CTransaction& tx)
     return true;
 }
 
+//TODO useless
 const std::vector<CTxOut>& GetStandardIssureAsset(const CTransaction& tx)
 {
     assert(IsStandardIssureAsset(tx));
@@ -294,6 +295,7 @@ const std::vector<CTxOut>& GetStandardIssureAsset(const CTransaction& tx)
     if (tx.vout.size() > 2){
         issureOut.insert(issureOut.end(), tx.vout.begin()+2, tx.vout.end());
     }
+    return std::move(issureOut);
 }
 
 CFeeRate incrementalRelayFee = CFeeRate(DEFAULT_INCREMENTAL_RELAY_FEE);

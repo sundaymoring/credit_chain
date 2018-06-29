@@ -515,7 +515,7 @@ struct CAddressUnspentKey {
 };
 
 struct CAddressUnspentValue {
-    CAmount satoshis;
+    COutValue outValue;
     CScript script;
     int blockHeight;
     uint64_t nTime;
@@ -524,17 +524,17 @@ struct CAddressUnspentValue {
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(satoshis);
+        READWRITE(outValue);
         READWRITE(*(CScriptBase*)(&script));
         READWRITE(blockHeight);
         READWRITE(nTime);
     }
 
-    CAddressUnspentValue(CAmount sats, CScript scriptPubKey, int height, uint64_t nTimeVal) {
-        satoshis = sats;
-        script = scriptPubKey;
-        blockHeight = height;
-        nTime = nTimeVal;
+    CAddressUnspentValue(COutValue outValueIn, CScript scriptPubKeyIn, int heightIn, uint64_t nTimeValIn) {
+        outValue = outValueIn;
+        script = scriptPubKeyIn;
+        blockHeight = heightIn;
+        nTime = nTimeValIn;
     }
 
     CAddressUnspentValue() {
@@ -542,14 +542,14 @@ struct CAddressUnspentValue {
     }
 
     void SetNull() {
-        satoshis = -1;
+        outValue.SetNull();
         script.clear();
         blockHeight = 0;
         nTime = 0;
     }
 
     bool IsNull() const {
-        return (satoshis == -1);
+        return outValue.IsNull();
     }
 };
 
@@ -912,7 +912,7 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
 bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const bool fActiveOnly, std::vector<std::pair<uint256, unsigned int> > &hashes);
 bool GetSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
 bool GetAddressIndex(uint160 addressHash, int type,
-                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
+                     std::vector<std::pair<CAddressIndexKey, COutValue> > &addressIndex,
                      int start = 0, int end = 0);
 bool GetAddressUnspent(uint160 addressHash, int type,
                        std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs);

@@ -302,6 +302,79 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
     return result;
 }
 
+bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, int> > &addresses);
+
+UniValue getaddresstokenbalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "getaddresstokenbalance\n"
+            "\nReturns the balance for an address(es) (requires addressindex to be enabled).\n"
+            "\nArguments:\n"
+            "{\n"
+            "  \"addresses\"\n"
+            "    [\n"
+            "      \"address\"  (string) The base58check encoded address\n"
+            "      ,...\n"
+            "    ]\n"
+            "}\n"
+            "\nResult:\n"
+            "[\n"
+            "   {\n"
+            "       \"tokenid\"   (string) The token id\n"
+            "       \"balance\"  (string) The current balance in satoshis\n"
+            "       \"received\"  (string) The total number of satoshis received (including change)\n"
+            "   }\n"
+            "   ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getaddressbalance", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
+            + HelpExampleRpc("getaddressbalance", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
+        );
+
+    LOCK(cs_main);
+
+    std::vector<std::pair<uint160, int> > addresses;
+
+    if (!getAddressesFromParams(request.params, addresses)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+    }
+
+    std::vector<std::pair<CAddressIndexKey, COutValue>> addressIndex;
+
+    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+        if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+        }
+    }
+
+    // map value first is recived, map value second is balanced;
+    std::map<CTokenID, std::pair<CAmount,CAmount>> tokenValue;
+
+    for (std::vector<std::pair<CAddressIndexKey, COutValue> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+        if (it->second.tokenID == TOKENID_ZERO){
+            continue;
+        }
+        if (tokenValue.find(it->second.tokenID) == tokenValue.end()){
+            tokenValue[it->second.tokenID] = std::make_pair(0,0);
+        }
+        if (it->second.nTokenValue > 0) {
+            tokenValue[it->second.tokenID].first += it->second.nTokenValue;
+        }
+        tokenValue[it->second.tokenID].second += it->second.nTokenValue;
+    }
+
+
+    UniValue result(UniValue::VARR);
+    BOOST_FOREACH (const auto& t, tokenValue){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("tokenid", t.first.ToString()));
+        entry.push_back(Pair("balance", t.second.second));
+        entry.push_back(Pair("received", t.second.first));
+        result.push_back(entry);
+    }
+    return result;
+}
 
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
@@ -309,7 +382,8 @@ static const CRPCCommand commands[] =
     { "token",              "issuretoken",            &issuretoken,            false,  {"asset_address","type","amount","name"} },
     { "token",              "listtokens",             &listtokens,             false,  {} },
     { "token",              "sendtoaddresstoken",     &sendtokentoaddress,     false,  {"toaddress", "tokenID", "amount"} },
-    { "wallet",             "gettokenbalance",        &gettokenbalance,        false,  {"tokenid","account","minconf","include_watchonly"} },
+    { "token",              "gettokenbalance",        &gettokenbalance,        false,  {"tokenid","account","minconf","include_watchonly"} },
+    { "token",              "getaddresstokenbalance", &getaddresstokenbalance, false,  {"verbose"} },
 };
 
 void RegisterTokenRPCCommands(CRPCTable &t)

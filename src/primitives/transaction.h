@@ -229,7 +229,9 @@ public:
     friend bool operator==(const CTxOut& a, const CTxOut& b)
     {
         return (a.nValue       == b.nValue &&
-                a.scriptPubKey == b.scriptPubKey);
+                a.scriptPubKey == b.scriptPubKey &&
+                a.tokenID      == b.tokenID &&
+                a.nTokenValue  == b.nTokenValue);
     }
 
     friend bool operator!=(const CTxOut& a, const CTxOut& b)

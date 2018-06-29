@@ -30,6 +30,7 @@ extern const std::string CURRENCY_UNIT;
  * critical; in unusual circumstances like a(nother) overflow bug that allowed
  * for the creation of coins out of thin air modification could lead to a fork.
  * */
+//TODO is need add TokenRange and TOKEN_MAX_MONEY?
 static const CAmount MAX_MONEY = 21000000 * COIN * COIN_SCALE;
 inline bool MoneyRange(const CAmount& nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 

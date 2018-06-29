@@ -9,6 +9,40 @@
 #include "uint256.h"
 #include "amount.h"
 
+
+struct COutValue {
+    CAmount nBtcValue;
+    CTokenID tokenID;
+    CAmount nTokenValue;
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(nBtcValue);
+        READWRITE(tokenID);
+        READWRITE(nTokenValue);
+    }
+
+    COutValue(const CAmount& nBtcValueIn, const CTokenID& tokenIDIn, const CAmount& nTokenValueIn) : nBtcValue(nBtcValueIn), tokenID(tokenIDIn), nTokenValue(nTokenValueIn){}
+
+    COutValue() {
+        SetNull();
+    }
+
+    void SetNull() {
+        nBtcValue = -1;
+        tokenID.SetNull();
+        nTokenValue = -1;
+    }
+
+    bool IsNull() const {
+        return nBtcValue == -1 &&
+                tokenID.IsNull() &&
+                nTokenValue == -1;
+    }
+};
+
 struct CSpentIndexKey {
     uint256 txid;
     unsigned int outputIndex;
@@ -41,7 +75,7 @@ struct CSpentIndexValue {
     uint256 txid;
     unsigned int inputIndex;
     int blockHeight;
-    CAmount satoshis;
+    COutValue outValue;
     int addressType;
     uint160 addressHash;
 
@@ -52,16 +86,16 @@ struct CSpentIndexValue {
         READWRITE(txid);
         READWRITE(inputIndex);
         READWRITE(blockHeight);
-        READWRITE(satoshis);
+        READWRITE(outValue);
         READWRITE(addressType);
         READWRITE(addressHash);
     }
 
-    CSpentIndexValue(uint256 t, unsigned int i, int h, CAmount s, int type, uint160 a) {
+    CSpentIndexValue(uint256 t, unsigned int i, int h, COutValue s, int type, uint160 a) {
         txid = t;
         inputIndex = i;
         blockHeight = h;
-        satoshis = s;
+        outValue = s;
         addressType = type;
         addressHash = a;
     }
@@ -74,7 +108,7 @@ struct CSpentIndexValue {
         txid.SetNull();
         inputIndex = 0;
         blockHeight = 0;
-        satoshis = 0;
+        outValue.SetNull();
         addressType = 0;
         addressHash.SetNull();
     }

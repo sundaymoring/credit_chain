@@ -142,6 +142,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "issuretoken", 1, "type"},
     { "issuretoken", 2, "amount"},
     { "issuretoken", 2, "amount"},
+    { "getaddresstokenbalance", 0, "address"},
 };
 
 class CRPCConvertTable

@@ -1180,7 +1180,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
         }
 
         CSpentIndexKey key = CSpentIndexKey(input.prevout.hash, input.prevout.n);
-        CSpentIndexValue value = CSpentIndexValue(txhash, j, -1, prevout.nValue, addressType, addressHash);
+        CSpentIndexValue value = CSpentIndexValue(txhash, j, -1, COutValue(prevout.nValue, prevout.tokenID, prevout.nTokenValue), addressType, addressHash);
 
         mapSpent.insert(std::make_pair(key, value));
         inserted.push_back(key);
