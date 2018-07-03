@@ -1585,6 +1585,7 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
             listSent.push_back(output);
         else if (txout.tokenID != TOKENID_ZERO){
             if (TTC_ISSUE != GetTxTokenCode(*tx)){
+//            if (TTC_ISSUE != tx->GetTokenCode()){
                 listSent.push_back(output);
             }
         }
@@ -2610,6 +2611,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
 //TODO now if tokensend, bitcoin input 1 coin.  change real input after finish code
 //TODO output nTokenValue will effect Witness sign, now ignore
 //TODO btc fee is too high, make sure is right
+//TODO token's output btcValue not be dustvalue, should set a minValue, like 0.001COIN
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode tokenType)
 {
@@ -3044,6 +3046,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 const CScript& scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
                 SignatureData sigdata;
 
+                //TODO tokenID and tokenValue not include in signature, is needed?
                 if (!ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->tx->vout[coin.second].nValue, SIGHASH_ALL), scriptPubKey, sigdata))
                 {
                     strFailReason = _("Signing transaction failed");

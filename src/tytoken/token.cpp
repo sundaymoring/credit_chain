@@ -66,11 +66,15 @@ static bool createTokenTransaction(const std::vector<CRecipient>& vecRecipients,
 //TODO bitcoin sendfrom assetAddress, and token in assetAddress. now bitcoin sendfrom other address.
 bool CTokenIssure::issureToken(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason)
 {
-    CScript scriptReturn, scriptToken;
+    CScript scriptReturn;
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
-    ds << *this;
+    ds << *(static_cast<CTokenProtocol*>(this));
     scriptReturn << OP_RETURN << std::vector<unsigned char>(ds.begin(), ds.end());
-    scriptToken = GetScriptForDestination(tokenAddress.Get());
+    ds.clear();
+    ds << *this;
+    scriptReturn << std::vector<unsigned char>(ds.begin(), ds.end());
+
+    CScript scriptToken = GetScriptForDestination(tokenAddress.Get());
 
     std::vector<CRecipient> vecRecipients;
     vecRecipients.push_back(CRecipient{scriptReturn, 0, false, TOKENID_ZERO, 0});
@@ -96,6 +100,7 @@ bool CTokenIssure::decodeTokenTransaction(const CTransaction &tx, std::string st
         return false;
     }
     CDataStream ds(vReturnData, SER_NETWORK, CLIENT_VERSION);
+    ds >> *(static_cast<CTokenProtocol*>(this));
     ds >> *this;
 
     //TODO check token is already exist

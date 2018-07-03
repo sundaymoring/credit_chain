@@ -59,7 +59,7 @@ public:
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
-        CTokenProtocol::SerializationOp(s, ser_action);
+//        CTokenProtocol::SerializationOp(s, ser_action);
         READWRITE(nType);
         READWRITE(nValue);
         READWRITE(symbol);
@@ -81,7 +81,7 @@ public:
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
-        CTokenProtocol::SerializationOp(s, ser_action);
+//        CTokenProtocol::SerializationOp(s, ser_action);
     }
     bool sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason);
 };
