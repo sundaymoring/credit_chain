@@ -770,12 +770,23 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
                 strprintf("%d", nSigOpsCost));
 
+        const tokencode tokenCode = GetTxTokenCode(tx);
         CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
         if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
-        } else if (GetBoolArg("-relaypriority", DEFAULT_RELAYPRIORITY) && nModifiedFees < ::minRelayTxFee.GetFee(nSize) && !AllowFree(entry.GetPriority(chainActive.Height() + 1))) {
+        } else if (GetBoolArg("-relaypriority", DEFAULT_RELAYPRIORITY) &&
+                   nModifiedFees < ::minRelayTxFee.GetFee(nSize) &&
+                   !AllowFree(entry.GetPriority(chainActive.Height() + 1))) {
             // Require that free transactions have sufficient priority to be mined in the next block.
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
+        }
+
+        if (tokenCode==TTC_ISSUE ){
+            if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee + TOKEN_ISSURE_FEE )
+                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool issure token min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee + TOKEN_ISSURE_FEE));
+
+            if (nModifiedFees<::minRelayTxFee.GetFee(nSize) + TOKEN_ISSURE_FEE)
+                return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issure-token-insufficien-fee", strprintf("%d < %d", nFees, ::minRelayTxFee.GetFee(nSize)+TOKEN_ISSURE_FEE));
         }
 
         // Continuously rate-limit free (really, very-low-fee) transactions
@@ -801,10 +812,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             dFreeCount += nSize;
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee)
+        if (nAbsurdFee && nFees > nAbsurdFee + (tokenCode == TTC_ISSUE ? TOKEN_ISSURE_FEE : 0))
             return state.Invalid(false,
                 REJECT_HIGHFEE, "absurdly-high-fee",
                 strprintf("%d > %d", nFees, nAbsurdFee));
+        if (tokenCode==TTC_ISSUE && nFees <= TOKEN_ISSURE_FEE )
+            return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issure-token-insufficien-tee", strprintf("%d < %d", nFees, TOKEN_ISSURE_FEE));
 
         // Calculate in-mempool ancestors, up to a limit.
         CTxMemPool::setEntries setAncestors;

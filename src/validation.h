@@ -50,6 +50,10 @@ struct ChainTxData;
 struct PrecomputedTransactionData;
 struct LockPoints;
 
+
+/** Default for TOKEN_ISSURE_FEE. */
+static const CAmount TOKEN_ISSURE_FEE = 100 * COIN * COIN_SCALE;
+
 /** Default for DEFAULT_WHITELISTRELAY. */
 static const bool DEFAULT_WHITELISTRELAY = true;
 /** Default for DEFAULT_WHITELISTFORCERELAY. */

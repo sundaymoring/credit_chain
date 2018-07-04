@@ -2625,7 +2625,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
 
-    CTokenID tokenID = (tokenType==TTC_SEND ? vecSend[0].tokenID : TOKENID_ZERO);
+    CTokenID tokenID = tokenType==TTC_SEND ? vecSend[0].tokenID : TOKENID_ZERO;
     for (const auto& recipient : vecSend)
     {
         if ((nBtcValue < 0 && nTokenValue < 0) || recipient.nAmount < 0)
@@ -2710,6 +2710,9 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
             }
 
             nFeeRet = 0;
+            if (tokenType == TTC_ISSUE){
+                nFeeRet += TOKEN_ISSURE_FEE;
+            }
             // Start with no fee and loop until there is enough fee
             while (true)
             {
@@ -2719,8 +2722,9 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 wtxNew.fFromMe = true;
                 bool fFirst = true;
 
-                CAmount nBtcValueToSelect = nBtcValue, nTokenValueToSelect = nTokenValue;
-                if ((nSubtractFeeFromAmount == 0 && tokenType==TTC_NONE) || tokenType==TTC_SEND)
+                CAmount nBtcValueToSelect = nBtcValue;
+                CAmount nTokenValueToSelect = nTokenValue;
+                if ((nSubtractFeeFromAmount == 0 && tokenType==TTC_NONE) || tokenType!=TTC_NONE) // all token tx fee subtract from sender
                     nBtcValueToSelect += nFeeRet;
                 double dPriority = 0;
                 // vouts to the payees
@@ -2984,7 +2988,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         break;
                 }
 
-                CAmount nFeeNeeded = GetMinimumFee(nBytes, currentConfirmationTarget, mempool);
+                CAmount nFeeNeeded = GetMinimumFee(nBytes, currentConfirmationTarget, mempool) + (tokenType == TTC_ISSUE ? TOKEN_ISSURE_FEE : 0);
                 if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
                     nFeeNeeded = coinControl->nMinimumTotalFee;
                 }
