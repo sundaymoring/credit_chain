@@ -25,7 +25,7 @@ static bool createTokenTransaction(const std::vector<CRecipient>& vecRecipients,
         return false;
     }
 
-    CAmount curBtcBalance = pwalletMain->GetBalance(TOKENID_ZERO, false);
+    CAmount curBtcBalance = pwalletMain->GetBalance(TOKENID_ZERO);
     if (curBtcBalance <= vecRecipients[1].nAmount)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
@@ -33,7 +33,7 @@ static bool createTokenTransaction(const std::vector<CRecipient>& vecRecipients,
     if (vecRecipients[1].nTokenAmount <= 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid token amount");
     if (vecRecipients[1].tokenID != TOKENID_ZERO){
-        CAmount curTokenBalance = pwalletMain->GetBalance(vecRecipients[1].tokenID, false);
+        CAmount curTokenBalance = pwalletMain->GetBalance(vecRecipients[1].tokenID);
         if (vecRecipients[1].nTokenAmount > curTokenBalance)
             throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient token funds");
     }
