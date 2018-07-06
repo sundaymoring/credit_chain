@@ -44,16 +44,16 @@ const std::vector<CTokenInfo> CTokenDB::ListTokenInfos()
     return std::move(infos);
 }
 
-void CTokenInfo::FromTx(const CTransaction& tx, const CTokenIssure& issure)
+void CTokenInfo::FromTx(const CTransaction& tx, const CTokenIssue& issue)
 {
     //TODO extract name
     tokenID = tx.vout[1].tokenID;
     amount = tx.vout[1].nTokenValue;
-    type = issure.nType;
-    symbol = issure.symbol;
-    fullName = issure.fullName;
-    description = issure.description;
-    url = issure.url;
+    type = issue.nType;
+    symbol = issue.symbol;
+    fullName = issue.fullName;
+    description = issue.description;
+    url = issue.url;
     CTxDestination destination;
     if (ExtractDestination(tx.vout[1].scriptPubKey, destination) ){
         address = CBitcoinAddress(destination).ToString();

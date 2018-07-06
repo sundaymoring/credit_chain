@@ -41,7 +41,7 @@ public:
 
 
 
-class CTokenIssure : public CTokenProtocol {
+class CTokenIssue : public CTokenProtocol {
 public:
     uint8_t nType;
     CAmount nValue;
@@ -50,8 +50,8 @@ public:
     std::string description;
     std::string url;
 
-    CTokenIssure() : CTokenProtocol(TTC_ISSUE) {}
-    CTokenIssure(const uint8_t nIsDivisibleIn, const CAmount nValueIn, const std::string& shortNameIn, const std::string& fullNameIn, const std::string& descriptionIn,const std::string& urlIn)
+    CTokenIssue() : CTokenProtocol(TTC_ISSUE) {}
+    CTokenIssue(const uint8_t nIsDivisibleIn, const CAmount nValueIn, const std::string& shortNameIn, const std::string& fullNameIn, const std::string& descriptionIn,const std::string& urlIn)
         :CTokenProtocol(TTC_ISSUE), nType(nIsDivisibleIn), nValue(nValueIn), symbol(shortNameIn), fullName(fullNameIn), description(descriptionIn), url(urlIn){
     }
 
@@ -68,7 +68,7 @@ public:
         READWRITE(url);
     }
 
-    bool issureToken(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason);
+    bool issueToken(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason);
     bool decodeTokenTransaction(const CTransaction& tx, std::string strFailReason);
 };
 

@@ -64,7 +64,7 @@ static bool createTokenTransaction(const std::vector<CRecipient>& vecRecipients,
 }
 
 //TODO bitcoin sendfrom assetAddress, and token in assetAddress. now bitcoin sendfrom other address.
-bool CTokenIssure::issureToken(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason)
+bool CTokenIssue::issueToken(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason)
 {
     CScript scriptReturn;
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
@@ -85,10 +85,10 @@ bool CTokenIssure::issureToken(const CBitcoinAddress& tokenAddress, uint256& txi
     return createTokenTransaction(vecRecipients, txid, nChangePosInOut, strFailReason, NULL, true, TTC_ISSUE);
 }
 
-bool CTokenIssure::decodeTokenTransaction(const CTransaction &tx, std::string strFailReason)
+bool CTokenIssue::decodeTokenTransaction(const CTransaction &tx, std::string strFailReason)
 {
 //    if ( TTC_ISSUE != tx.GetTokenCode() ){
-//        strFailReason = "token procotol is not issure";
+//        strFailReason = "token procotol is not issue";
 //        return false;
 //    }
 
@@ -96,7 +96,7 @@ bool CTokenIssure::decodeTokenTransaction(const CTransaction &tx, std::string st
     std::vector<unsigned char> vReturnData;
     bool ret = ExtractPushDatas(tx.vout[0].scriptPubKey, type, vReturnData);
     if (!ret || type!=TX_NULL_DATA){
-        strFailReason = "issure token procotol error";
+        strFailReason = "issue token procotol error";
         return false;
     }
     CDataStream ds(vReturnData, SER_NETWORK, CLIENT_VERSION);

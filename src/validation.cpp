@@ -857,11 +857,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         const tokencode returnTokenCode = GetTxReturnTokenCode(tx);
         if (returnTokenCode==TTC_ISSUE ){
-            if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee + TOKEN_ISSURE_FEE )
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool issure token min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee + TOKEN_ISSURE_FEE));
+            if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee + TOKEN_ISSUE_FEE )
+                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool issue token min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee + TOKEN_ISSUE_FEE));
 
-            if (nModifiedFees<::minRelayTxFee.GetFee(nSize) + TOKEN_ISSURE_FEE)
-                return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issure-token-insufficien-fee", strprintf("%d < %d", nFees, ::minRelayTxFee.GetFee(nSize)+TOKEN_ISSURE_FEE));
+            if (nModifiedFees<::minRelayTxFee.GetFee(nSize) + TOKEN_ISSUE_FEE)
+                return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issue-token-insufficien-fee", strprintf("%d < %d", nFees, ::minRelayTxFee.GetFee(nSize)+TOKEN_ISSUE_FEE));
         }
 
         // Continuously rate-limit free (really, very-low-fee) transactions
@@ -887,12 +887,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             dFreeCount += nSize;
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee + (returnTokenCode == TTC_ISSUE ? TOKEN_ISSURE_FEE : 0))
+        if (nAbsurdFee && nFees > nAbsurdFee + (returnTokenCode == TTC_ISSUE ? TOKEN_ISSUE_FEE : 0))
             return state.Invalid(false,
                 REJECT_HIGHFEE, "absurdly-high-fee",
                 strprintf("%d > %d", nFees, nAbsurdFee));
-        if (returnTokenCode==TTC_ISSUE && nFees <= TOKEN_ISSURE_FEE )
-            return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issure-token-insufficien-tee", strprintf("%d < %d", nFees, TOKEN_ISSURE_FEE));
+        if (returnTokenCode==TTC_ISSUE && nFees <= TOKEN_ISSUE_FEE )
+            return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issue-token-insufficien-tee", strprintf("%d < %d", nFees, TOKEN_ISSUE_FEE));
 
         // Calculate in-mempool ancestors, up to a limit.
         CTxMemPool::setEntries setAncestors;
@@ -2294,13 +2294,13 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         //TODO decode other token info
 //        if (!fJustCheck && tx.GetTokenCode() == TTC_ISSUE){
         if (!fJustCheck && GetTxReturnTokenCode(tx) == TTC_ISSUE){
-            CTokenIssure issure;
+            CTokenIssue issue;
             std::string strFail;
-            if (!issure.decodeTokenTransaction(tx, strFail)){
-                return state.DoS(100, error(strFail.data()), REJECT_INVALID, "bad-issure-token");
+            if (!issue.decodeTokenTransaction(tx, strFail)){
+                return state.DoS(100, error(strFail.data()), REJECT_INVALID, "bad-issue-token");
             }
             CTokenInfo tInfo;
-            tInfo.FromTx(tx, issure);
+            tInfo.FromTx(tx, issue);
             pTokenInfos->WriteTokenInfo(tInfo);
         }
 

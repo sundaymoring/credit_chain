@@ -242,7 +242,7 @@ bool GetScriptPushes(const CScript& script, std::vector<std::string>& vstrRet, b
     return true;
 }
 
-bool IsStandardIssureAsset(const CTransaction& tx)
+bool IsStandardIssueAsset(const CTransaction& tx)
 {
     if (tx.IsCoinBase() || tx.IsCoinStake())
         return false;
@@ -282,20 +282,20 @@ bool IsStandardIssureAsset(const CTransaction& tx)
 }
 
 //TODO useless
-const std::vector<CTxOut> GetStandardIssureAsset(const CTransaction& tx)
+const std::vector<CTxOut> GetStandardIssueAsset(const CTransaction& tx)
 {
-    assert(IsStandardIssureAsset(tx));
-    std::vector<CTxOut> issureOut;
+    assert(IsStandardIssueAsset(tx));
+    std::vector<CTxOut> issueOut;
     // TODO use real data
     // decode op_return data
     uint272 fakeID;
 //    fakeID.SetHex("123456");
     CTxOut out(tx.vout[1].nValue, tx.vout[1].scriptPubKey, fakeID, 10000);
-    issureOut.push_back(out);
+    issueOut.push_back(out);
     if (tx.vout.size() > 2){
-        issureOut.insert(issureOut.end(), tx.vout.begin()+2, tx.vout.end());
+        issueOut.insert(issueOut.end(), tx.vout.begin()+2, tx.vout.end());
     }
-    return std::move(issureOut);
+    return std::move(issueOut);
 }
 
 CFeeRate incrementalRelayFee = CFeeRate(DEFAULT_INCREMENTAL_RELAY_FEE);

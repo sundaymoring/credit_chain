@@ -6,7 +6,7 @@
 #include "amount.h"
 
 class CTransaction;
-class CTokenIssure;
+class CTokenIssue;
 
 struct CTokenInfo {
 
@@ -39,7 +39,7 @@ struct CTokenInfo {
         READWRITE(txHash);
     }
 
-    void FromTx(const CTransaction& tx, const CTokenIssure& issure);
+    void FromTx(const CTransaction& tx, const CTokenIssue& issue);
 };
 
 

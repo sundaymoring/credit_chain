@@ -94,8 +94,8 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
 
-bool IsStandardIssureAsset(const CTransaction& tx);
-const std::vector<CTxOut> GetStandardIssureAsset(const CTransaction& tx);
+bool IsStandardIssueAsset(const CTransaction& tx);
+const std::vector<CTxOut> GetStandardIssueAsset(const CTransaction& tx);
 
 int64_t FutureDrift(int64_t nTime);
 

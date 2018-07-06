@@ -139,9 +139,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getaddressutxos", 0, "verbose"},
     { "getaddressmempool", 0, "verbose"},
 
-    { "issuretoken", 1, "type"},
-    { "issuretoken", 2, "amount"},
-    { "issuretoken", 2, "amount"},
+    { "issuetoken", 1, "type"},
+    { "issuetoken", 2, "amount"},
+    { "issuetoken", 2, "amount"},
     { "getaddresstokenbalance", 0, "address"},
     { "getreceivedtokenbyaddress", 1, "minconf" },
 };

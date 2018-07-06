@@ -2649,7 +2649,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     }
     if (tokenType == TTC_ISSUE){
         if( vecSend.size() < 2 || vecSend[0].nAmount != 0 || vecSend[1].nTokenAmount <= 0){
-            strFailReason = _("issure token transaction format illegal");
+            strFailReason = _("issue token transaction format illegal");
             return false;
         }
     } else if (tokenType == TTC_SEND){
@@ -2711,7 +2711,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
             nFeeRet = 0;
             if (tokenType == TTC_ISSUE){
-                nFeeRet += TOKEN_ISSURE_FEE;
+                nFeeRet += TOKEN_ISSUE_FEE;
             }
             // Start with no fee and loop until there is enough fee
             while (true)
@@ -2989,7 +2989,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                         break;
                 }
 
-                CAmount nFeeNeeded = GetMinimumFee(nBytes, currentConfirmationTarget, mempool) + (tokenType == TTC_ISSUE ? TOKEN_ISSURE_FEE : 0);
+                CAmount nFeeNeeded = GetMinimumFee(nBytes, currentConfirmationTarget, mempool) + (tokenType == TTC_ISSUE ? TOKEN_ISSUE_FEE : 0);
                 if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
                     nFeeNeeded = coinControl->nMinimumTotalFee;
                 }

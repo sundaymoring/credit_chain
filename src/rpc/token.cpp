@@ -18,11 +18,11 @@ using namespace std;
 
 bool EnsureWalletIsAvailable(bool avoidException);
 
-UniValue issuretoken(const JSONRPCRequest& request){
+UniValue issuetoken(const JSONRPCRequest& request){
     if (request.fHelp || request.params.size() < 7)
         throw runtime_error(
-            "issuretoken assetaddress type amount name\n"
-            "\nReturns the txid when issure token success.\n"
+            "issuetoken assetaddress type amount name\n"
+            "\nReturns the txid when issue token success.\n"
 
             "\nArguments:\n"
             "1. fromaddress          (string, required) the address to own token\n"
@@ -37,7 +37,7 @@ UniValue issuretoken(const JSONRPCRequest& request){
             "\"hash\"                  (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-                + HelpExampleCli("issuretoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" 1 1000000 \"btc\" \"bitcoin\" \"bitcoin is first Cryptocurrency\" \"https://bitcoin.org\"")
+                + HelpExampleCli("issuetoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" 1 1000000 \"btc\" \"bitcoin\" \"bitcoin is first Cryptocurrency\" \"https://bitcoin.org\"")
             );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -60,8 +60,8 @@ UniValue issuretoken(const JSONRPCRequest& request){
 
     uint256 txid;
     std::string strFailReason;
-    CTokenIssure tIssure(isDivisible, amount, symbol, fullName, description, url);
-    bool ret = tIssure.issureToken(tokenAddress, txid,  strFailReason);
+    CTokenIssue tIssue(isDivisible, amount, symbol, fullName, description, url);
+    bool ret = tIssue.issueToken(tokenAddress, txid,  strFailReason);
 
     return ret ? txid.ToString() : strFailReason;
 
@@ -488,7 +488,7 @@ UniValue getunconfirmedtokenbalance(const JSONRPCRequest &request)
 static const CRPCCommand commands[] =
 { //  category      name                            actor (function)                okSafeMode
   //  -----------   ----------------------------    ---------------------------     ----------
-    { "token",      "issuretoken",                  &issuretoken,                   false,  {"asset_address","type","amount","name"} },
+    { "token",      "issuetoken",                   &issuetoken,                    false,  {"asset_address","type","amount","name"} },
     { "token",      "listtokens",                   &listtokens,                    false,  {} },
     { "token",      "sendtoaddresstoken",           &sendtokentoaddress,            false,  {"toaddress", "tokenID", "amount"} },
     { "token",      "gettokenbalance",              &gettokenbalance,               false,  {"tokenid","account","minconf","include_watchonly"} },
