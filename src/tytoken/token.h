@@ -86,7 +86,7 @@ public:
     bool sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason);
 };
 
-tokencode GetTxTokenCode(const CTransaction& tx);
+tokencode GetTxReturnTokenCode(const CTransaction& tx);
 
 
 #endif // TOKEN_H

@@ -497,6 +497,7 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
 
 bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
 {
+    const tokencode returnTokenCode = GetTxReturnTokenCode(tx);
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
@@ -507,16 +508,18 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
 
     // Check for negative or overflow output values
-    uint272 tokenID;
+    uint272 tokenID = TOKENID_ZERO;
     CAmount nValueOut = 0;
+    CAmount nTokenValueOut = 0;
     for (const auto& txout : tx.vout)
     {
-        if (txout.nValue < 0)
+        if (txout.nValue < 0 || txout.nTokenValue < 0)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-        if (txout.nValue > MAX_MONEY)
+        if (txout.nValue > MAX_MONEY || txout.nTokenValue > MAX_MONEY)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
         nValueOut += txout.nValue;
-        if (!MoneyRange(nValueOut))
+        nTokenValueOut += txout.nTokenValue;
+        if (!MoneyRange(nValueOut) || !MoneyRange(nTokenValueOut))
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
         if (txout.tokenID != TOKENID_ZERO){
             if (tokenID==TOKENID_ZERO){
@@ -524,6 +527,20 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             } else if (tokenID != txout.tokenID){
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-multitoken");
             }
+        }
+
+        if (!txout.IsFormatLegalValue()){
+              return state.DoS(100, false, REJECT_INVALID, "illegal-format-value-out");
+        }
+    }
+    if (returnTokenCode != TTC_NONE){
+        if (tokenID==TOKENID_ZERO || nTokenValueOut <=0){
+            return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-out");
+        }
+    }
+    if (returnTokenCode == TTC_NONE){
+        if (tokenID!=TOKENID_ZERO || nTokenValueOut >0){
+            return state.DoS(100, false, REJECT_INVALID, "btc-tx-with-token-out");
         }
     }
 
@@ -550,6 +567,61 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
 
     }
 
+    return true;
+}
+
+bool CheckTokenTransactionValue(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs){
+
+    tokencode returnTokenCode = GetTxReturnTokenCode(tx);
+    if (returnTokenCode == TTC_NONE)
+        return true;
+
+    if (returnTokenCode == TTC_ISSUE){
+        // input must btc
+        CAmount maxBtcValueIn = 0;
+        const CTxIn* pMaxInput = NULL;
+        for (const auto& txin : tx.vin){
+            const CTxOut& preout = inputs.GetOutputFor(txin);
+            if (preout.nValue > maxBtcValueIn){
+                maxBtcValueIn = preout.nValue;
+                pMaxInput = &txin;
+            }
+
+            if (preout.tokenID != TOKENID_ZERO || preout.nTokenValue > 0 || preout.nValue == 0)
+                return state.Invalid(false, REJECT_INVALID, "bad-token-issue", "token input in ISSUE");
+        }
+        assert(pMaxInput);
+
+        // check tokenID
+        CTokenID tokenID = TOKENID_ZERO;
+        for (const auto& out : tx.vout)
+        {
+            if (out.tokenID != TOKENID_ZERO){
+                tokenID = out.tokenID;
+                break;
+            }
+        }
+        // check token id
+        if (tokenID == TOKENID_ZERO || tokenID != uint272hex(pMaxInput->prevout.hash, pMaxInput->prevout.n))
+            return state.Invalid(false, REJECT_INVALID, "bad-token-issue", "illegal tokenID in issue tx");
+        // fee must greater than token_issue_fee
+        //TODO check consistent with op_return info
+    }
+    else if(returnTokenCode == TTC_SEND){
+        CTokenID tokenID = TOKENID_ZERO;
+        for (const auto& out : tx.vout)
+        {
+            if (out.tokenID != TOKENID_ZERO){
+                tokenID = out.tokenID;
+                break;
+            }
+        }
+        const CAmount nTokenIn = inputs.GetTokenValueIn(tx, tokenID);
+        const CAmount nTokenOut = tx.GetTokenValueOut(tokenID);
+        if (nTokenIn!=nTokenOut)
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", "token input value unequal to out value");
+
+    }
     return true;
 }
 
@@ -714,6 +786,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         nValueIn = view.GetValueIn(tx);
 
+        if (!CheckTokenTransactionValue(tx, state, view))
+            return false;
+
         // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
         view.SetBackend(dummy);
 
@@ -770,7 +845,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
                 strprintf("%d", nSigOpsCost));
 
-        const tokencode tokenCode = GetTxTokenCode(tx);
         CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(nSize);
         if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee));
@@ -781,7 +855,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
         }
 
-        if (tokenCode==TTC_ISSUE ){
+        const tokencode returnTokenCode = GetTxReturnTokenCode(tx);
+        if (returnTokenCode==TTC_ISSUE ){
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee + TOKEN_ISSURE_FEE )
                 return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool issure token min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee + TOKEN_ISSURE_FEE));
 
@@ -812,11 +887,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             dFreeCount += nSize;
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee + (tokenCode == TTC_ISSUE ? TOKEN_ISSURE_FEE : 0))
+        if (nAbsurdFee && nFees > nAbsurdFee + (returnTokenCode == TTC_ISSUE ? TOKEN_ISSURE_FEE : 0))
             return state.Invalid(false,
                 REJECT_HIGHFEE, "absurdly-high-fee",
                 strprintf("%d > %d", nFees, nAbsurdFee));
-        if (tokenCode==TTC_ISSUE && nFees <= TOKEN_ISSURE_FEE )
+        if (returnTokenCode==TTC_ISSUE && nFees <= TOKEN_ISSURE_FEE )
             return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issure-token-insufficien-tee", strprintf("%d < %d", nFees, TOKEN_ISSURE_FEE));
 
         // Calculate in-mempool ancestors, up to a limit.
@@ -1793,7 +1868,7 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
                 }
             }
 
-            if (GetTxTokenCode(tx) == TTC_ISSUE){
+            if (GetTxReturnTokenCode(tx) == TTC_ISSUE){
 //            if (tx.GetTokenCode() == TTC_ISSUE){
                 pTokenInfos->EraseTokenInfo(tx.vout[1].tokenID);
             }
@@ -2149,6 +2224,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         txdata.emplace_back(tx);
         if (!(tx.IsCoinBase() || tx.IsCoinStake()))
         {
+            if (!CheckTokenTransactionValue(tx, state, view)){
+                return error("ConnectBlock(): CheckInputs on %s failed with %s",
+                                  tx.GetHash().ToString(), FormatStateMessage(state));
+            }
             nFees += view.GetValueIn(tx)-tx.GetValueOut();
 
             std::vector<CScriptCheck> vChecks;
@@ -2214,7 +2293,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         // write token info into leveldb
         //TODO decode other token info
 //        if (!fJustCheck && tx.GetTokenCode() == TTC_ISSUE){
-        if (!fJustCheck && GetTxTokenCode(tx) == TTC_ISSUE){
+        if (!fJustCheck && GetTxReturnTokenCode(tx) == TTC_ISSUE){
             CTokenIssure issure;
             std::string strFail;
             if (!issure.decodeTokenTransaction(tx, strFail)){

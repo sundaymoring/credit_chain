@@ -178,6 +178,13 @@ public:
         return (nValue == -1);
     }
 
+    bool IsFormatLegalValue() const{
+        return (nValue == 0 && nTokenValue == 0 ) ||
+                (nValue > 0 && tokenID == TOKENID_ZERO && nTokenValue == 0) ||
+                (nValue > 0 && tokenID != TOKENID_ZERO && nTokenValue > 0 );
+
+    }
+
     void SetEmpty()
     {
         nValue = 0;
@@ -330,6 +337,8 @@ public:
     CAmount GetValueOut() const;
     // GetValueIn() is a method on CCoinsViewCache, because
     // inputs must be known to compute value in.
+
+    CAmount GetTokenValueOut(const CTokenID& tokenID) const;
 
     // Compute priority, given priority of inputs and (optionally) tx size
     double ComputePriority(double dPriorityInputs, unsigned int nTxSize=0) const;

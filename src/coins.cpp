@@ -281,6 +281,20 @@ CAmount CCoinsViewCache::GetValueIn(const CTransaction& tx) const
     return nResult;
 }
 
+CAmount CCoinsViewCache::GetTokenValueIn(const CTransaction& tx, const CTokenID& tokenID) const
+{
+    if (tx.IsCoinBase() || tokenID == TOKENID_ZERO)
+        return 0;
+
+    CAmount nResult = 0;
+    for (unsigned int i = 0; i < tx.vin.size(); i++){
+        const CTxOut&  preout = GetOutputFor(tx.vin[i]);
+        nResult += (preout.tokenID == tokenID ? preout.nTokenValue : 0);
+    }
+
+    return nResult;
+}
+
 bool CCoinsViewCache::HaveInputs(const CTransaction& tx) const
 {
     if (!tx.IsCoinBase()) {

@@ -114,21 +114,25 @@ bool CTokenSend::sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& 
 {
     CScript scriptReturn, scriptToken;
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
-    ds << *this;
+    ds << *(static_cast<CTokenProtocol*>(this));
     scriptReturn << OP_RETURN << std::vector<unsigned char>(ds.begin(), ds.end());
+    ds.clear();
+    ds << *this;
+    scriptReturn << std::vector<unsigned char>(ds.begin(), ds.end());
+
     scriptToken = GetScriptForDestination(tokenAddress.Get());
 
     std::vector<CRecipient> vecRecipients;
     vecRecipients.push_back(CRecipient{scriptReturn, 0, false, tokenID, 0});
     vecRecipients.push_back(CRecipient{scriptToken, GetDustThreshold(scriptToken), false, tokenID, tokenValue});
 
-    int nChangePosInOut = -1;
+    int nChangePosInOut = 2;
     return createTokenTransaction(vecRecipients, txid, nChangePosInOut, strFailReason, NULL, true, TTC_SEND);
 }
 
 //TODO solve it like witness
 //TODO is TTC_BITCOIN  need define again
-tokencode GetTxTokenCode(const CTransaction& tx)
+tokencode GetTxReturnTokenCode(const CTransaction& tx)
 {
     assert(tx.vout.size()>0);
     if (tx.IsCoinBase() || tx.IsCoinStake())
@@ -150,13 +154,26 @@ tokencode GetTxTokenCode(const CTransaction& tx)
         return TTC_NONE;
     }
 
-    if (whichType != TX_NULL_DATA){
-        for (const auto& out:tx.vout){
-            if (out.tokenID != TOKENID_ZERO && out.nTokenValue >0)
-                return TTC_SEND;
+
+//    if (whichType != TX_NULL_DATA){
+//        for (const auto& out:tx.vout){
+//            if (out.tokenID != TOKENID_ZERO && out.nTokenValue >0)
+//                return TTC_SEND;
+//        }
+//        return TTC_NONE;
+//    } else {
+//        if (vPushData[0] == 'T'&& vPushData[1] == 'T' && vPushData[2] == 'K'){
+//            if (vPushData[5]>=TTC_ISSUE && vPushData[5]<=TTC_BURN){
+//                return tokencode(vPushData[5]);
+//            }
+//            return TTC_NONE;
+//        }
+//    }
+
+    if (whichType == TX_NULL_DATA){
+        if (vPushData.size() < 6){
+            return TTC_NONE;
         }
-        return TTC_NONE;
-    } else {
         if (vPushData[0] == 'T'&& vPushData[1] == 'T' && vPushData[2] == 'K'){
             if (vPushData[5]>=TTC_ISSUE && vPushData[5]<=TTC_BURN){
                 return tokencode(vPushData[5]);
@@ -164,7 +181,6 @@ tokencode GetTxTokenCode(const CTransaction& tx)
             return TTC_NONE;
         }
     }
-
     return TTC_NONE;
 }
 

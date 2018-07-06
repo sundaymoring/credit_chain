@@ -77,7 +77,7 @@ UniValue listtokens(const JSONRPCRequest& request){
             "[\n"
             "    {\n"
             "        \"id\": \"tokenid\",\n"
-            "        \"amout\": n,\n"
+            "        \"amount\": n,\n"
             "        \"shortName\": \"sn\",\n"
             "        \"fullName\": \"fullname\",\n"
             "        \"description\": \"description of token\",\n"
@@ -100,7 +100,7 @@ UniValue listtokens(const JSONRPCRequest& request){
     BOOST_FOREACH (const auto& info, infos){
         UniValue entry(UniValue::VOBJ);
         entry.push_back(Pair("id", info.tokenID.ToString()));
-        entry.push_back(Pair("amout", info.amount));
+        entry.push_back(Pair("amount", info.amount));
         entry.push_back(Pair("type", info.type));
         entry.push_back(Pair("symbol", info.symbol));
         entry.push_back(Pair("fullName", info.fullName));

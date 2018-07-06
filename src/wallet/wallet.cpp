@@ -1584,7 +1584,7 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
         if (nDebit > 0 && txout.tokenID==TOKENID_ZERO)
             listSent.push_back(output);
         else if (txout.tokenID != TOKENID_ZERO){
-            if (TTC_ISSUE != GetTxTokenCode(*tx)){
+            if (TTC_ISSUE != GetTxReturnTokenCode(*tx)){
 //            if (TTC_ISSUE != tx->GetTokenCode()){
                 listSent.push_back(output);
             }
@@ -2924,11 +2924,12 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                     CTxOut newTxOut(GetDustThreshold(scriptChange), scriptChange, tokenID, nTokenChange);
 
-                    // Insert change txn at random position:
-                    int nTokenChangePosInOut = GetRandInt(txNew.vout.size()+1);
+//                    // Insert change txn at random position:
+//                    int nTokenChangePosInOut = GetRandInt(txNew.vout.size()+1);
 
-                    vector<CTxOut>::iterator position = txNew.vout.begin()+nTokenChangePosInOut;
-                    txNew.vout.insert(position, newTxOut);
+//                    vector<CTxOut>::iterator position = txNew.vout.begin()+nTokenChangePosInOut;
+//                    txNew.vout.insert(position, newTxOut);
+                    txNew.vout.emplace_back(std::move(newTxOut)); // token change at end
                 }
 
                 // Fill vin
@@ -2952,7 +2953,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     if (tokenType == TTC_ISSUE){
                         if (coin.first->tx->vout[coin.second].nValue > maxBitcoinIn){
                             maxBitcoinIn = coin.first->tx->vout[coin.second].nValue;
-                            txNew.vout[1].tokenID = uint272hex(coin.first->tx->GetHash(), coin.second);
+                            txNew.vout[0].tokenID = txNew.vout[1].tokenID = uint272hex(coin.first->tx->GetHash(), coin.second);
                         }
                     }
                 }

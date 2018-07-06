@@ -481,6 +481,7 @@ public:
      * @return	Sum of value of all inputs (scriptSigs)
      */
     CAmount GetValueIn(const CTransaction& tx) const;
+    CAmount GetTokenValueIn(const CTransaction& tx, const CTokenID& tokenID) const;
 
     //! Check whether all prevouts of the transaction are present in the UTXO set represented by this view
     bool HaveInputs(const CTransaction& tx) const;
@@ -493,6 +494,8 @@ public:
     double GetPriority(const CTransaction &tx, int nHeight, CAmount &inChainInputValue) const;
 
     const CTxOut &GetOutputFor(const CTxIn& input) const;
+
+//    bool HaveTokenInInput(const CTransaction& tx) const;
 
     friend class CCoinsModifier;
 
