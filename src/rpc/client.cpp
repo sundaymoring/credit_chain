@@ -144,6 +144,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "issuetoken", 2, "amount"},
     { "getaddresstokenbalance", 0, "address"},
     { "getreceivedtokenbyaddress", 1, "minconf" },
+    { "sendmanyoftoken", 2, "amounts" },
+    { "sendmanyoftoken", 3, "minconf" },
+    { "sendmanyoftoken", 5, "subtractfeefrom" },
 };
 
 class CRPCConvertTable

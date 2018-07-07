@@ -25,16 +25,22 @@ static bool createTokenTransaction(const std::vector<CRecipient>& vecRecipients,
         return false;
     }
 
+    CAmount nBtcTotalAmout = 0;
+    CAmount nTokenTotalAmout = 0;
+    BOOST_FOREACH(const CRecipient& recipient, vecRecipients){
+        nBtcTotalAmout += recipient.nAmount;
+        nTokenTotalAmout += recipient.nTokenAmount;
+        if (recipient.scriptPubKey[0] != OP_RETURN && recipient.nTokenAmount <= 0)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid token amount");
+    }
+
     CAmount curBtcBalance = pwalletMain->GetBalance(TOKENID_ZERO);
-    if (curBtcBalance <= vecRecipients[1].nAmount)
+    if (curBtcBalance <= nBtcTotalAmout)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
-    // Check token amount
-    if (vecRecipients[1].nTokenAmount <= 0)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid token amount");
     if (vecRecipients[1].tokenID != TOKENID_ZERO){
         CAmount curTokenBalance = pwalletMain->GetBalance(vecRecipients[1].tokenID);
-        if (vecRecipients[1].nTokenAmount > curTokenBalance)
+        if (curTokenBalance < nTokenTotalAmout )
             throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient token funds");
     }
 
@@ -128,6 +134,23 @@ bool CTokenSend::sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& 
 
     int nChangePosInOut = 2;
     return createTokenTransaction(vecRecipients, txid, nChangePosInOut, strFailReason, NULL, true, TTC_SEND);
+}
+
+bool CTokenSend::sendMany(std::vector<CRecipient>& vecSend, uint256& txid, std::string& strFailReason){
+    assert(vecSend.size()>0);
+    CScript scriptReturn, scriptToken;
+    CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
+    ds << *(static_cast<CTokenProtocol*>(this));
+    scriptReturn << OP_RETURN << std::vector<unsigned char>(ds.begin(), ds.end());
+    ds.clear();
+    ds << *this;
+    scriptReturn << std::vector<unsigned char>(ds.begin(), ds.end());
+
+    vecSend.insert(vecSend.begin(), CRecipient{scriptReturn, 0, false, vecSend[0].tokenID, 0});
+
+    int nChangePosInOut = vecSend.size();
+    return createTokenTransaction(vecSend, txid, nChangePosInOut, strFailReason, NULL, true, TTC_SEND);
+
 }
 
 //TODO solve it like witness

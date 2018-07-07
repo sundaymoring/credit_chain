@@ -10,6 +10,8 @@
 #include <vector>
 #include <stdint.h>
 
+class CRecipient;
+
 class CTokenProtocol {
 public:
     char header[3];
@@ -84,6 +86,7 @@ public:
 //        CTokenProtocol::SerializationOp(s, ser_action);
     }
     bool sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& tokenID, const CAmount& tokenValue, uint256& txid, std::string& strFailReason);
+    bool sendMany(std::vector<CRecipient>& vecSend, uint256& txid, std::string& strFailReason);
 };
 
 tokencode GetTxReturnTokenCode(const CTransaction& tx);

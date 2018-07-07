@@ -184,6 +184,126 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
     return ret ? txid.ToString() : strFailReason;
 }
 
+string AccountFromValue(const UniValue& value);
+
+UniValue sendmanyoftoken(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
+        throw runtime_error(
+            "sendmanyoftoken \"tokenid\" \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
+            "\nSend multiple times. Amounts are double-precision floating point numbers."
+            + HelpRequiringPassphrase() + "\n"
+            "\nArguments:\n"
+            "1. \"tokenid\"             (string, required) the token to send\n"
+            "2. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
+            "3. \"amounts\"             (string, required) A json object with addresses and amounts\n"
+            "    {\n"
+            "      \"address\":amount   (numeric or string) The bitcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "      ,...\n"
+            "    }\n"
+            "4. minconf                 (numeric, optional, default=1) Only use the balance confirmed at least this many times.\n"
+            "5. \"comment\"             (string, optional) A comment\n"
+            "\nResult:\n"
+            "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+            "                                    the number of addresses.\n"
+            "\nExamples:\n"
+            "\nSend two amounts to two different addresses:\n"
+            + HelpExampleCli("sendmanyoftoken", "\"tokenid\" \"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
+            "\nSend two amounts to two different addresses setting the confirmation and comment:\n"
+            + HelpExampleCli("sendmanyoftoken", "\"tokenid\" \"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\"") +
+            "\nSend two amounts to two different addresses, subtract fee from amount:\n"
+            + HelpExampleCli("sendmanyoftoken", "\"tokenid\" \"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 1 \"\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("sendmanyoftoken", "\"tokenid\" \"\", \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\", 6, \"testing\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    CTokenID tokenID;
+    tokenID.SetHex(request.params[0].get_str());
+
+    string strAccount = AccountFromValue(request.params[1]);
+    UniValue sendTo = request.params[2].get_obj();
+    int nMinDepth = 1;
+    if (request.params.size() > 3)
+        nMinDepth = request.params[3].get_int();
+
+    CWalletTx wtx;
+    wtx.strFromAccount = strAccount;
+    if (request.params.size() > 4 && !request.params[4].isNull() && !request.params[4].get_str().empty())
+        wtx.mapValue["comment"] = request.params[4].get_str();
+
+//    UniValue subtractFeeFromAmount(UniValue::VARR);
+//    if (request.params.size() > 4)
+//        subtractFeeFromAmount = request.params[4].get_array();
+
+    set<CBitcoinAddress> setAddress;
+    vector<CRecipient> vecSend;
+
+    CAmount totalAmount = 0;
+    vector<string> keys = sendTo.getKeys();
+    BOOST_FOREACH(const string& name_, keys)
+    {
+        CBitcoinAddress address(name_);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Bitcoin address: ")+name_);
+
+        if (setAddress.count(address))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
+        setAddress.insert(address);
+
+        CScript scriptPubKey = GetScriptForDestination(address.Get());
+        CAmount nAmount = AmountFromValue(sendTo[name_]);
+        if (nAmount <= 0)
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        totalAmount += nAmount;
+
+//        bool fSubtractFeeFromAmount = false;
+//        for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
+//            const UniValue& addr = subtractFeeFromAmount[idx];
+//            if (addr.get_str() == name_)
+//                fSubtractFeeFromAmount = true;
+//        }
+
+//        CRecipient recipient = {scriptPubKey, nAmount, false, TOKENID_ZERO, 0};
+        CRecipient recipient = {scriptPubKey, GetDustThreshold(scriptPubKey), false, tokenID, nAmount};
+        vecSend.push_back(recipient);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    // Check funds
+    // TODO nBalance too big, may be wrong
+    CAmount nBalance = pwalletMain->GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE, tokenID);
+    if (totalAmount > nBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+
+//    // Send
+//    CReserveKey keyChange(pwalletMain);
+//    CAmount nFeeRequired = 0;
+//    int nChangePosRet = -1;
+//    string strFailReason;
+//    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+//    if (!fCreated)
+//        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+//    CValidationState state;
+//    if (!pwalletMain->CommitTransaction(wtx, keyChange, g_connman.get(), state)) {
+//        strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
+//        throw JSONRPCError(RPC_WALLET_ERROR, strFailReason);
+//    }
+
+//    return wtx.GetHash().GetHex();
+    CTokenSend tSend;
+    uint256 txid;
+    std::string strFailReason;
+    return tSend.sendMany(vecSend, txid, strFailReason) ? txid.ToString() : strFailReason;
+}
 
 UniValue gettokenbalance(const JSONRPCRequest& request)
 {
@@ -490,7 +610,8 @@ static const CRPCCommand commands[] =
   //  -----------   ----------------------------    ---------------------------     ----------
     { "token",      "issuetoken",                   &issuetoken,                    false,  {"asset_address","type","amount","name"} },
     { "token",      "listtokens",                   &listtokens,                    false,  {} },
-    { "token",      "sendtoaddresstoken",           &sendtokentoaddress,            false,  {"toaddress", "tokenID", "amount"} },
+    { "token",      "sendtoaddresstoken",           &sendtokentoaddress,            false,  {"tokenID", "toaddress", "amount"} },
+    { "wallet",     "sendmanyoftoken",              &sendmanyoftoken,               false,  {"tokenID", "fromaccount","amounts","minconf","comment","subtractfeefrom"} },
     { "token",      "gettokenbalance",              &gettokenbalance,               false,  {"tokenid","account","minconf","include_watchonly"} },
     { "token",      "getaddresstokenbalance",       &getaddresstokenbalance,        false,  {"verbose"} },
     { "token",      "getreceivedtokenbyaddress",    &getreceivedtokenbyaddress,     false,  {"address","minconf"} },
