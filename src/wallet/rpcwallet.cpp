@@ -2505,7 +2505,7 @@ UniValue listunspent(const JSONRPCRequest& request)
 
         entry.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
         entry.push_back(Pair("amount", ValueFromAmount(out.tx->tx->vout[out.i].nValue)));
-        entry.push_back(Pair("tokenID", out.tx->tx->vout[out.i].tokenID.ToString()));
+        entry.push_back(Pair("tokenID", CTokenAddress(out.tx->tx->vout[out.i].tokenID).ToString()));
         entry.push_back(Pair("tokenAmount", ValueFromAmount(out.tx->tx->vout[out.i].nTokenValue)));
 
         entry.push_back(Pair("confirmations", out.nDepth));

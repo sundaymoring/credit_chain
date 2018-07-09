@@ -103,7 +103,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         if (TOKENID_ZERO != txout.tokenID){
             out.push_back(Pair("tokenValue", ValueFromAmount(txout.nTokenValue)));
             out.push_back(Pair("tokenValueSat", txout.nTokenValue));
-            out.push_back(Pair("tokenID", txout.tokenID.ToString()));
+            out.push_back(Pair("tokenID", CTokenAddress(txout.tokenID).ToString()));
         }
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);

@@ -922,7 +922,7 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
         UniValue objToken(UniValue::VARR);
         BOOST_FOREACH (const auto& t, stats.mTotalTokenAmount){
             UniValue entry(UniValue::VOBJ);
-            entry.push_back(Pair("tokenid", t.first.ToString()));
+            entry.push_back(Pair("tokenid", CTokenAddress(t.first).ToString()));
             CTokenInfo info;
             if (pTokenInfos->GetTokenInfo(t.first, info))
                 entry.push_back(Pair("symbol", info.symbol));
@@ -1010,7 +1010,7 @@ UniValue gettxout(const JSONRPCRequest& request)
         ret.push_back(Pair("confirmations", pindex->nHeight - coins.nHeight + 1));
     ret.push_back(Pair("value", ValueFromAmount(coins.vout[n].nValue)));
     if (coins.vout[n].tokenID != TOKENID_ZERO){
-        ret.push_back(Pair("tokenID", coins.vout[n].tokenID.ToString()));
+        ret.push_back(Pair("tokenID", CTokenAddress(coins.vout[n].tokenID).ToString()));
         ret.push_back(Pair("tokenValue", ValueFromAmount(coins.vout[n].nTokenValue)));
     }
     UniValue o(UniValue::VOBJ);
@@ -1862,7 +1862,7 @@ UniValue getaddressdeltas(const JSONRPCRequest& request)
         UniValue delta(UniValue::VOBJ);
         delta.push_back(Pair("btcamount", it->second.nBtcValue));
         if (it->second.tokenID != TOKENID_ZERO){
-            delta.push_back(Pair("tokenid", it->second.tokenID.ToString()));
+            delta.push_back(Pair("tokenid", CTokenAddress(it->second.tokenID).ToString()));
             CTokenInfo info;
             if (pTokenInfos->GetTokenInfo(it->second.tokenID, info))
                 delta.push_back(Pair("symbol", info.symbol));
@@ -1978,7 +1978,7 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
         output.push_back(Pair("script", HexStr(it->second.script.begin(), it->second.script.end())));
         output.push_back(Pair("btcamount", it->second.outValue.nBtcValue));
         if (it->second.outValue.tokenID != TOKENID_ZERO){
-            output.push_back(Pair("tokenid", it->second.outValue.tokenID.ToString()));
+            output.push_back(Pair("tokenid", CTokenAddress(it->second.outValue.tokenID).ToString()));
             CTokenInfo info;
             if (pTokenInfos->GetTokenInfo(it->second.outValue.tokenID, info))
                 output.push_back(Pair("symbol", info.symbol));

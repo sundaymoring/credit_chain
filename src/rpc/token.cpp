@@ -99,7 +99,7 @@ UniValue listtokens(const JSONRPCRequest& request){
     std::vector<CTokenInfo> infos = pTokenInfos->ListTokenInfos();
     BOOST_FOREACH (const auto& info, infos){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("id", info.tokenID.ToString()));
+        entry.push_back(Pair("id", CTokenAddress(info.tokenID).ToString()));
         entry.push_back(Pair("amount", info.amount));
         entry.push_back(Pair("type", info.type));
         entry.push_back(Pair("symbol", info.symbol));
@@ -145,8 +145,7 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    CTokenID tokenID;
-    tokenID.SetHex(request.params[0].get_str());
+    CTokenID tokenID = CTokenAddress(request.params[0].get_str()).get();
 
     CTokenInfo tokenInfo;
     if ( !pTokenInfos->GetTokenInfo(tokenID, tokenInfo)){
@@ -225,8 +224,10 @@ UniValue sendmanyoftoken(const JSONRPCRequest& request)
     if (pwalletMain->GetBroadcastTransactions() && !g_connman)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
-    CTokenID tokenID;
-    tokenID.SetHex(request.params[0].get_str());
+    CTokenID tokenID = CTokenAddress(request.params[0].get_str()).get();
+    CTokenInfo tokenInfo;
+    if (!pTokenInfos->GetTokenInfo(tokenID, tokenInfo))
+        throw JSONRPCError(RPC_TOKEN_NOT_FOUND, "Token Id Not Found");
 
     string strAccount = AccountFromValue(request.params[1]);
     UniValue sendTo = request.params[2].get_obj();
@@ -353,8 +354,12 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
 
     CTokenID tokenID = TOKENID_ZERO;
 
-    if (request.params.size() > 0)
-        tokenID.SetHex(request.params[0].getValStr());
+    if (request.params.size() > 0){
+        tokenID = CTokenAddress(request.params[0].getValStr()).get();
+        CTokenInfo tokenInfo;
+        if (!pTokenInfos->GetTokenInfo(tokenID, tokenInfo))
+            throw JSONRPCError(RPC_TOKEN_NOT_FOUND, "Token Id Not Found");
+    }
 
     if (request.params.size() == 1)
         mTokenBalances[tokenID] = pwalletMain->GetBalance(tokenID);
@@ -415,7 +420,7 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
     UniValue result(UniValue::VARR);
     BOOST_FOREACH (const auto& t, mTokenBalances){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", t.first.ToString()));
+        entry.push_back(Pair("tokenid", CTokenAddress(t.first).ToString()));
         entry.push_back(Pair("tokenvalue", t.second));
         result.push_back(entry);
     }
@@ -488,7 +493,7 @@ UniValue getaddresstokenbalance(const JSONRPCRequest& request)
     UniValue result(UniValue::VARR);
     BOOST_FOREACH (const auto& t, tokenValue){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", t.first.ToString()));
+        entry.push_back(Pair("tokenid", CTokenAddress(t.first).ToString()));
         CTokenInfo info;
         if (pTokenInfos->GetTokenInfo(t.first, info))
             entry.push_back(Pair("symbol", info.symbol));
@@ -567,7 +572,7 @@ UniValue getreceivedtokenbyaddress(const JSONRPCRequest& request)
     UniValue result(UniValue::VARR);
     BOOST_FOREACH (const auto& t, mTokenAmount){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", t.first.ToString()));
+        entry.push_back(Pair("tokenid", CTokenAddress(t.first).ToString()));
         CTokenInfo info;
         if (pTokenInfos->GetTokenInfo(t.first, info))
             entry.push_back(Pair("symbol", info.symbol));
