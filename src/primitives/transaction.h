@@ -181,7 +181,7 @@ public:
     bool IsFormatLegalValue() const{
         return (nValue == 0 && nTokenValue == 0 ) ||
                 (nValue > 0 && tokenID == TOKENID_ZERO && nTokenValue == 0) ||
-                (nValue > 0 && tokenID != TOKENID_ZERO && nTokenValue > 0 );
+                (nValue >= DEFAULT_TOKEN_TX_BTC_OUTVALUE && tokenID != TOKENID_ZERO && nTokenValue > 0 );
 
     }
 

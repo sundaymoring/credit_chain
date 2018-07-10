@@ -2654,7 +2654,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
         }
     } else if (tokenType == TTC_SEND){
         // 2 ,one for token charge output, one for fee
-        nBtcValue += (vecSend.size()+2) * GetDustThreshold(vecSend[0].scriptPubKey);
+        nBtcValue += (vecSend.size()+2) * DEFAULT_TOKEN_TX_BTC_OUTVALUE;
     }
 
     wtxNew.fTimeReceivedIsTxTime = true;
@@ -2922,7 +2922,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                     CScript scriptChange = GetScriptForDestination(vchPubKey.GetID());
 
-                    CTxOut newTxOut(GetDustThreshold(scriptChange), scriptChange, tokenID, nTokenChange);
+                    CTxOut newTxOut(DEFAULT_TOKEN_TX_BTC_OUTVALUE, scriptChange, tokenID, nTokenChange);
 
 //                    // Insert change txn at random position:
 //                    int nTokenChangePosInOut = GetRandInt(txNew.vout.size()+1);

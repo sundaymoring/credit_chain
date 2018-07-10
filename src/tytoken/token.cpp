@@ -84,7 +84,7 @@ bool CTokenIssue::issueToken(const CBitcoinAddress& tokenAddress, uint256& txid,
 
     std::vector<CRecipient> vecRecipients;
     vecRecipients.push_back(CRecipient{scriptReturn, 0, false, TOKENID_ZERO, 0});
-    vecRecipients.push_back(CRecipient{scriptToken, GetDustThreshold(scriptToken), false, TOKENID_ZERO, nValue});
+    vecRecipients.push_back(CRecipient{scriptToken, DEFAULT_TOKEN_TX_BTC_OUTVALUE, false, TOKENID_ZERO, nValue});
 
     int nChangePosInOut = 2;
 
@@ -130,7 +130,7 @@ bool CTokenSend::sendToken(const CBitcoinAddress& tokenAddress, const CTokenID& 
 
     std::vector<CRecipient> vecRecipients;
     vecRecipients.push_back(CRecipient{scriptReturn, 0, false, tokenID, 0});
-    vecRecipients.push_back(CRecipient{scriptToken, GetDustThreshold(scriptToken), false, tokenID, tokenValue});
+    vecRecipients.push_back(CRecipient{scriptToken, DEFAULT_TOKEN_TX_BTC_OUTVALUE, false, tokenID, tokenValue});
 
     int nChangePosInOut = 2;
     return createTokenTransaction(vecRecipients, txid, nChangePosInOut, strFailReason, NULL, true, TTC_SEND);

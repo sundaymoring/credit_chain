@@ -273,7 +273,7 @@ UniValue sendmanyoftoken(const JSONRPCRequest& request)
 //        }
 
 //        CRecipient recipient = {scriptPubKey, nAmount, false, TOKENID_ZERO, 0};
-        CRecipient recipient = {scriptPubKey, GetDustThreshold(scriptPubKey), false, tokenID, nAmount};
+        CRecipient recipient = {scriptPubKey, DEFAULT_TOKEN_TX_BTC_OUTVALUE, false, tokenID, nAmount};
         vecSend.push_back(recipient);
     }
 
