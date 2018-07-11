@@ -2606,12 +2606,8 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
 
 //TODO consider coinControl,  now coinControl is NULL
 //TODO make new function 'CreateTokenTansaction' for token
-//TODO avoid fee change to token output
 //TODO consider token dust output
-//TODO now if tokensend, bitcoin input 1 coin.  change real input after finish code
-//TODO output nTokenValue will effect Witness sign, now ignore
 //TODO btc fee is too high, make sure is right
-//TODO token's output btcValue not be dustvalue, should set a minValue, like 0.001COIN
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode tokenType)
 {
@@ -2625,36 +2621,39 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
 
+    if (tokenType == TTC_ISSUE){
+        if( vecSend.size() < 2 || vecSend[0].nAmount != 0 || vecSend[1].nTokenAmount <= 0){
+            strFailReason = _("issue token transaction format illegal");
+            return false;
+        }
+    }
+
     CTokenID tokenID = tokenType==TTC_SEND ? vecSend[0].tokenID : TOKENID_ZERO;
     for (const auto& recipient : vecSend)
     {
-        if ((nBtcValue < 0 && nTokenValue < 0) || recipient.nAmount < 0)
+        if (nBtcValue < 0 || nTokenValue < 0 || recipient.nAmount < 0 || recipient.nTokenAmount < 0)
         {
             strFailReason = _("Transaction amounts must not be negative");
             return false;
         }
+
+        nBtcValue += recipient.nAmount;
+
         if (tokenType==TTC_SEND){
             nTokenValue += recipient.nTokenAmount;
             if (tokenID != recipient.tokenID){
                 strFailReason = _("Transaction not support multi token exchange");
                 return false;
             }
-        } else {
-            nBtcValue += recipient.nAmount;
         }
 
         // only bitcoin can SubtractFeeFromAmount, token coin must not SubtractFeeFromAmount
         if (recipient.fSubtractFeeFromAmount && tokenType==TTC_NONE)
             nSubtractFeeFromAmount++;
     }
-    if (tokenType == TTC_ISSUE){
-        if( vecSend.size() < 2 || vecSend[0].nAmount != 0 || vecSend[1].nTokenAmount <= 0){
-            strFailReason = _("issue token transaction format illegal");
-            return false;
-        }
-    } else if (tokenType == TTC_SEND){
-        // 2 ,one for token charge output, one for fee
-        nBtcValue += (vecSend.size()+2) * DEFAULT_TOKEN_TX_BTC_OUTVALUE;
+    if (tokenType == TTC_SEND){
+        // one for token charge output
+        nBtcValue += DEFAULT_TOKEN_TX_BTC_OUTVALUE;
     }
 
     wtxNew.fTimeReceivedIsTxTime = true;
@@ -2724,6 +2723,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                 CAmount nBtcValueToSelect = nBtcValue;
                 CAmount nTokenValueToSelect = nTokenValue;
+                CAmount nActualBtcUseAmount = 0; // for token tx, nBtcValueToSelect must >= nActualBtcUseAmount, so btc fee may be high actual need
                 if ((nSubtractFeeFromAmount == 0 && tokenType==TTC_NONE) || tokenType!=TTC_NONE) // all token tx fee subtract from sender
                     nBtcValueToSelect += nFeeRet;
                 double dPriority = 0;
@@ -2815,8 +2815,31 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     dPriority += (double)nCredit * age;
                 }
 
-                const CAmount nBtcChange = nBtcValueIn - nBtcValueToSelect;
                 const CAmount nTokenChange = nTokenValueIn - nTokenValueToSelect;
+                // TODO consider nTokenChange is dust output? now do not judge
+                if (nTokenChange>0 && tokenType==TTC_SEND){
+                    // Reserve a new key pair from key pool
+                    CPubKey vchPubKey;
+                    bool ret;
+                    ret = reservekey.GetReservedKey(vchPubKey);
+                    if (!ret)
+                    {
+                        strFailReason = _("Keypool ran out, please call keypoolrefill first");
+                        return false;
+                    }
+
+                    CScript scriptChange = GetScriptForDestination(vchPubKey.GetID());
+
+                    CTxOut newTxOut(DEFAULT_TOKEN_TX_BTC_OUTVALUE, scriptChange, tokenID, nTokenChange);
+
+//                    // Insert change txn at random position:
+//                    int nTokenChangePosInOut = GetRandInt(txNew.vout.size()+1);
+
+//                    vector<CTxOut>::iterator position = txNew.vout.begin()+nTokenChangePosInOut;
+//                    txNew.vout.insert(position, newTxOut);
+                    txNew.vout.emplace_back(std::move(newTxOut)); // token change at end
+                }
+                const CAmount nBtcChange = nBtcValueIn - nBtcValueToSelect + (tokenType==TTC_SEND && nTokenChange == 0 ? DEFAULT_TOKEN_TX_BTC_OUTVALUE : 0); // if token do not need change, need return one DEFAULT_TOKEN_TX_BTC_OUTVALUE
                 if (nBtcChange > 0)
                 {
                     // Fill a vout to ourself
@@ -2908,29 +2931,6 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     nChangePosInOut = -1;
                 }
 
-                // TODO consider nTokenChange is dust output? now do not judge
-                if (nTokenChange>0 && tokenType==TTC_SEND){
-                    // Reserve a new key pair from key pool
-                    CPubKey vchPubKey;
-                    bool ret;
-                    ret = reservekey.GetReservedKey(vchPubKey);
-                    if (!ret)
-                    {
-                        strFailReason = _("Keypool ran out, please call keypoolrefill first");
-                        return false;
-                    }
-
-                    CScript scriptChange = GetScriptForDestination(vchPubKey.GetID());
-
-                    CTxOut newTxOut(DEFAULT_TOKEN_TX_BTC_OUTVALUE, scriptChange, tokenID, nTokenChange);
-
-//                    // Insert change txn at random position:
-//                    int nTokenChangePosInOut = GetRandInt(txNew.vout.size()+1);
-
-//                    vector<CTxOut>::iterator position = txNew.vout.begin()+nTokenChangePosInOut;
-//                    txNew.vout.insert(position, newTxOut);
-                    txNew.vout.emplace_back(std::move(newTxOut)); // token change at end
-                }
 
                 // Fill vin
                 //
