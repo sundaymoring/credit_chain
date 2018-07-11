@@ -169,7 +169,7 @@ public:
     explicit uint272(const std::vector<unsigned char>& vch) : base_blob<272>(vch) {}
 };
 
-// TODO improve algorithm
+// HTODO improve algorithm
 inline uint272 uint272hex(const std::string& l, const unsigned int& r) {
     uint272 rv;
     char c[5];

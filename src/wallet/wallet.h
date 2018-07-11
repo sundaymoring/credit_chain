@@ -298,7 +298,7 @@ public:
     mutable std::map<CTokenID,CAmount> mnAvailableCreditCached;
     mutable CAmount nWatchCreditCached;
     mutable std::map<CTokenID,CAmount> mnWatchCreditCached;
-    //TODO the following two are for qt, change it later
+    //HTODO the following two are for qt, change it later
     mutable CAmount nImmatureWatchCreditCached;
     mutable CAmount nAvailableWatchCreditCached;
 
@@ -307,7 +307,7 @@ public:
     mutable CAmount nWatchDebitCached;
     mutable std::map<CTokenID,CAmount> mnWatchDebitCached;
 
-    //TODO useless, change it later
+    //HTODO useless, change it later
     mutable CAmount nChangeCached;
 
     CWalletTx()
@@ -429,8 +429,8 @@ public:
     CAmount GetImmatureCredit(bool fUseCache=true, std::map<CTokenID, CAmount>* pTokens = NULL) const;
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
 
-    // TODO how to use cache
-    // TODO map use std smart pointer
+    // HTODO how to use cache
+    // HTODO map use std smart pointer
     bool GetAllTokenAvailableCredit(std::map<CTokenID, CAmount>* pTokens) const;
     CAmount GetAvailableCredit(const uint272& tokenID=TOKENID_ZERO, bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;

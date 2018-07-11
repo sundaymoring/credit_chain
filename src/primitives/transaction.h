@@ -138,13 +138,8 @@ public:
     CScript scriptPubKey;
 
     // token id and value, if only bitcoin out, tokenID is 0, nTokenValue is 0.
-    // TODO uint272 --> base58 code
-    uint272 tokenID;
+    CTokenID tokenID;
     CAmount nTokenValue;
-
-    bool IsToken() const{
-        return TOKENID_ZERO < tokenID;
-    }
 
     CTxOut()
     {
@@ -179,16 +174,31 @@ public:
     }
 
     bool IsFormatLegalValue() const{
-        return (nValue == 0 && nTokenValue == 0 ) ||
-                (nValue > 0 && tokenID == TOKENID_ZERO && nTokenValue == 0) ||
-                (nValue >= DEFAULT_TOKEN_TX_BTC_OUTVALUE && tokenID != TOKENID_ZERO && nTokenValue > 0 );
+        return IsZero() || IsBtc() || IsToken();
 
+    }
+
+    bool IsZero() const
+    {
+        return nValue == 0 && nTokenValue == 0;
+    }
+
+    bool IsBtc() const
+    {
+        return nValue > 0 && nTokenValue == 0 && tokenID==TOKENID_ZERO;
+    }
+
+    bool IsToken() const
+    {
+        return nValue >= DEFAULT_TOKEN_TX_BTC_OUTVALUE && nTokenValue > 0 && tokenID!=TOKENID_ZERO;
     }
 
     void SetEmpty()
     {
         nValue = 0;
         scriptPubKey.clear();
+        tokenID.SetNull();
+        nTokenValue = 0;
     }
 
     bool IsEmpty() const

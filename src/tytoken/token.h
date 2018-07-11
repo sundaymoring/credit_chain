@@ -15,7 +15,7 @@ class CRecipient;
 class CTokenProtocol {
 public:
     char header[3];
-    //TODO one byte is version
+    //HTODO one byte is version
     uint8_t unknown[2];
     uint8_t code;
 
@@ -74,7 +74,7 @@ public:
     bool decodeTokenTransaction(const CTransaction& tx, std::string strFailReason);
 };
 
-//TODO add send protocol data
+//HTODO add send protocol data
 class CTokenSend : public CTokenProtocol{
 public:
     CTokenSend() : CTokenProtocol(TTC_SEND) {}

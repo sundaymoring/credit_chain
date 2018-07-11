@@ -605,7 +605,7 @@ bool CheckTokenTransactionValue(const CTransaction& tx, CValidationState& state,
         if (tokenID == TOKENID_ZERO || tokenID != uint272hex(pMaxInput->prevout.hash, pMaxInput->prevout.n))
             return state.Invalid(false, REJECT_INVALID, "bad-token-issue", "illegal tokenID in issue tx");
         // fee must greater than token_issue_fee
-        //TODO check consistent with op_return info
+        //HTODO check consistent with op_return info
     }
     else if(returnTokenCode == TTC_SEND){
         CTokenID tokenID = TOKENID_ZERO;
@@ -2291,7 +2291,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
 
         // write token info into leveldb
-        //TODO decode other token info
+        //HTODO decode other token info
 //        if (!fJustCheck && tx.GetTokenCode() == TTC_ISSUE){
         if (!fJustCheck && GetTxReturnTokenCode(tx) == TTC_ISSUE){
             CTokenIssue issue;

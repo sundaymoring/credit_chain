@@ -1944,7 +1944,7 @@ CAmount CWalletTx::GetAvailableCredit(const uint272& tokenID, bool fUseCache) co
     uint256 hashTx = GetHash();
     for (unsigned int i = 0; i < tx->vout.size(); i++)
     {
-        //TODO not include token out bitcoin value
+        //HTODO not include token out bitcoin value
         if (!pwallet->IsSpent(hashTx, i) && tokenID==tx->vout[i].tokenID)
         {
             const CTxOut &txout = tx->vout[i];
@@ -2604,10 +2604,9 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
     return true;
 }
 
-//TODO consider coinControl,  now coinControl is NULL
-//TODO make new function 'CreateTokenTansaction' for token
-//TODO consider token dust output
-//TODO btc fee is too high, make sure is right
+//HTODO consider coinControl,  now coinControl is NULL
+//HTODO make new function 'CreateTokenTansaction' for token
+//HTODO consider token dust output
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode tokenType)
 {
@@ -2723,7 +2722,6 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                 CAmount nBtcValueToSelect = nBtcValue;
                 CAmount nTokenValueToSelect = nTokenValue;
-                CAmount nActualBtcUseAmount = 0; // for token tx, nBtcValueToSelect must >= nActualBtcUseAmount, so btc fee may be high actual need
                 if ((nSubtractFeeFromAmount == 0 && tokenType==TTC_NONE) || tokenType!=TTC_NONE) // all token tx fee subtract from sender
                     nBtcValueToSelect += nFeeRet;
                 double dPriority = 0;
@@ -2732,7 +2730,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey, recipient.tokenID, recipient.nTokenAmount);
 //                    if (tokenType==TTC_SEND){
-//                        //TODO consider CTxOut copy ok?
+//                        //HTODO consider CTxOut copy ok?
 //                        txout = CTxOut(GetDustThreshold(recipient.scriptPubKey), recipient.scriptPubKey, recipient.tokenID, recipient.nTokenAmount);
 //                    }
 
@@ -2816,7 +2814,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 }
 
                 const CAmount nTokenChange = nTokenValueIn - nTokenValueToSelect;
-                // TODO consider nTokenChange is dust output? now do not judge
+                // HTODO consider nTokenChange is dust output? now do not judge
                 if (nTokenChange>0 && tokenType==TTC_SEND){
                     // Reserve a new key pair from key pool
                     CPubKey vchPubKey;
@@ -3051,7 +3049,6 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 const CScript& scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
                 SignatureData sigdata;
 
-                //TODO tokenID and tokenValue not include in signature, is needed?
                 if (!ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->tx->vout[coin.second].nValue, coin.first->tx->vout[coin.second].tokenID, coin.first->tx->vout[coin.second].nTokenValue, SIGHASH_ALL), scriptPubKey, sigdata))
                 {
                     strFailReason = _("Signing transaction failed");

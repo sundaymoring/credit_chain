@@ -69,7 +69,7 @@ static bool createTokenTransaction(const std::vector<CRecipient>& vecRecipients,
     return true;
 }
 
-//TODO bitcoin sendfrom assetAddress, and token in assetAddress. now bitcoin sendfrom other address.
+//HTODO bitcoin sendfrom assetAddress, and token in assetAddress. now bitcoin sendfrom other address.
 bool CTokenIssue::issueToken(const CBitcoinAddress& tokenAddress, uint256& txid, std::string& strFailReason)
 {
     CScript scriptReturn;
@@ -109,8 +109,8 @@ bool CTokenIssue::decodeTokenTransaction(const CTransaction &tx, std::string str
     ds >> *(static_cast<CTokenProtocol*>(this));
     ds >> *this;
 
-    //TODO check token is already exist
-    //TODO check value is equal to vout[1] nTokenvalue
+    //HTODO check token is already exist
+    //HTODO check value is equal to vout[1] nTokenvalue
 
     return true;
 }
@@ -153,8 +153,8 @@ bool CTokenSend::sendMany(std::vector<CRecipient>& vecSend, uint256& txid, std::
 
 }
 
-//TODO solve it like witness
-//TODO is TTC_BITCOIN  need define again
+//HTODO solve it like witness
+//HTODO is TTC_BITCOIN  need define again
 tokencode GetTxReturnTokenCode(const CTransaction& tx)
 {
     assert(tx.vout.size()>0);

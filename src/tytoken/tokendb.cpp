@@ -46,7 +46,6 @@ const std::vector<CTokenInfo> CTokenDB::ListTokenInfos()
 
 void CTokenInfo::FromTx(const CTransaction& tx, const CTokenIssue& issue)
 {
-    //TODO extract name
     tokenID = tx.vout[1].tokenID;
     amount = tx.vout[1].nTokenValue;
     type = issue.nType;

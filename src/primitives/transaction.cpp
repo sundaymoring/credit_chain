@@ -61,6 +61,9 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, uint272 tokenIDI
 
 std::string CTxOut::ToString() const
 {
+    if (IsToken())
+        return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s, tokenID=%s, nTokenValue=%d.%08d)",
+                     nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30), tokenID.ToString().c_str(), nTokenValue / COIN, nTokenValue % COIN);
     return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
 }
 

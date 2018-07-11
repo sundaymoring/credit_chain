@@ -103,7 +103,6 @@ public:
 
     ADD_SERIALIZE_METHODS;
 
-    //TODO compress tokenID
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         if (!ser_action.ForRead()) {

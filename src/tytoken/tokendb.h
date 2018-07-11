@@ -10,7 +10,7 @@ class CTokenIssue;
 
 struct CTokenInfo {
 
-    // TODO change or add what u want
+    // HTODO change or add what u want
     CTokenID tokenID;
     uint8_t type;
     CAmount amount;

@@ -280,7 +280,7 @@ UniValue sendmanyoftoken(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked();
 
     // Check funds
-    // TODO nBalance too big, may be wrong
+    // HTODO nBalance too big, may be wrong
     CAmount nBalance = pwalletMain->GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE, tokenID);
     if (totalAmount > nBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");

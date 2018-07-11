@@ -242,62 +242,6 @@ bool GetScriptPushes(const CScript& script, std::vector<std::string>& vstrRet, b
     return true;
 }
 
-bool IsStandardIssueAsset(const CTransaction& tx)
-{
-    if (tx.IsCoinBase() || tx.IsCoinStake())
-        return false;
-    // TODO must be 3,
-    // vout[0] op_return
-    // vout[1] dust bitcoin, token own address
-    // vout[2] charge address
-    if (tx.vout.size() < 2)
-        return false;
-
-    if (tx.vout[0].nValue >0)
-        return false;
-
-    std::vector<std::vector<unsigned char> > vSolutions;
-    txnouttype whichType;
-    // get the scriptPubKey corresponding to this input:
-    const CScript& script = tx.vout[0].scriptPubKey;
-    if (!Solver(script, whichType, vSolutions)) {
-        return false;
-    }
-
-    if (whichType != TX_NULL_DATA)
-        return false;
-
-    // get push datas
-    std::vector<unsigned char> data;
-    CScript::const_iterator pc = script.begin();
-    while (pc<script.end()){
-        opcodetype opcode;
-        std::vector<unsigned char> t;
-        if (!script.GetOp(pc, opcode, t))
-            return false;
-        if (0x00 <= opcode && opcode <= OP_PUSHDATA4)
-            data.insert(data.end(), t.begin(), t.end());
-    }
-    return true;
-}
-
-//TODO useless
-const std::vector<CTxOut> GetStandardIssueAsset(const CTransaction& tx)
-{
-    assert(IsStandardIssueAsset(tx));
-    std::vector<CTxOut> issueOut;
-    // TODO use real data
-    // decode op_return data
-    uint272 fakeID;
-//    fakeID.SetHex("123456");
-    CTxOut out(tx.vout[1].nValue, tx.vout[1].scriptPubKey, fakeID, 10000);
-    issueOut.push_back(out);
-    if (tx.vout.size() > 2){
-        issueOut.insert(issueOut.end(), tx.vout.begin()+2, tx.vout.end());
-    }
-    return std::move(issueOut);
-}
-
 CFeeRate incrementalRelayFee = CFeeRate(DEFAULT_INCREMENTAL_RELAY_FEE);
 CFeeRate dustRelayFee = CFeeRate(DUST_RELAY_TX_FEE);
 unsigned int nBytesPerSigOp = DEFAULT_BYTES_PER_SIGOP;
