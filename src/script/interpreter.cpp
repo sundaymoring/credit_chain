@@ -1174,7 +1174,7 @@ PrecomputedTransactionData::PrecomputedTransactionData(const CTransaction& txTo)
     hashOutputs = GetOutputsHash(txTo);
 }
 
-uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache)
+uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const CAmount& amount, const CTokenID& tokenID, const CAmount& tokenAmout, SigVersion sigversion, const PrecomputedTransactionData* cache)
 {
     if (sigversion == SIGVERSION_WITNESS_V0) {
         uint256 hashPrevouts;
@@ -1211,6 +1211,8 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         ss << txTo.vin[nIn].prevout;
         ss << static_cast<const CScriptBase&>(scriptCode);
         ss << amount;
+        ss << tokenID;
+        ss << tokenAmout;
         ss << txTo.vin[nIn].nSequence;
         // Outputs (none/one/all, depending on flags)
         ss << hashOutputs;
@@ -1263,7 +1265,7 @@ bool TransactionSignatureChecker::CheckSig(const vector<unsigned char>& vchSigIn
     int nHashType = vchSig.back();
     vchSig.pop_back();
 
-    uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, sigversion, this->txdata);
+    uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, tokenID, tokenAmount, sigversion, this->txdata);
 
     if (!VerifySignature(vchSig, pubkey, sighash))
         return false;

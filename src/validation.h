@@ -791,6 +791,8 @@ class CScriptCheck
 private:
     CScript scriptPubKey;
     CAmount amount;
+    CTokenID tokenID;
+    CAmount tokenAmount;
     const CTransaction *ptxTo;
     unsigned int nIn;
     unsigned int nFlags;
@@ -799,9 +801,10 @@ private:
     PrecomputedTransactionData *txdata;
 
 public:
-    CScriptCheck(): amount(0), ptxTo(0), nIn(0), nFlags(0), cacheStore(false), error(SCRIPT_ERR_UNKNOWN_ERROR) {}
+    CScriptCheck(): amount(0), tokenID(TOKENID_ZERO), tokenAmount(0), ptxTo(0), nIn(0), nFlags(0), cacheStore(false), error(SCRIPT_ERR_UNKNOWN_ERROR) {}
     CScriptCheck(const CCoins& txFromIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
         scriptPubKey(txFromIn.vout[txToIn.vin[nInIn].prevout.n].scriptPubKey), amount(txFromIn.vout[txToIn.vin[nInIn].prevout.n].nValue),
+        tokenID(txFromIn.vout[txToIn.vin[nInIn].prevout.n].tokenID), tokenAmount(txFromIn.vout[txToIn.vin[nInIn].prevout.n].nTokenValue),
         ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), error(SCRIPT_ERR_UNKNOWN_ERROR), txdata(txdataIn) { }
 
     bool operator()();

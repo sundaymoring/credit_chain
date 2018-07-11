@@ -126,8 +126,10 @@ bool VerifySignature(const CMutableTransaction& txFrom, const CTransaction& txTo
     if (txin.prevout.hash != txFrom.GetHash())
         return false;
 
-    const CAmount& amount = txout.nValue;
+    const CAmount& btcAmount = txout.nValue;
+    const CTokenID& tokenID = txout.tokenID;
+    const CAmount& tokenAmount = txout.nTokenValue;
 
     const CScriptWitness *witness = &txTo.vin[nIn].scriptWitness;
-    return VerifyScript(txin.scriptSig, txout.scriptPubKey, witness, flags, TransactionSignatureChecker(&txTo, nIn, amount),  NULL);
+    return VerifyScript(txin.scriptSig, txout.scriptPubKey, witness, flags, TransactionSignatureChecker(&txTo, nIn, btcAmount, tokenID, tokenAmount),  NULL);
 }

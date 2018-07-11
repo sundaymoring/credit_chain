@@ -2940,9 +2940,11 @@ UniValue bumpfee(const JSONRPCRequest& request)
         std::map<uint256, CWalletTx>::const_iterator mi = pwalletMain->mapWallet.find(input.prevout.hash);
         assert(mi != pwalletMain->mapWallet.end() && input.prevout.n < mi->second.tx->vout.size());
         const CScript& scriptPubKey = mi->second.tx->vout[input.prevout.n].scriptPubKey;
-        const CAmount& amount = mi->second.tx->vout[input.prevout.n].nValue;
+        const CAmount& btcAmount = mi->second.tx->vout[input.prevout.n].nValue;
+        const CTokenID& tokenID = mi->second.tx->vout[input.prevout.n].tokenID;
+        const CAmount& tokenAmount = mi->second.tx->vout[input.prevout.n].nTokenValue;
         SignatureData sigdata;
-        if (!ProduceSignature(TransactionSignatureCreator(pwalletMain, &txNewConst, nIn, amount, SIGHASH_ALL), scriptPubKey, sigdata)) {
+        if (!ProduceSignature(TransactionSignatureCreator(pwalletMain, &txNewConst, nIn, btcAmount, tokenID, tokenAmount, SIGHASH_ALL), scriptPubKey, sigdata)) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Can't sign transaction.");
         }
         UpdateTransaction(tx, nIn, sigdata);
