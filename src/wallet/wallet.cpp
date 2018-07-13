@@ -1294,6 +1294,8 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter, cons
 {
     if (!MoneyRange(txout.nValue) || !MoneyRange(txout.nTokenValue) )
         throw std::runtime_error(std::string(__func__) + ": value out of range");
+    if (tokenID != txout.tokenID)
+        return 0;
     return ((IsMine(txout) & filter) ? (tokenID==TOKENID_ZERO ? txout.nValue : txout.nTokenValue) : 0);
 }
 
@@ -2400,10 +2402,11 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
         if (!mempool.TransactionWithinChainLimit(pcoin->GetHash(), nMaxAncestors))
             continue;
 
+        if (tokenID != pcoin->tx->vout[output.i].tokenID)
+            continue;
+
         int i = output.i;
-        CAmount n = (TOKENID_ZERO < tokenID && tokenID==pcoin->tx->vout[i].tokenID ?
-                    pcoin->tx->vout[i].nTokenValue :
-                    (TOKENID_ZERO == tokenID ? pcoin->tx->vout[i].nValue : 0));
+        CAmount n = (TOKENID_ZERO != tokenID ? pcoin->tx->vout[i].nTokenValue : pcoin->tx->vout[i].nValue);
 
         pair<CAmount,pair<const CWalletTx*,unsigned int> > coin = make_pair(n,make_pair(pcoin, i));
 
@@ -2490,6 +2493,8 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
         {
             if (!out.fSpendable)
                  continue;
+            if (tokenID != out.tx->tx->vout[out.i].tokenID)
+                continue;
             nValueRet += (TOKENID_ZERO < tokenID ? out.tx->tx->vout[out.i].nValue : out.tx->tx->vout[out.i].nTokenValue);
             setCoinsRet.insert(make_pair(out.tx, out.i));
         }
@@ -2512,6 +2517,8 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
             // Clearly invalid input, fail
             if (pcoin->tx->vout.size() <= outpoint.n)
                 return false;
+            if (tokenID != pcoin->tx->vout[outpoint.n].tokenID)
+                continue;
             nValueFromPresetInputs += TOKENID_ZERO < tokenID ? pcoin->tx->vout[outpoint.n].nValue : pcoin->tx->vout[outpoint.n].nTokenValue;
             setPresetCoins.insert(make_pair(pcoin, outpoint.n));
         } else
@@ -4641,7 +4648,7 @@ void CWallet::AvailableCoinsForStaking(std::vector<COutput>& vCoins) const
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++){
                 isminetype mine = IsMine(pcoin->tx->vout[i]);
-                if( !(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
+                if( !(IsSpent(wtxid, i)) && mine != ISMINE_NO && pcoin->tx->vout[i].tokenID != TOKENID_ZERO &&
                         !IsLockedCoin((*it).first, i) && (pcoin->tx->vout[i].nValue > 0)){
                     vCoins.emplace_back(COutput(pcoin, i, nDepth,
                                                 ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||

@@ -307,7 +307,7 @@ public:
     mutable CAmount nWatchDebitCached;
     mutable std::map<CTokenID,CAmount> mnWatchDebitCached;
 
-    //HTODO useless, change it later
+    //HTODO use for qt, change it later
     mutable CAmount nChangeCached;
 
     CWalletTx()
