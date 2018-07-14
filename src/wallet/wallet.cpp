@@ -1765,17 +1765,17 @@ CAmount CWalletTx::GetDebit(const isminefilter& filter, std::map<CTokenID, CAmou
     if(filter & ISMINE_SPENDABLE)
     {
         if (fDebitCached){
-            debit += nDebitCached;
+            debit += nBtcDebitCached;
         }
         else
         {
-            nDebitCached = pwallet->GetDebit(*this, ISMINE_SPENDABLE, &mnDebitCached);
+            nBtcDebitCached = pwallet->GetDebit(*this, ISMINE_SPENDABLE, &mnTokenDebitCached);
             fDebitCached = true;
-            debit += nDebitCached;
+            debit += nBtcDebitCached;
         }
         // mnDebitCached always right, no matter fDebitCached is true or false
         if (pTokens){
-            for (const auto& cache : mnDebitCached){
+            for (const auto& cache : mnTokenDebitCached){
                 auto amount = (*pTokens)[cache.first];
                 amount += cache.second;
                 (*pTokens)[cache.first] = amount;
@@ -1785,16 +1785,16 @@ CAmount CWalletTx::GetDebit(const isminefilter& filter, std::map<CTokenID, CAmou
     if(filter & ISMINE_WATCH_ONLY)
     {
         if(fWatchDebitCached)
-            debit += nWatchDebitCached;
+            debit += nBtcWatchDebitCached;
         else
         {
-            nWatchDebitCached = pwallet->GetDebit(*this, ISMINE_WATCH_ONLY, &mnWatchDebitCached);
+            nBtcWatchDebitCached = pwallet->GetDebit(*this, ISMINE_WATCH_ONLY, &mnTokenWatchDebitCached);
             fWatchDebitCached = true;
-            debit += nWatchDebitCached;
+            debit += nBtcWatchDebitCached;
         }
         // mnWatchDebitCached always right, no matter fDebitCached is true or false
         if (pTokens){
-            for (const auto& cache : mnWatchDebitCached){
+            for (const auto& cache : mnTokenWatchDebitCached){
                 auto amount = (*pTokens)[cache.first];
                 amount += cache.second;
                 (*pTokens)[cache.first] = amount;
@@ -1815,16 +1815,16 @@ CAmount CWalletTx::GetCredit(const isminefilter& filter, std::map<CTokenID, CAmo
     {
         // GetBalance can assume transactions in mapWallet won't change
         if (fCreditCached){
-            credit += nCreditCached;
+            credit += nBtcCreditCached;
         }
         else
         {
-            nCreditCached = pwallet->GetCredit(*this, ISMINE_SPENDABLE, &mnCreditCached);
+            nBtcCreditCached = pwallet->GetCredit(*this, ISMINE_SPENDABLE, &mnTokenCreditCached);
             fCreditCached = true;
-            credit += nCreditCached;
+            credit += nBtcCreditCached;
         }
         if (pTokens) {
-            for (const auto& cache : mnCreditCached){
+            for (const auto& cache : mnTokenCreditCached){
                 auto amount = (*pTokens)[cache.first];
                 amount += cache.second;
                 (*pTokens)[cache.first] = amount;
@@ -1834,15 +1834,15 @@ CAmount CWalletTx::GetCredit(const isminefilter& filter, std::map<CTokenID, CAmo
     if (filter & ISMINE_WATCH_ONLY)
     {
         if (fWatchCreditCached)
-            credit += nWatchCreditCached;
+            credit += nBtcWatchCreditCached;
         else
         {
-            nWatchCreditCached = pwallet->GetCredit(*this, ISMINE_WATCH_ONLY, &mnWatchCreditCached);
+            nBtcWatchCreditCached = pwallet->GetCredit(*this, ISMINE_WATCH_ONLY, &mnTokenWatchCreditCached);
             fWatchCreditCached = true;
-            credit += nWatchCreditCached;
+            credit += nBtcWatchCreditCached;
         }
         if (pTokens) {
-            for (const auto& cache : mnWatchCreditCached){
+            for (const auto& cache : mnTokenWatchCreditCached){
                 auto amount = (*pTokens)[cache.first];
                 amount += cache.second;
                 (*pTokens)[cache.first] = amount;
@@ -1852,25 +1852,15 @@ CAmount CWalletTx::GetCredit(const isminefilter& filter, std::map<CTokenID, CAmo
     return credit;
 }
 
-CAmount CWalletTx::GetImmatureCredit(bool fUseCache, std::map<CTokenID, CAmount>* pTokens) const
+CAmount CWalletTx::GetImmatureCredit(bool fUseCache) const
 {
     if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity() > 0 && IsInMainChain())
     {
-        if (fUseCache && fImmatureCreditCached) {
-            if (pTokens){
-                for (const auto& cache :mnImmatureCreditCached){
-                    (*pTokens)[cache.first] = cache.second;
-                }
-            }
+        if (fUseCache && fImmatureCreditCached)
             return nImmatureCreditCached;
-        }
-        nImmatureCreditCached = pwallet->GetCredit(*this, ISMINE_SPENDABLE, &mnImmatureCreditCached);
+
+        nImmatureCreditCached = pwallet->GetCredit(*this, ISMINE_SPENDABLE);
         fImmatureCreditCached = true;
-        if (pTokens){
-            for (const auto& cache :mnImmatureCreditCached){
-                (*pTokens)[cache.first] = cache.second;
-            }
-        }
         return nImmatureCreditCached;
     }
 
@@ -1891,73 +1881,38 @@ CAmount CWalletTx::GetImmatureStakeCredit(bool fUseCache) const
     return 0;
 }
 
-bool CWalletTx::GetAllTokenAvailableCredit(std::map<CTokenID, CAmount>* pTokens) const
+std::map<CTokenID, CAmount> CWalletTx::GetAvailableCredit(bool fUseCache) const
 {
-    assert(pTokens);
+    std::map<CTokenID, CAmount> ret;
     if (pwallet == 0)
-        return false;
+        return ret;
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
     if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity() > 0)
-        return false;
+        return ret;
 
-    CAmount nCredit = 0;
-    uint256 hashTx = GetHash();
-    for (unsigned int i = 0; i < tx->vout.size(); i++)
-    {
-        if (!pwallet->IsSpent(hashTx, i))
-        {
-            const CTxOut &txout = tx->vout[i];
-            std::pair<CTokenID, CAmount> token;
-            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE, &token);
-            if (!MoneyRange(nCredit))
-                throw std::runtime_error("CWalletTx::GetAllTokenAvailableCredit() : btc value out of range");
-            if (token.first == TOKENID_ZERO){
-                continue;
-            }
-            if ((*pTokens).count(token.first)){
-                CAmount tokenCredit = (*pTokens)[token.first];
-                tokenCredit += token.second;
-                (*pTokens)[token.first] = tokenCredit;
-            } else {
-                (*pTokens).insert(token);
-            }
-            if (!MoneyRange((*pTokens)[token.first]))
-                throw std::runtime_error("CWalletTx::GetAllTokenAvailableCredit() : token value out of range");
-        }
-    }
-
-    return true;
-}
-
-CAmount CWalletTx::GetAvailableCredit(const uint272& tokenID, bool fUseCache) const
-{
-    if (pwallet == 0)
-        return 0;
-
-    // Must wait until coinbase is safely deep enough in the chain before valuing it
-    if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity() > 0)
-        return 0;
-
-    if (fUseCache && (mfAvailableCreditCached.count(tokenID)>0) &&mfAvailableCreditCached[tokenID])
-        return mnAvailableCreditCached[tokenID];
+    if (fUseCache && fAvailableCreditCached)
+        return mnAvailableCreditCached;
 
     CAmount nCredit = 0;
     uint256 hashTx = GetHash();
     for (unsigned int i = 0; i < tx->vout.size(); i++)
     {
         //HTODO not include token out bitcoin value
-        if (!pwallet->IsSpent(hashTx, i) && tokenID==tx->vout[i].tokenID)
+        if (!pwallet->IsSpent(hashTx, i))
         {
             const CTxOut &txout = tx->vout[i];
-            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE, tokenID);
+            std::pair<CTokenID, CAmount> token;
+            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE, &token);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
+            ret[token.first] += token.second;
         }
     }
-    mnAvailableCreditCached[tokenID] = nCredit;
-    mfAvailableCreditCached[tokenID] = true;
-    return nCredit;
+    ret[TOKENID_ZERO] = nCredit;
+    mnAvailableCreditCached = ret;
+    fAvailableCreditCached = true;
+    return std::move(ret);
 }
 
 CAmount CWalletTx::GetImmatureWatchOnlyCredit(const bool& fUseCache) const
@@ -1994,7 +1949,7 @@ CAmount CWalletTx::GetAvailableWatchOnlyCredit(const bool& fUseCache) const
             const CTxOut &txout = tx->vout[i];
             nCredit += pwallet->GetCredit(txout, ISMINE_WATCH_ONLY, NULL);
             if (!MoneyRange(nCredit))
-                throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
+                throw std::runtime_error("CWalletTx::GetAvailableWatchOnlyCredit() : value out of range");
         }
     }
 
@@ -2127,8 +2082,9 @@ CAmount CWallet::GetBalance(const uint272& tokenID, const bool fUseCache) const
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
-            if (pcoin->IsTrusted())
-                nTotal += pcoin->GetAvailableCredit(tokenID, fUseCache);
+            if (pcoin->IsTrusted()){
+                nTotal += (pcoin->GetAvailableCredit(fUseCache))[tokenID];
+            }
         }
     }
 
@@ -2143,8 +2099,13 @@ std::map<CTokenID, CAmount> CWallet::GetAllTokenBalance(const bool fUseCache) co
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
-            if (pcoin->IsTrusted())
-                pcoin->GetAllTokenAvailableCredit(&tokenBalances);
+            if (pcoin->IsTrusted()){
+                std::map<CTokenID, CAmount> temp = pcoin->GetAvailableCredit(fUseCache);
+                BOOST_FOREACH(const PAIRTYPE(CTokenID,CAmount)& item, temp){
+                    if (item.first != TOKENID_ZERO)
+                        tokenBalances[item.first] += item.second;
+                }
+            }
         }
     }
 
@@ -2160,7 +2121,7 @@ CAmount CWallet::GetUnconfirmedBalance() const
         {
             const CWalletTx* pcoin = &(*it).second;
             if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool())
-                nTotal += pcoin->GetAvailableCredit();
+                nTotal += (pcoin->GetAvailableCredit())[TOKENID_ZERO];
         }
     }
     return nTotal;
@@ -2174,8 +2135,12 @@ std::map<CTokenID, CAmount> CWallet::GetUnconfirmedTokenBalance() const
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const CWalletTx* pcoin = &(*it).second;
-            if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool())
-                pcoin->GetAllTokenAvailableCredit(&mTokenTotal);
+            if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool()){
+                std::map<CTokenID, CAmount> temp = pcoin->GetAvailableCredit();
+                BOOST_FOREACH(const PAIRTYPE(CTokenID, CAmount) item, temp)
+                        if (item.first != TOKENID_ZERO)
+                            mTokenTotal[item.first] += item.second;
+            }
         }
     }
     return std::move(mTokenTotal);

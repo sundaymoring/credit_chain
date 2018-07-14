@@ -278,37 +278,38 @@ public:
 
     // memory only
     mutable bool fCreditCached;
-    mutable bool fImmatureCreditCached;
-    mutable std::map<CTokenID,bool> mfAvailableCreditCached;
-    mutable bool fImmatureStakeCreditCached;
-    mutable bool fImmatureWatchCreditCached;
+    mutable CAmount nBtcCreditCached;   //HTODO nCreditCached merge to mnCreditCached
+    mutable std::map<CTokenID,CAmount> mnTokenCreditCached;
+
+    mutable bool fAvailableCreditCached;
+    mutable std::map<CTokenID,CAmount> mnAvailableCreditCached;
+
     mutable bool fAvailableWatchCreditCached;
+    mutable CAmount nAvailableWatchCreditCached; //HTODO use for qt, add token cache later
+
+    mutable bool fImmatureCreditCached;
+    mutable CAmount nImmatureCreditCached;
+
+    mutable bool fImmatureStakeCreditCached;
+    mutable CAmount nImmatureStakeCreditCached;
+
+    mutable bool fImmatureWatchCreditCached;
+    mutable CAmount nImmatureWatchCreditCached;
+
+    mutable bool fWatchCreditCached;
+    mutable CAmount nBtcWatchCreditCached;
+    mutable std::map<CTokenID,CAmount> mnTokenWatchCreditCached;
 
     mutable bool fDebitCached;
+    mutable CAmount nBtcDebitCached;
+    mutable std::map<CTokenID,CAmount> mnTokenDebitCached;
+
     mutable bool fWatchDebitCached;
-    mutable bool fWatchCreditCached;
+    mutable CAmount nBtcWatchDebitCached;
+    mutable std::map<CTokenID,CAmount> mnTokenWatchDebitCached;
 
     mutable bool fChangeCached;
-
-    mutable CAmount nCreditCached;
-    mutable std::map<CTokenID,CAmount> mnCreditCached;
-    mutable CAmount nImmatureCreditCached;
-    mutable std::map<CTokenID,CAmount> mnImmatureCreditCached;
-    mutable CAmount nImmatureStakeCreditCached;
-    mutable std::map<CTokenID,CAmount> mnAvailableCreditCached;
-    mutable CAmount nWatchCreditCached;
-    mutable std::map<CTokenID,CAmount> mnWatchCreditCached;
-    //HTODO the following two are for qt, change it later
-    mutable CAmount nImmatureWatchCreditCached;
-    mutable CAmount nAvailableWatchCreditCached;
-
-    mutable CAmount nDebitCached;
-    mutable std::map<CTokenID,CAmount> mnDebitCached;
-    mutable CAmount nWatchDebitCached;
-    mutable std::map<CTokenID,CAmount> mnWatchDebitCached;
-
-    //HTODO use for qt, change it later
-    mutable CAmount nChangeCached;
+    mutable CAmount nChangeCached; //HTODO use for qt, add token cache later
 
     CWalletTx()
     {
@@ -330,28 +331,29 @@ public:
         nTimeSmart = 0;
         fFromMe = false;
         strFromAccount.clear();
-        fDebitCached = false;
         fCreditCached = false;
-        fImmatureCreditCached = false;
-        mfAvailableCreditCached.clear();
-        fImmatureStakeCreditCached = false;
-        fWatchDebitCached = false;
-        fWatchCreditCached = false;
-        fImmatureWatchCreditCached = false;
-        fAvailableWatchCreditCached = false;
-        fChangeCached = false;
-        nDebitCached = 0;
-        mnDebitCached.clear();
-        nCreditCached = 0;
-        nImmatureCreditCached = 0;
-        nImmatureStakeCreditCached = 0;
-//        nAvailableCreditCached = 0;
+        nBtcCreditCached = 0;
+        mnTokenCreditCached.clear();
+        fAvailableCreditCached = false;
         mnAvailableCreditCached.clear();
-        nWatchDebitCached = 0;
-        mnWatchDebitCached.clear();
-        nWatchCreditCached = 0;
+        fAvailableWatchCreditCached = false;
         nAvailableWatchCreditCached = 0;
+        fImmatureCreditCached = false;
+        nImmatureCreditCached = 0;
+        fImmatureStakeCreditCached = false;
+        nImmatureStakeCreditCached = 0;
+        fImmatureWatchCreditCached = false;
         nImmatureWatchCreditCached = 0;
+        fWatchCreditCached = false;
+        nBtcWatchCreditCached = 0;
+        mnTokenWatchCreditCached.clear();
+        fDebitCached = false;
+        nBtcDebitCached = 0;
+        mnTokenDebitCached.clear();
+        fWatchDebitCached = false;
+        nBtcWatchDebitCached = 0;
+        mnTokenWatchDebitCached.clear();
+        fChangeCached = false;
         nChangeCached = 0;
         nOrderPos = -1;
     }
@@ -404,15 +406,32 @@ public:
     void MarkDirty()
     {
         fCreditCached = false;
-        mfAvailableCreditCached.clear();
+        nBtcCreditCached = 0;
+        mnTokenCreditCached.clear();
+
+        fAvailableCreditCached = false;
         mnAvailableCreditCached.clear();
-        fImmatureCreditCached = false;
-        fImmatureStakeCreditCached = false;
-        fWatchDebitCached = false;
-        fWatchCreditCached = false;
+
         fAvailableWatchCreditCached = false;
+
+        fImmatureCreditCached = false;
+
+        fImmatureStakeCreditCached = false;
+
         fImmatureWatchCreditCached = false;
+
+        fWatchCreditCached = false;
+        nBtcWatchCreditCached = 0;
+        mnTokenWatchCreditCached.clear();
+
         fDebitCached = false;
+        nBtcDebitCached = 0;
+        mnTokenDebitCached.clear();
+
+        fWatchDebitCached = false;
+        nBtcWatchDebitCached = 0;
+        mnTokenWatchDebitCached.clear();
+
         fChangeCached = false;
     }
 
@@ -426,13 +445,12 @@ public:
     CAmount GetDebit(const isminefilter& filter, std::map<CTokenID, CAmount>* pTokens = NULL) const;
     CAmount GetCredit(const isminefilter& filter, std::map<CTokenID, CAmount>* pTokens = NULL) const;
 
-    CAmount GetImmatureCredit(bool fUseCache=true, std::map<CTokenID, CAmount>* pTokens = NULL) const;
+    CAmount GetImmatureCredit(bool fUseCache=true) const;
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
 
     // HTODO how to use cache
     // HTODO map use std smart pointer
-    bool GetAllTokenAvailableCredit(std::map<CTokenID, CAmount>* pTokens) const;
-    CAmount GetAvailableCredit(const uint272& tokenID=TOKENID_ZERO, bool fUseCache=true) const;
+    std::map<CTokenID, CAmount> GetAvailableCredit(bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;
     CAmount GetAvailableWatchOnlyCredit(const bool& fUseCache=true) const;
 
