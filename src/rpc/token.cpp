@@ -594,7 +594,7 @@ UniValue getunconfirmedtokenbalance(const JSONRPCRequest &request)
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    std::map<CTokenID, CAmount> mTokenAmount = pwalletMain->GetUnconfirmedTokenBalance();
+    const std::map<CTokenID, CAmount> mTokenAmount = pwalletMain->GetUnconfirmedTokenBalance();
 
     UniValue result(UniValue::VARR);
     BOOST_FOREACH (const auto& t, mTokenAmount){
