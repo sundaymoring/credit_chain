@@ -6,6 +6,7 @@
 #include "uint256.h"
 
 #include "utilstrencodings.h"
+#include "base58.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -87,3 +88,53 @@ template std::string base_blob<272>::GetHex() const;
 template std::string base_blob<272>::ToString() const;
 template void base_blob<272>::SetHex(const char*);
 template void base_blob<272>::SetHex(const std::string&);
+
+
+
+class CTokenID::CBase58ID : public CBase58Data
+{
+public:
+    CBase58ID(const CTokenID& id)
+    {
+        //prefix code do not same to address
+        //40 or 41 prefix 'T'
+        vchVersion.assign(1, 40);
+        vchData.resize(id.size());
+        if (!vchData.empty())
+            memcpy(&vchData[0], id.begin(), id.size());
+    }
+
+    CBase58ID(const std::string& id)
+    {
+        size_t nVersionBytes = 1;
+        std::vector<unsigned char> vchTemp;
+        bool rc58 = DecodeBase58Check(id.data(), vchTemp);
+        if ((!rc58) || (vchTemp.size() < nVersionBytes)) {
+            vchData.clear();
+            vchVersion.clear();
+            return;
+        }
+        vchVersion.assign(vchTemp.begin(), vchTemp.begin() + nVersionBytes);
+        vchData.resize(vchTemp.size() - nVersionBytes);
+        if (!vchData.empty())
+            memcpy(&vchData[0], &vchTemp[nVersionBytes], vchData.size());
+        memory_cleanse(&vchTemp[0], vchTemp.size());
+    }
+
+    void ConvertToTokenID(CTokenID& tokenID)
+    {
+        memcpy(tokenID.begin(), &vchData[0], tokenID.size());
+    }
+};
+
+std::string CTokenID::ToBase58IDString() const
+{
+    CBase58ID base58ID(*this);
+    return base58ID.ToString();
+}
+
+void CTokenID::FromBase58IDString(const std::string& strBase58ID)
+{
+    CBase58ID base58ID(strBase58ID);
+    base58ID.ConvertToTokenID(*this);
+}

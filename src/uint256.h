@@ -183,7 +183,20 @@ inline uint272 uint272hex(const uint256& l, const unsigned int& r){
     return uint272hex(ll, r);
 }
 
-typedef uint272 CTokenID;
+//typedef uint272 CTokenID;
+class CTokenID : public uint272
+{
+private:
+    class CBase58ID;
+public:
+    CTokenID() : uint272() {}
+    CTokenID(const base_blob<272>& b) : uint272(b) {}
+    explicit CTokenID(const std::vector<unsigned char>& vch) : uint272(vch) {}
+
+    std::string ToBase58IDString() const;
+    void FromBase58IDString(const std::string& strBase58ID);
+};
+
 static const CTokenID TOKENID_ZERO;
 
 #endif // BITCOIN_UINT256_H
