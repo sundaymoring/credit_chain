@@ -521,26 +521,29 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         nTokenValueOut += txout.nTokenValue;
         if (!MoneyRange(nValueOut) || !MoneyRange(nTokenValueOut))
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
-        if (txout.tokenID != TOKENID_ZERO){
-            if (tokenID==TOKENID_ZERO){
-                tokenID = txout.tokenID;
-            } else if (tokenID != txout.tokenID){
-                return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-multitoken");
-            }
-        }
 
-        if (!txout.IsFormatLegalValue()){
-              return state.DoS(100, false, REJECT_INVALID, "illegal-format-value-out");
+        if (returnTokenCode == TTC_NONE || returnTokenCode == TTC_SEND || returnTokenCode == TTC_ISSUE) {
+			if (!txout.IsFormatLegalValue()){
+				  return state.DoS(100, false, REJECT_INVALID, "illegal-format-value-out");
+			}
+        }
+        if (returnTokenCode == TTC_NONE) {
+        	if (txout.tokenID != TOKENID_ZERO || txout.nTokenValue != 0) {
+        		return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-code");
+        	}
+    	}else if (returnTokenCode == TTC_SEND || returnTokenCode == TTC_ISSUE) {
+			if (txout.tokenID != TOKENID_ZERO){
+				if (tokenID==TOKENID_ZERO){
+					tokenID = txout.tokenID;
+				} else if (tokenID != txout.tokenID){
+					return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-multitoken");
+				}
+			}
         }
     }
     if (returnTokenCode != TTC_NONE){
         if (tokenID==TOKENID_ZERO || nTokenValueOut <=0){
             return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-out");
-        }
-    }
-    if (returnTokenCode == TTC_NONE){
-        if (tokenID!=TOKENID_ZERO || nTokenValueOut >0){
-            return state.DoS(100, false, REJECT_INVALID, "btc-tx-with-token-out");
         }
     }
 
