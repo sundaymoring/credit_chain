@@ -335,37 +335,3 @@ bool CBitcoinSecret::SetString(const std::string& strSecret)
 {
     return SetString(strSecret.c_str());
 }
-
-CTokenAddress::CTokenAddress(const CTokenID& id)
-{
-    //prefix code do not same to address
-    //40 or 41 prefix 'T'
-    vchVersion.assign(1, 40);
-    vchData.resize(id.size());
-    if (!vchData.empty())
-        memcpy(&vchData[0], id.begin(), id.size());
-}
-
-CTokenAddress::CTokenAddress(const std::string& id)
-{
-    size_t nVersionBytes = 1;
-    std::vector<unsigned char> vchTemp;
-    bool rc58 = DecodeBase58Check(id.data(), vchTemp);
-    if ((!rc58) || (vchTemp.size() < nVersionBytes)) {
-        vchData.clear();
-        vchVersion.clear();
-        return;
-    }
-    vchVersion.assign(vchTemp.begin(), vchTemp.begin() + nVersionBytes);
-    vchData.resize(vchTemp.size() - nVersionBytes);
-    if (!vchData.empty())
-        memcpy(&vchData[0], &vchTemp[nVersionBytes], vchData.size());
-    memory_cleanse(&vchTemp[0], vchTemp.size());
-}
-
-CTokenID CTokenAddress::get() const
-{
-    uint272 id;
-    memcpy(&id, &vchData[0], 34);
-    return id;
-}

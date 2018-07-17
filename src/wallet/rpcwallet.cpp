@@ -1823,8 +1823,8 @@ UniValue gettransaction(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
     const CWalletTx& wtx = pwalletMain->mapWallet[hash];
 
-    CAmount nCredit = wtx.GetCredit(filter);
-    CAmount nDebit = wtx.GetDebit(filter);
+    CAmount nCredit = wtx.GetCredit(filter, TOKENID_ZERO);
+    CAmount nDebit = wtx.GetDebit(filter, TOKENID_ZERO);
     CAmount nNet = nCredit - nDebit;
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
 
@@ -2505,7 +2505,7 @@ UniValue listunspent(const JSONRPCRequest& request)
 
         entry.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
         entry.push_back(Pair("amount", ValueFromAmount(out.tx->tx->vout[out.i].nValue)));
-        entry.push_back(Pair("tokenID", CTokenAddress(out.tx->tx->vout[out.i].tokenID).ToString()));
+        entry.push_back(Pair("tokenID", out.tx->tx->vout[out.i].tokenID.ToBase58IDString()));
         entry.push_back(Pair("tokenAmount", ValueFromAmount(out.tx->tx->vout[out.i].nTokenValue)));
 
         entry.push_back(Pair("confirmations", out.nDepth));
@@ -2848,7 +2848,11 @@ UniValue bumpfee(const JSONRPCRequest& request)
     }
 
     // calculate the old fee and fee-rate
-    CAmount nOldFee = wtx.GetDebit(ISMINE_SPENDABLE) - wtx.tx->GetValueOut();
+    CAmount nDebit = 0;
+    std::map<CTokenID,CAmount> mapDebitAmounts = wtx.GetDebit(ISMINE_SPENDABLE);
+    if (mapDebitAmounts.find(TOKENID_ZERO) != mapDebitAmounts.end())
+        nDebit = mapDebitAmounts[TOKENID_ZERO];
+    CAmount nOldFee = nDebit - wtx.tx->GetValueOut();
     CFeeRate nOldFeeRate(nOldFee, txSize);
     CAmount nNewFee;
     CFeeRate nNewFeeRate;
