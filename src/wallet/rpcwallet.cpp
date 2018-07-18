@@ -1376,7 +1376,9 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination);
             entry.push_back(Pair("category", "send"));
-            entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
+            entry.push_back(Pair("btcAmount", ValueFromAmount(-s.amount)));
+            entry.push_back(Pair("tokenID", s.tokenID.ToBase58IDString()));
+            entry.push_back(Pair("tokenAmount", ValueFromAmount(-s.tokenAmount)));
             if (pwalletMain->mapAddressBook.count(s.destination))
                 entry.push_back(Pair("label", pwalletMain->mapAddressBook[s.destination].name));
             entry.push_back(Pair("vout", s.vout));
@@ -1416,7 +1418,9 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 {
                     entry.push_back(Pair("category", "receive"));
                 }
-                entry.push_back(Pair("amount", ValueFromAmount(r.amount)));
+                entry.push_back(Pair("btcAmount", ValueFromAmount(r.amount)));
+                entry.push_back(Pair("tokenID", r.tokenID.ToBase58IDString()));
+                entry.push_back(Pair("tokenAmount", ValueFromAmount(r.tokenAmount)));
                 if (pwalletMain->mapAddressBook.count(r.destination))
                     entry.push_back(Pair("label", account));
                 entry.push_back(Pair("vout", r.vout));
