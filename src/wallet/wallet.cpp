@@ -2525,7 +2525,7 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
                  continue;
             if (tokenID != out.tx->tx->vout[out.i].tokenID)
                 continue;
-            nValueRet += (TOKENID_ZERO < tokenID ? out.tx->tx->vout[out.i].nValue : out.tx->tx->vout[out.i].nTokenValue);
+            nValueRet += (TOKENID_ZERO != tokenID ? out.tx->tx->vout[out.i].nValue : out.tx->tx->vout[out.i].nTokenValue);
             setCoinsRet.insert(make_pair(out.tx, out.i));
         }
         return (nValueRet >= nTargetValue);
@@ -2549,7 +2549,7 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
                 return false;
             if (tokenID != pcoin->tx->vout[outpoint.n].tokenID)
                 continue;
-            nValueFromPresetInputs += TOKENID_ZERO < tokenID ? pcoin->tx->vout[outpoint.n].nValue : pcoin->tx->vout[outpoint.n].nTokenValue;
+            nValueFromPresetInputs += TOKENID_ZERO != tokenID ? pcoin->tx->vout[outpoint.n].nValue : pcoin->tx->vout[outpoint.n].nTokenValue;
             setPresetCoins.insert(make_pair(pcoin, outpoint.n));
         } else
             return false; // TODO: Allow non-wallet inputs

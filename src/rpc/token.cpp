@@ -566,8 +566,9 @@ UniValue getreceivedtokenbyaddress(const JSONRPCRequest& request)
             if (txout.scriptPubKey == scriptPubKey && txout.tokenID != TOKENID_ZERO)
                 if (wtx.GetDepthInMainChain() >= nMinDepth){
                     if (mTokenAmount.find(txout.tokenID) == mTokenAmount.end())
-                        mTokenAmount[txout.tokenID] = 0;
-                    mTokenAmount[txout.tokenID] += txout.nTokenValue;
+                        mTokenAmount[txout.tokenID] = txout.nTokenValue;
+                    else
+                        mTokenAmount[txout.tokenID] += txout.nTokenValue;
                 }
     }
 

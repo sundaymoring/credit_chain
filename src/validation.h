@@ -813,6 +813,8 @@ public:
         scriptPubKey.swap(check.scriptPubKey);
         std::swap(ptxTo, check.ptxTo);
         std::swap(amount, check.amount);
+        std::swap(tokenID, check.tokenID);
+        std::swap(tokenAmount, check.tokenAmount);
         std::swap(nIn, check.nIn);
         std::swap(nFlags, check.nFlags);
         std::swap(cacheStore, check.cacheStore);

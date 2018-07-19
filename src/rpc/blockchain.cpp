@@ -814,10 +814,10 @@ static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
                     ss << out;
                     nTotalAmount += out.nValue;
                     if (out.tokenID!=TOKENID_ZERO){
-                        if (mTotalTokenAmount.find(out.tokenID) == mTotalTokenAmount.end()){
-                            mTotalTokenAmount[out.tokenID] = 0;
-                        }
-                        mTotalTokenAmount[out.tokenID] += out.nTokenValue;
+                        if (mTotalTokenAmount.find(out.tokenID) == mTotalTokenAmount.end())
+                            mTotalTokenAmount[out.tokenID] = out.nTokenValue;
+                        else
+                            mTotalTokenAmount[out.tokenID] += out.nTokenValue;
                     }
                 }
             }
