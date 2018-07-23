@@ -493,6 +493,11 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                 }
                 break;
 
+				case OP_TOKEN:
+                {
+                    return set_error(serror, SCRIPT_ERR_OP_TOKEN);
+                }
+                break;
 
                 //
                 // Stack ops

@@ -46,6 +46,7 @@ enum tokencode
     TTC_ISSUE = 0x01,
     TTC_SEND = 0x02,
     TTC_BURN = 0x03,
+	TTC_MAX = TTC_BURN,
 };
 
 const uint8_t TOKEN_PROTOCOL_VERSION  = 0x01;
@@ -184,11 +185,9 @@ enum opcodetype
     OP_NOP6 = 0xb5,
     OP_NOP7 = 0xb6,
     OP_NOP8 = 0xb7,
-    OP_NOP9 = 0xb8,
+	OP_TOKEN = 0xb8,
+    OP_NOP9 = OP_TOKEN,
     OP_NOP10 = 0xb9,
-
-    // TOKEN code
-    OP_TOKEN = 0xc1,
 
 
     // template matching params
@@ -635,7 +634,7 @@ public:
     bool IsPayToScriptHash() const;
     bool IsPayToWitnessScriptHash() const;
     bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const;
-    bool IsPayToToken() const;
+    bool IsTokenFlag() const;
 
     /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
     bool IsPushOnly(const_iterator pc) const;

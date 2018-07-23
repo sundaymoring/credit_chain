@@ -33,7 +33,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_NULL_DATA: return "nulldata";
     case TX_WITNESS_V0_KEYHASH: return "witness_v0_keyhash";
     case TX_WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
-    case TX_TOKEN: return "tx_token";
+    case TX_TOKEN: return "token";
     }
     return NULL;
 }
@@ -85,7 +85,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         return false;
     }
 
-    if (scriptPubKey.IsPayToToken()) {
+    if (scriptPubKey.IsTokenFlag()) {
         CScript::const_iterator pc = scriptPubKey.begin() + 3;
         while (pc<scriptPubKey.end()){
             opcodetype opcode;

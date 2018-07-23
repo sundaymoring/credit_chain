@@ -138,7 +138,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_NOP6                   : return "OP_NOP6";
     case OP_NOP7                   : return "OP_NOP7";
     case OP_NOP8                   : return "OP_NOP8";
-    case OP_NOP9                   : return "OP_NOP9";
+    case OP_TOKEN                  : return "OP_TOKEN";
     case OP_NOP10                  : return "OP_NOP10";
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
@@ -236,14 +236,14 @@ bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program
     return false;
 }
 
-bool CScript::IsPayToToken() const
+bool CScript::IsTokenFlag() const
 {
     if (this->size() < 3 || this->size() > MAX_SCRIPT_SIZE)
         return false;
 
     if ((*this)[0] != OP_TOKEN ||
-            (*this)[1] != TOKEN_PROTOCOL_VERSION ||
-            ((*this)[2] < TTC_ISSUE || (*this)[2] > TTC_BURN))
+            (*this)[1] > TOKEN_PROTOCOL_VERSION ||
+            ((*this)[2] < TTC_ISSUE || (*this)[2] > TTC_MAX))
         return false;
 
     return this->IsPushOnly(this->begin()+3);
