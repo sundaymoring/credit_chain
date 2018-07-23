@@ -47,6 +47,16 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
+    tokenId = CTokenId();
+    nTokenValue = 0;
+}
+
+CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, CTokenId tokenIdIn, CAmount nTokenValueIn)
+{
+    nValue = nValueIn;
+    scriptPubKey = scriptPubKeyIn;
+    tokenId = tokenIdIn;
+    nTokenValue = nTokenValueIn;
 }
 
 std::string CTxOut::ToString() const

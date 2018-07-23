@@ -134,6 +134,8 @@ class CTxOut
 public:
     CAmount nValue;
     CScript scriptPubKey;
+    CTokenId tokenId;
+    CAmount nTokenValue;
 
     CTxOut()
     {
@@ -141,6 +143,7 @@ public:
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
+    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, CTokenId tokenIdIn, CAmount nTokenValueIn);
 
     ADD_SERIALIZE_METHODS;
 
@@ -148,12 +151,16 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
+        READWRITE(tokenId);
+        READWRITE(nTokenValue);
     }
 
     void SetNull()
     {
         nValue = -1;
         scriptPubKey.clear();
+        tokenId.SetNull();
+        nTokenValue = 0;
     }
 
     bool IsNull() const
@@ -165,6 +172,8 @@ public:
     {
         nValue = 0;
         scriptPubKey.clear();
+        tokenId.SetNull();
+        nTokenValue = 0;
     }
 
     bool IsEmpty() const
@@ -212,7 +221,9 @@ public:
     friend bool operator==(const CTxOut& a, const CTxOut& b)
     {
         return (a.nValue       == b.nValue &&
-                a.scriptPubKey == b.scriptPubKey);
+                a.scriptPubKey == b.scriptPubKey &&
+                a.tokenId      == b.tokenId &&
+                a.nTokenValue  == b.nTokenValue);
     }
 
     friend bool operator!=(const CTxOut& a, const CTxOut& b)
