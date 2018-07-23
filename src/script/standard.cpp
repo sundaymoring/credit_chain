@@ -33,6 +33,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_NULL_DATA: return "nulldata";
     case TX_WITNESS_V0_KEYHASH: return "witness_v0_keyhash";
     case TX_WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
+    case TX_TOKEN: return "tx_token";
     }
     return NULL;
 }
@@ -82,6 +83,21 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
             return true;
         }
         return false;
+    }
+
+    if (scriptPubKey.IsPayToToken()) {
+        CScript::const_iterator pc = scriptPubKey.begin() + 3;
+        while (pc<scriptPubKey.end()){
+            opcodetype opcode;
+            std::vector<unsigned char> t;
+            if (!scriptPubKey.GetOp(pc, opcode, t))
+                return false;
+            if (0x00 <= opcode && opcode <= OP_PUSHDATA4)
+                vSolutionsRet.push_back(t);
+        }
+
+        typeRet = TX_TOKEN;
+        return true;
     }
 
     // Provably prunable, data-carrying output

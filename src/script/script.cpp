@@ -236,6 +236,19 @@ bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program
     return false;
 }
 
+bool CScript::IsPayToToken() const
+{
+    if (this->size() < 3 || this->size() > MAX_SCRIPT_SIZE)
+        return false;
+
+    if ((*this)[0] != OP_TOKEN ||
+            (*this)[1] != TOKEN_PROTOCOL_VERSION ||
+            ((*this)[2] < TTC_ISSUE || (*this)[2] > TTC_BURN))
+        return false;
+
+    return this->IsPushOnly(this->begin()+3);
+}
+
 bool CScript::IsPushOnly(const_iterator pc) const
 {
     while (pc < end())

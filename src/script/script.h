@@ -40,6 +40,16 @@ std::vector<unsigned char> ToByteVector(const T& in)
     return std::vector<unsigned char>(in.begin(), in.end());
 }
 
+enum tokencode
+{
+    TTC_NONE = 0x00,
+    TTC_ISSUE = 0x01,
+    TTC_SEND = 0x02,
+    TTC_BURN = 0x03,
+};
+
+const uint8_t TOKEN_PROTOCOL_VERSION  = 0x01;
+
 /** Script opcodes */
 enum opcodetype
 {
@@ -176,6 +186,9 @@ enum opcodetype
     OP_NOP8 = 0xb7,
     OP_NOP9 = 0xb8,
     OP_NOP10 = 0xb9,
+
+    // TOKEN code
+    OP_TOKEN = 0xc1,
 
 
     // template matching params
@@ -622,6 +635,7 @@ public:
     bool IsPayToScriptHash() const;
     bool IsPayToWitnessScriptHash() const;
     bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const;
+    bool IsPayToToken() const;
 
     /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
     bool IsPushOnly(const_iterator pc) const;
@@ -634,7 +648,7 @@ public:
      */
     bool IsUnspendable() const
     {
-        return (size() > 0 && *begin() == OP_RETURN) || (size() > MAX_SCRIPT_SIZE);
+        return (size() > 0 && (*begin() == OP_RETURN || *begin() == OP_TOKEN)) || (size() > MAX_SCRIPT_SIZE);
     }
 
     void clear()
