@@ -17,16 +17,16 @@ tokencode GetTxTokenCode(const CTransaction& tx, std::vector<unsigned char>* pTo
         return TTC_NONE;
 
     txnouttype whichType;
-    std::vector<unsigned char> vPushData;
+    std::vector<std::vector<unsigned char>> vPushData;
 
     if (!Solver(tx.vout[0].scriptPubKey, whichType, vPushData)){
         return TTC_NONE;
     }
 
     if (whichType == TX_TOKEN){
-        if (pTokenData)
-            *pTokenData = vPushData;
-        return tx.vout[0].scriptPubKey[3];
+        if (pTokenData && vPushData.size() > 0)
+            *pTokenData = vPushData[0];
+        return (tokencode)tx.vout[0].scriptPubKey[3];
     }
 
     return TTC_NONE;

@@ -158,4 +158,46 @@ inline uint256 uint256S(const std::string& str)
     return rv;
 }
 
+/** 272-bit opaque blob.
+ * @note This type is called uint160 for historical reasons only. It is an opaque
+ * blob of 272 bits and has no integer operations.
+ */
+class uint272 : public base_blob<272> {
+public:
+    uint272() {}
+    uint272(const base_blob<272>& b) : base_blob<272>(b) {}
+    explicit uint272(const std::vector<unsigned char>& vch) : base_blob<272>(vch) {}
+};
+
+// TTTODO improve algorithm
+inline uint272 uint272hex(const std::string& l, const unsigned int& r) {
+    uint272 rv;
+    char c[5];
+    sprintf(c,"%04x", r);
+    rv.SetHex(l+c);
+    return rv;
+}
+
+inline uint272 uint272hex(const uint256& l, const unsigned int& r){
+    std::string ll = l.ToString();
+    return uint272hex(ll, r);
+}
+
+//typedef uint272 CTokenID;
+class CTokenId : public uint272
+{
+private:
+    class CBase58Id;
+public:
+    CTokenId() : uint272() {}
+    CTokenId(const base_blob<272>& b) : uint272(b) {}
+    explicit CTokenId(const std::vector<unsigned char>& vch) : uint272(vch) {}
+
+    std::string ToBase58String() const;
+    void FromBase58String(const std::string& strBase58Id);
+};
+
+static const CTokenId TOKENID_ZERO;
+
+
 #endif // BITCOIN_UINT256_H
