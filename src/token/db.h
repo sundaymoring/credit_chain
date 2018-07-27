@@ -16,7 +16,7 @@ public:
     bool WriteTokenInfo(const CTokenInfo& tokenInfo);
     bool EraseTokenInfo(const CTokenId& TokenId);
     bool ExistsTokenInfo(const CTokenId& TokenId);
-    const std::vector<CTokenInfo> ListTokenInfos();
+    const std::vector<CTokenInfo> ListTokenInfo();
 };
 
 extern CTokenDB* ptokendbview;

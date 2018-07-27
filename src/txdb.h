@@ -51,6 +51,7 @@ static const int64_t nMaxBlockDBCache = 2;
 static const int64_t nMaxBlockDBAndTxIndexCache = 1024;
 //! Max memory allocated to coin DB specific cache (MiB)
 static const int64_t nMaxCoinsDBCache = 8;
+static const int64_t nMaxTokenDBCache = 16;
 
 struct CDiskTxPos : public CDiskBlockPos
 {
