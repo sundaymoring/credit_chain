@@ -37,8 +37,8 @@ struct CTokenInfo {
     CAmount moneySupply;
     std::string symbol;
     std::string name;
-    std::string description;
     std::string url;
+    std::string description;
     std::string issueToAddress;
     uint256 txHash;
 
@@ -52,8 +52,8 @@ struct CTokenInfo {
         READWRITE(moneySupply);
         READWRITE(symbol);
         READWRITE(name);
-        READWRITE(description);
         READWRITE(url);
+        READWRITE(description);
         READWRITE(issueToAddress);
         READWRITE(txHash);
     }

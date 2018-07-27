@@ -21,6 +21,7 @@
 #include "hash.h"
 #include "spentindex.h"
 #include "base58.h"
+#include "token/db.h"
 
 #include <stdint.h>
 
@@ -1312,6 +1313,116 @@ UniValue getmempoolinfo(const JSONRPCRequest& request)
     return mempoolInfoToJSON();
 }
 
+UniValue gettokeninfo(const JSONRPCRequest& request){
+
+    if (request.fHelp || request.params.size() > 1)
+        throw runtime_error(
+            "gettokeninfo ( \"tokenid\" )\n"
+
+            "\nReturn info of a specific tokenid,\n"
+            "or list all token info if tokenid is not given"
+
+            "\nResult:\n"
+            "[\n"
+            "    {\n"
+            "        \"tokenid\": \"id\			(string) The token Id\n"
+            "        \"symbol\": \"symbol\",	(string) The token symbol\n"
+            "        \"supply\": n,				(numeric) Total supply of the token\n"
+            "		 \"type\": n,				(numeric) The token type\n"
+            "        \"name\": \"name\",		(string) The token name\n"
+            "        \"url\": \"url\",          (string) A url of the token information\n\n"
+            "        \"description\": \"description\",	(string) The token description\n"
+            "        \"address\": \"addressr\", (string) The address where the token issue to\n"
+            "        \"txid\": \"id\			(string) Id of transaction where the token issued\n"
+            "    }\n"
+            "    ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("gettokeninfo", "")
+            + HelpExampleCli("gettokeninfo", "\"tokenid\"")
+            + HelpExampleRpc("gettokeninfo", "\"tokenid\"")
+       );
+
+    LOCK(cs_main);
+
+    UniValue result(UniValue::VARR);
+
+    std::vector<CTokenInfo> list;
+
+    if (request.params.size() == 1) {
+        CTokenInfo tokenInfo;
+        CTokenId tokenid;
+        tokenid.FromBase58String(request.params[0].get_str());
+        if ( !ptokendbview->GetTokenInfo(tokenid, tokenInfo)){
+            throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
+        }
+        list.push_back(tokenInfo);
+    }else{
+        list = ptokendbview->ListTokenInfo();
+    }
+
+    BOOST_FOREACH (const auto& info, list){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("tokenid", info.tokenId.ToBase58String()));
+        entry.push_back(Pair("symbol", info.symbol));
+        entry.push_back(Pair("supply", ValueFromAmount(info.moneySupply)));
+        entry.push_back(Pair("type", info.type));
+        entry.push_back(Pair("name", info.name));
+        entry.push_back(Pair("url", info.url));
+        entry.push_back(Pair("description", info.description));
+        entry.push_back(Pair("txid", info.txHash.ToString()));
+        entry.push_back(Pair("address", info.issueToAddress));
+        result.push_back(entry);
+    }
+    return result;
+}
+
+UniValue listtokeninfo(const JSONRPCRequest& request){
+
+    if (request.fHelp || request.params.size() > 0)
+        throw runtime_error(
+            "listtokeninfo\n"
+
+            "\nList breif info of all token\n"
+
+
+            "\nResult:\n"
+            "[\n"
+            "    {\n"
+            "        \"tokenid\": \"id\			(string) The token Id\n"
+            "        \"symbol\": \"symbol\",	(string) The token symbol\n"
+            "        \"supply\": n,				(numeric) Total supply of the token\n"
+            "        \"address\": \"addressr\", (string) The address where the token issue to\n"
+            "        \"txid\": \"id\			(string) Id of transaction where the token issued\n"
+            "    }\n"
+            "    ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listtokeninfo", "")
+            + HelpExampleCli("listtokeninfo", "")
+
+       );
+
+    LOCK(cs_main);
+
+    UniValue result(UniValue::VARR);
+
+    std::vector<CTokenInfo> list;
+
+    list = ptokendbview->ListTokenInfo();
+
+    BOOST_FOREACH (const auto& info, list){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("tokenid", info.tokenId.ToBase58String()));
+        entry.push_back(Pair("symbol", info.symbol));
+        entry.push_back(Pair("supply", ValueFromAmount(info.moneySupply)));
+        entry.push_back(Pair("txid", info.txHash.ToString()));
+        entry.push_back(Pair("address", info.issueToAddress));
+        result.push_back(entry);
+    }
+    return result;
+}
+
 UniValue preciousblock(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -2046,10 +2157,12 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getmempooldescendants",  &getmempooldescendants,  true,  {"txid","verbose"} },
     { "blockchain",         "getmempoolentry",        &getmempoolentry,        true,  {"txid"} },
     { "blockchain",         "getmempoolinfo",         &getmempoolinfo,         true,  {} },
+    { "blockchain",         "gettokeninfo",      	  &gettokeninfo,		   false, {"tokenid"} },
     { "blockchain",         "getrawmempool",          &getrawmempool,          true,  {"verbose"} },
     { "blockchain",         "gettxout",               &gettxout,               true,  {"txid","n","include_mempool"} },
     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true,  {} },
     { "blockchain",         "pruneblockchain",        &pruneblockchain,        true,  {"height"} },
+    { "blockchain",         "listtokeninfo",      	  &listtokeninfo,		   false, {} },
     { "blockchain",         "verifychain",            &verifychain,            true,  {"checklevel","nblocks"} },
 
     { "blockchain",         "preciousblock",          &preciousblock,          true,  {"blockhash"} },
