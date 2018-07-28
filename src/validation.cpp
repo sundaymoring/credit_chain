@@ -2192,6 +2192,24 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
 
+        {
+            std::vector<unsigned char> tokenDataFromScript;
+            tokencode scriptcode = GetTxTokenCode(tx, tokenDataFromScript);
+            if tokencode == TTC_ISSUE {
+                CTokenTxIssueInfo issueinfo;
+                if (!GetIssueInfoFromScriptData(issueinfo, tokenDataFromScript)) {
+                    eturn state.DoS(100, error("ConnectBlock(): bad token info"), REJECT_INVALID, "bad-token-issue");
+                }
+                CTokenInfo tokeninfo = CTokenInfo(issueinfo);
+                if (ptokendbview->ExistsTokenInfo(tokeninfo.tokenId)) {
+                    return state.DoS(100, error("ConnectBlock(): tried to overwrite token info"), REJECT_INVALID, "bad-token-issue");
+                }
+                if (!fJustCheck) {
+                    ptokendbview->WriteTokenInfo(tokeninfo);
+                }
+            }
+        }
+
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
     }

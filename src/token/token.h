@@ -27,8 +27,6 @@ public:
     void FromBase58String(const std::string& strBase58Id);
 };
 
-static const CTokenId TOKENID_ZERO;
-
 struct CTokenInfo {
 
     // HTODO change or add what u want
@@ -59,5 +57,18 @@ struct CTokenInfo {
     }
 
 };
+
+struct CTokenTxIssueInfo
+{
+    uint8_t type;
+    CAmount amount;
+    std::string symbol;
+    std::string name;
+    std::string url;
+    std::string description;
+};
+
+CScript CreateIssuanceScript(CTokenTxIssueInfo issueinfo);
+bool GetIssueInfoFromScriptData(CTokenTxIssueInfo issueinfo, std::vector<unsigned char> scriptdata);
 
 #endif // TOKEN_H

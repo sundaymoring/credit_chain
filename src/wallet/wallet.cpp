@@ -2444,26 +2444,36 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
 }
 
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
-                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign)
+                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode code)
 {
     CAmount nValue = 0;
+    CAmount nTokenValue = 0;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
     for (const auto& recipient : vecSend)
     {
-        if (nValue < 0 || recipient.nAmount < 0)
+        if (nValue < 0 || recipient.nAmount < 0 || nTokenValue <0 || recipient.nTokenAmount < 0)
         {
             strFailReason = _("Transaction amounts must not be negative");
             return false;
         }
         nValue += recipient.nAmount;
+        nTokenValue += recipient.nTokenAmount;
 
-        if (recipient.fSubtractFeeFromAmount)
+        if (recipient.fSubtractFeeFromAmount && code == TTC_NONE)
             nSubtractFeeFromAmount++;
     }
     if (vecSend.empty())
     {
         strFailReason = _("Transaction must have at least one recipient");
+        return false;
+    }
+
+    std::vector<unsigned char> tokenDataFromScript;
+    tokencode scriptcode = GetTxOutTokenCode(vecSend[0].scriptPubKey, tokenDataFromScript);
+
+    if (scriptcode != code) {
+        strFailReason = _("Transaction token codes not match");
         return false;
     }
 
@@ -2530,9 +2540,9 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 // vouts to the payees
                 for (const auto& recipient : vecSend)
                 {
-                    CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
+                    CTxOut txout(recipient.nAmount, recipient.scriptPubKey, recipient.tokenId, recipient.nTokenAmount);
 
-                    if (recipient.fSubtractFeeFromAmount)
+                    if (recipient.fSubtractFeeFromAmount && code == TTC_NONE)
                     {
                         txout.nValue -= nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
 
@@ -2545,7 +2555,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                     if (txout.IsDust(dustRelayFee))
                     {
-                        if (recipient.fSubtractFeeFromAmount && nFeeRet > 0)
+                        if (recipient.fSubtractFeeFromAmount && code == TTC_NONE && nFeeRet > 0)
                         {
                             if (txout.nValue < 0)
                                 strFailReason = _("The transaction amount is too small to pay the fee");
@@ -2687,6 +2697,11 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 if (!DummySignTx(txNew, setCoins)) {
                     strFailReason = _("Signing transaction failed");
                     return false;
+                }
+
+                if (code == TTC_ISSUE)
+                {
+                    txNew.vout[1].tokenId = txNew.vin[0].prevout.hash;  //just use first vin
                 }
 
                 unsigned int nBytes = GetVirtualTransactionSize(txNew);

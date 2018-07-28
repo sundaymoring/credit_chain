@@ -375,6 +375,45 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     }
 }
 
+static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, const CTokenTxIssueInfo issueInfo, CWalletTx& wtxNew)
+{
+    CAmount curBalance = pwalletMain->GetBalance();
+
+    // Check amount
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
+
+    if (TOKEN_DEFAULT_VALUE > curBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    // Parse Bitcoin address
+    CScript scriptPubKey = GetScriptForDestination(address);
+    CScript scriptTokenIssue = CreateIssuanceScript(issueInfo);
+    // Create and send the transaction
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    std::string strError;
+    vector<CRecipient> vecSend;
+    int nChangePosRet = 2;
+    CRecipient recipient0 = {scriptTokenIssue, 0, CTokenId(), 0, false};
+    vecSend.push_back(recipient0);
+    CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, CTokenId(), nAmount, false};
+    vecSend.push_back(recipient1);
+    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_ISSUE)) {
+        if (TOKEN_DEFAULT_VALUE + TOKEN_ISSUE_FEE + nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+}
+
 UniValue sendtoaddress(const JSONRPCRequest& request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
@@ -429,6 +468,79 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked();
 
     SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue issuenewtoken(const JSONRPCRequest& request){
+    if (request.fHelp || (request.params.size() != 7 && request.params.size() != 4) ) {
+        throw runtime_error(
+            "issuenewtoken \"address\" type amount \"symbol\" (\"name\") (\"url\") (\"description\") \n"
+
+            "\nIssue a new token. Return the txid if seccess\n"
+
+            "\nArguments:\n"
+            "1. address 	         (string, required) where the new token issue to\n"
+            "2. type                 (number, required) the type of the token \n"
+            "3. amount               (number, required) the number of token sypply\n"
+            "4. symbol               (string, required) the short name of the new token \n"
+            "5. name                 (string) the full name of the new token \n"
+            "6. url                  (string) an URL for further information about the new tokens (can be \"\")\n"
+            "7. description          (string) a description for the new token (can be \"\")\n"
+
+
+            "\nResult:\n"
+            "\"txid\"                (string) the hex-encoded transaction hash\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("issuenewtoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" 0 1000000 \"BTC\"")
+            + HelpExampleCli("issuenewtoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" 0 1000000 \"BTC\" \"Bitcoin\" \"www.bitcoin.org\" \"the first coin\"")
+            + HelpExampleRpc("issuenewtoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" 0 1000000 \"BTC\" \"Bitcoin\" \"www.bitcoin.org\" \"the first coin\"")
+        );
+    }
+
+    CWalletTx wtx;
+    CTokenTxIssueInfo issueInfo;
+
+    CBitcoinAddress address(request.params[0].get_str());
+    if (!address.IsValid()){
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+    }
+    uint8_t type = uint8_t(request.params[1].get_int());
+    if (type != 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid issue type");
+    }
+    CAmount amount = AmountFromValue(request.params[2]);
+    if (!TokenRange(amount)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid issue amount");
+    }
+    std::string symbol = request.params[3].get_str();
+    if (symbol.length() > 20) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "issue symbol too long");
+    }
+    issueInfo.type = type;
+    issueInfo.amount = amount;
+    issueInfo.symbol = symbol;
+    if (request.params.size() == 7) {
+        std::string name = request.params[4].get_str();
+        if (name.length() > 80) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "issue name too long");
+        }
+        std::string url = request.params[5].get_str();
+        if (url.length() > 80) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "issue url too long");
+        }
+        std::string description = request.params[5].get_str();
+        if (description.length() > 255) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "issue url too long");
+        }
+        issueInfo.name = name;
+        issueInfo.url = url;
+        issueInfo.description = description;
+    }
+
+    EnsureWalletIsUnlocked();
+    SendTokenIssuance(address.Get(), amount, issueInfo, wtx);
 
     return wtx.GetHash().GetHex();
 }
@@ -3024,6 +3136,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "importaddress",            &importaddress,            true,   {"address","label","rescan","p2sh"} },
     { "wallet",             "importprunedfunds",        &importprunedfunds,        true,   {"rawtransaction","txoutproof"} },
     { "wallet",             "importpubkey",             &importpubkey,             true,   {"pubkey","label","rescan"} },
+    { "wallet",             "issuenewtoken",            &issuenewtoken,            false,  {"address","type","amount","symbol","name","url","description"} },
     { "wallet",             "keypoolrefill",            &keypoolrefill,            true,   {"newsize"} },
     { "wallet",             "listaccounts",             &listaccounts,             false,  {"minconf","include_watchonly"} },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false,  {} },
