@@ -8,12 +8,14 @@
 
 #include <vector>
 
+static const CAmount TOKEN_DEFAULT_VALUE = 0.001 * COIN;
+static const CAmount TOKEN_ISSUE_FEE = 0.01 * COIN;
 
 class CTransaction;
 
+tokencode GetTokenCodeFromScript(const CScript& script, std::vector<unsigned char>* pTokenData = NULL);
 tokencode GetTxTokenCode(const CTransaction& tx, std::vector<unsigned char>* pTokenData = NULL);
 
-//typedef uint272 CTokenId;
 class CTokenId : public uint272
 {
 private:
@@ -26,6 +28,21 @@ public:
     std::string ToBase58String() const;
     void FromBase58String(const std::string& strBase58Id);
 };
+
+struct CTokenTxIssueInfo
+{
+    uint8_t type;
+    CAmount amount;
+    std::string issueAddress;
+    std::string symbol;
+    std::string name;
+    std::string url;
+    std::string description;
+};
+
+CScript CreateIssuanceScript(CTokenTxIssueInfo issueinfo);
+bool GetIssueInfoFromScriptData(CTokenTxIssueInfo issueinfo, std::vector<unsigned char> scriptdata);
+
 
 struct CTokenInfo {
 
@@ -56,19 +73,22 @@ struct CTokenInfo {
         READWRITE(txHash);
     }
 
-};
+    CTokenInfo(const CTokenTxIssueInfo info);
+    CTokenInfo() {
+        setnull();
+    }
+    void setnull() {
+        tokenId = uint272();
+        type = 0;
+        moneySupply = 0;
+        symbol.clear();
+        name.clear();
+        url.clear();
+        description.clear();
+        issueToAddress.clear();
+        txHash = uint256();
+    }
 
-struct CTokenTxIssueInfo
-{
-    uint8_t type;
-    CAmount amount;
-    std::string symbol;
-    std::string name;
-    std::string url;
-    std::string description;
 };
-
-CScript CreateIssuanceScript(CTokenTxIssueInfo issueinfo);
-bool GetIssueInfoFromScriptData(CTokenTxIssueInfo issueinfo, std::vector<unsigned char> scriptdata);
 
 #endif // TOKEN_H

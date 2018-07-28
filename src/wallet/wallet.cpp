@@ -2395,7 +2395,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
     for (size_t idx = 0; idx < tx.vout.size(); idx++)
     {
         const CTxOut& txOut = tx.vout[idx];
-        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, setSubtractFeeFromOutputs.count(idx) == 1};
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, txOut.tokenId, txOut.nTokenValue, setSubtractFeeFromOutputs.count(idx) == 1};
         vecSend.push_back(recipient);
     }
 
@@ -2470,7 +2470,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     }
 
     std::vector<unsigned char> tokenDataFromScript;
-    tokencode scriptcode = GetTxOutTokenCode(vecSend[0].scriptPubKey, tokenDataFromScript);
+    tokencode scriptcode = GetTokenCodeFromScript(vecSend[0].scriptPubKey, &tokenDataFromScript);
 
     if (scriptcode != code) {
         strFailReason = _("Transaction token codes not match");
@@ -2701,7 +2701,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                 if (code == TTC_ISSUE)
                 {
-                    txNew.vout[1].tokenId = txNew.vin[0].prevout.hash;  //just use first vin
+                    txNew.vout[1].tokenId = uint272hex( txNew.vin[0].prevout.hash, txNew.vin[0].prevout.n );  //just use first vin
                 }
 
                 unsigned int nBytes = GetVirtualTransactionSize(txNew);

@@ -17,6 +17,7 @@
 #include "wallet/crypter.h"
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
+#include "token/token.h"
 
 #include <algorithm>
 #include <atomic>
@@ -138,6 +139,8 @@ struct CRecipient
 {
     CScript scriptPubKey;
     CAmount nAmount;
+    CTokenId tokenId;
+    CAmount nTokenAmount;
     bool fSubtractFeeFromAmount;
 };
 
@@ -404,10 +407,14 @@ public:
 
     //! filter decides which addresses will count towards the debit
     CAmount GetDebit(const isminefilter& filter) const;
+    CAmount GetTokenDebit(CTokenId tokenId, const isminefilter& filter) const;
     CAmount GetCredit(const isminefilter& filter) const;
+    CAmount GetTokenCredit(CTokenId tokenId, const isminefilter& filter) const;
     CAmount GetImmatureCredit(bool fUseCache=true) const;
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
     CAmount GetAvailableCredit(bool fUseCache=true) const;
+    CAmount GetAvailableTokenCredit(CTokenId tokenId, bool fUseCache=true) const;
+    std::pair<CTokenId, CAmount> GetAvailableTokenIdAndCredit(bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;
     CAmount GetAvailableWatchOnlyCredit(const bool& fUseCache=true) const;
     CAmount GetChange() const;
@@ -871,14 +878,17 @@ public:
      * filter, otherwise returns 0
      */
     CAmount GetDebit(const CTxIn& txin, const isminefilter& filter) const;
+    std::pair<CTokenId, CAmount> GetTokenIdAndDebit(const CTxIn& txin, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
     CAmount GetCredit(const CTxOut& txout, const isminefilter& filter) const;
+    std::pair<CTokenId, CAmount> GetTokenIdAndCredit(const CTxOut& txout, const isminefilter& filter) const;
     bool IsChange(const CTxOut& txout) const;
     CAmount GetChange(const CTxOut& txout) const;
     bool IsMine(const CTransaction& tx) const;
     /** should probably be renamed to IsRelevantToMe */
     bool IsFromMe(const CTransaction& tx) const;
     CAmount GetDebit(const CTransaction& tx, const isminefilter& filter) const;
+    CAmount GetTokenDebit(CTokenId tokenid, const CTransaction& tx, const isminefilter& filter) const;
     /** Returns whether all of the inputs match the filter */
     bool IsAllFromMe(const CTransaction& tx, const isminefilter& filter) const;
     CAmount GetCredit(const CTransaction& tx, const isminefilter& filter) const;

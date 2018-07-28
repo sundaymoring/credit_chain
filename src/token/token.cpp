@@ -2,6 +2,23 @@
 #include "script/standard.h"
 #include "base58.h"
 
+tokencode GetTokenCodeFromScript(const CScript& script, std::vector<unsigned char>* pTokenData)
+{
+    txnouttype whichType;
+    std::vector<std::vector<unsigned char>> vPushData;
+
+    if (!Solver(script, whichType, vPushData)){
+        return TTC_NONE;
+    }
+
+    if (whichType == TX_TOKEN){
+        if (pTokenData && vPushData.size() > 0)
+            *pTokenData = vPushData[0];
+        return (tokencode)script[3];
+    }
+
+    return TTC_NONE;
+}
 
 tokencode GetTxTokenCode(const CTransaction& tx, std::vector<unsigned char>* pTokenData)
 {
@@ -17,20 +34,7 @@ tokencode GetTxTokenCode(const CTransaction& tx, std::vector<unsigned char>* pTo
     if (tx.vout[0].nValue > 0)
         return TTC_NONE;
 
-    txnouttype whichType;
-    std::vector<std::vector<unsigned char>> vPushData;
-
-    if (!Solver(tx.vout[0].scriptPubKey, whichType, vPushData)){
-        return TTC_NONE;
-    }
-
-    if (whichType == TX_TOKEN){
-        if (pTokenData && vPushData.size() > 0)
-            *pTokenData = vPushData[0];
-        return (tokencode)tx.vout[0].scriptPubKey[3];
-    }
-
-    return TTC_NONE;
+    return GetTokenCodeFromScript(tx.vout[0].scriptPubKey, pTokenData);
 }
 
 class CTokenId::CBase58Id : public CBase58Data
@@ -77,4 +81,15 @@ std::string CTokenId::ToBase58String() const
 void CTokenId::FromBase58String(const std::string& strBase58Id)
 {
     CBase58Id(strBase58Id).ConvertToTokenID(*this);
+}
+
+CTokenInfo::CTokenInfo(const CTokenTxIssueInfo info)
+{
+    issueToAddress = info.issueAddress;
+    moneySupply = info.amount;
+    type = info.type;
+    symbol = info.symbol;
+    name = info.name;
+    url = info.url;
+    description = info.description;
 }

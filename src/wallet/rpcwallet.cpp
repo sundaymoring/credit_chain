@@ -361,7 +361,7 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount};
+    CRecipient recipient = {scriptPubKey, nValue, CTokenId(), 0, fSubtractFeeFromAmount};
     vecSend.push_back(recipient);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
@@ -518,6 +518,7 @@ UniValue issuenewtoken(const JSONRPCRequest& request){
     if (symbol.length() > 20) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "issue symbol too long");
     }
+    issueInfo.issueAddress = request.params[0].get_str();
     issueInfo.type = type;
     issueInfo.amount = amount;
     issueInfo.symbol = symbol;
@@ -1075,7 +1076,7 @@ UniValue sendmany(const JSONRPCRequest& request)
                 fSubtractFeeFromAmount = true;
         }
 
-        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
+        CRecipient recipient = {scriptPubKey, nAmount, CTokenId(), 0, fSubtractFeeFromAmount};
         vecSend.push_back(recipient);
     }
 
