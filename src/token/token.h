@@ -43,6 +43,8 @@ struct CTokenTxIssueInfo
 CScript CreateIssuanceScript(CTokenTxIssueInfo issueinfo);
 bool GetIssueInfoFromScriptData(CTokenTxIssueInfo issueinfo, std::vector<unsigned char> scriptdata);
 
+CScript CreateSendScript(CTokenId tokenid);
+bool GetSendInfoFromScriptData(CTokenId tokenid, std::vector<unsigned char> scriptdata);
 
 struct CTokenInfo {
 

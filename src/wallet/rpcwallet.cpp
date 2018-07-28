@@ -20,6 +20,7 @@
 #include "utilmoneystr.h"
 #include "wallet.h"
 #include "walletdb.h"
+#include "token/db.h"
 
 #include <stdint.h>
 
@@ -375,6 +376,47 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     }
 }
 
+static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAmount nValue, CWalletTx& wtxNew)
+{
+    CAmount curBalance = pwalletMain->GetBalance();
+    CAmount curTokenBalance = pwalletMain->GetTokenBalance(tokenid);
+
+    // Check amount
+    if (nValue <= 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
+
+    if (nValue > curTokenBalance || TOKEN_DEFAULT_VALUE > curBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    // Parse Bitcoin address
+    CScript scriptPubKey = GetScriptForDestination(address);
+    CScript scriptTokenSend = CreateSendScript(tokenid);
+
+    // Create and send the transaction
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    std::string strError;
+    vector<CRecipient> vecSend;
+    int nChangePosRet = 2;
+    CRecipient recipient0 = {scriptTokenSend, 0, CTokenId(), 0, false};
+    vecSend.push_back(recipient0);
+    CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, tokenid, nValue, false};
+    vecSend.push_back(recipient1);
+    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_SEND)) {
+        if (nValue + nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+}
+
 static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, const CTokenTxIssueInfo issueInfo, CWalletTx& wtxNew)
 {
     CAmount curBalance = pwalletMain->GetBalance();
@@ -471,6 +513,65 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
 
     return wtx.GetHash().GetHex();
 }
+
+UniValue sendtokentoaddress(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 5)
+        throw runtime_error(
+            "sendtokentoaddress \"tokenid\" \"address\" amount ( \"comment\" \"comment_to\" )\n"
+            "\nSend an amount of token to a given address.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"address\"            (string, required) The bitcoin address to send to.\n"
+            "2. \"amount\"             (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+            "3. \"comment\"            (string, optional) A comment used to store what the transaction is for. \n"
+            "                             This is not part of the transaction, just kept in your wallet.\n"
+            "4. \"comment_to\"         (string, optional) A comment to store the name of the person or organization \n"
+            "                             to which you're sending the transaction. This is not part of the \n"
+            "                             transaction, just kept in your wallet.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sendtokentoaddress", "\"tokenid\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
+            + HelpExampleCli("sendtokentoaddress", "\"tokenid\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleRpc("sendtokentoaddress", "\"tokenid\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.1, \"donation\", \"seans outpost\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CTokenId tokenid;
+    tokenid.FromBase58String(request.params[0].get_str());
+
+    if ( !ptokendbview->ExistsTokenInfo(tokenid)) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
+    }
+
+    CBitcoinAddress address(request.params[1].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[2]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+    // Wallet comments
+    CWalletTx wtx;
+    if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
+        wtx.mapValue["comment"] = request.params[3].get_str();
+    if (request.params.size() > 4 && !request.params[4].isNull() && !request.params[4].get_str().empty())
+        wtx.mapValue["to"]      = request.params[4].get_str();
+
+    EnsureWalletIsUnlocked();
+
+    SendToken(tokenid, address.Get(), nAmount, wtx);
+
+    return wtx.GetHash().GetHex();
+}
+
 
 UniValue issuenewtoken(const JSONRPCRequest& request){
     if (request.fHelp || (request.params.size() != 7 && request.params.size() != 4) ) {
@@ -3152,6 +3253,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "sendfrom",                 &sendfrom,                 false,  {"fromaccount","toaddress","amount","minconf","comment","comment_to"} },
     { "wallet",             "sendmany",                 &sendmany,                 false,  {"fromaccount","amounts","minconf","comment","subtractfeefrom"} },
     { "wallet",             "sendtoaddress",            &sendtoaddress,            false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
+    { "wallet",             "sendtokentoaddress",       &sendtokentoaddress,       false,  {"tokenid","address","amount","comment","comment_to"} },
     { "wallet",             "setaccount",               &setaccount,               true,   {"address","account"} },
     { "wallet",             "settxfee",                 &settxfee,                 true,   {"amount"} },
     { "wallet",             "signmessage",              &signmessage,              true,   {"address","message"} },
