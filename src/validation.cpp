@@ -505,17 +505,63 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
 
+    std::vector<unsigned char> tokenDataFromScript;
+    tokencode scriptcode = GetTxTokenCode(tx, &tokenDataFromScript);
+    if (scriptcode < TTC_NONE || scriptcode > TTC_MAX) {
+        return state.Invalid(false, REJECT_INVALID, "bad-token-code", strprintf("invalid token code %x", scriptcode) );
+    }
+
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
+    CAmount nTokenValueOut = 0;
+    CTokenId tokenid = CTokenId();
     for (const auto& txout : tx.vout)
     {
-        if (txout.nValue < 0)
+        if (txout.nValue < 0 || txout.nTokenValue < 0 )
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
-        if (txout.nValue > MAX_MONEY)
+        if (txout.nValue > MAX_MONEY || txout.nTokenValue > MAX_TOKEN)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+        if ((txout.nTokenValue != 0 && txout.tokenId == CTokenId()) || (txout.nTokenValue == 0 && txout.tokenId != CTokenId()))
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-invalid-token");
         nValueOut += txout.nValue;
-        if (!MoneyRange(nValueOut))
+        nTokenValueOut += txout.nTokenValue;
+        if (!MoneyRange(nValueOut) || !TokenRange(nTokenValueOut))
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+        if (scriptcode == TTC_NONE) {
+            if (txout.tokenId != CTokenId() || txout.nTokenValue != 0)
+                return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-code");
+        }else if(scriptcode == TTC_SEND || scriptcode == TTC_BURN || scriptcode == TTC_ISSUE) {
+            if (txout.tokenId != CTokenId()) {
+                if (tokenid == CTokenId()) {
+                    tokenid = txout.tokenId;
+                }else if(tokenid != txout.tokenId){
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-multitoken");
+                }
+            }
+        }
+    }
+    if (scriptcode != TTC_NONE) {
+        if (tokenid == CTokenId() || nTokenValueOut <=0) {
+            return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-out");
+        }
+        if (scriptcode == TTC_ISSUE) {
+            CTokenTxIssueInfo issueinfo;
+            if (!GetIssueInfoFromScriptData(issueinfo, tokenDataFromScript)) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issueinfo");
+            }
+            if (issueinfo.amount != tx.vout[1].nTokenValue || issueinfo.amount != nTokenValueOut) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issue-amount");
+            }
+        }
+        if (scriptcode == TTC_SEND) {
+            CTokenId scripttokenid;
+            if (!GetSendInfoFromScriptData(scripttokenid, tokenDataFromScript)){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-sendinfo");
+            }
+            if (tokenid != scripttokenid) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-send-tokenid");
+            }
+        }
     }
 
     // Check for duplicate inputs - note that this check is slow so we skip it in CheckBlock
@@ -1423,6 +1469,139 @@ int GetSpendHeight(const CCoinsViewCache& inputs)
     return pindexPrev->nHeight + 1;
 }
 
+bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs)
+{
+	std::vector<unsigned char> tokenDataFromScript;
+	tokencode scriptcode = GetTxTokenCode(tx, &tokenDataFromScript);
+    if (scriptcode == TTC_NONE){
+        for (const auto& in : tx.vin)
+        {
+            const CTxOut& preout = inputs.GetOutputFor(in);
+            if ( preout.nTokenValue != 0 || preout.tokenId != CTokenId()) {
+                return state.Invalid(false, REJECT_INVALID, "bad-token-tx", strprintf("token input without legal OP code"));
+            }
+        }
+        return true;
+    }
+    if (tx.IsCoinBase() || tx.IsCoinStake()) {
+        return state.Invalid(false, REJECT_INVALID, "bad-token-tx", "token in coinbase/coinstake tx" );
+    }
+
+
+    if (scriptcode == TTC_ISSUE) {
+        for (const auto& in : tx.vin)
+        {
+            const CTxOut& preout = inputs.GetOutputFor(in);
+            if ( preout.nTokenValue != 0 || preout.tokenId != CTokenId() || preout.nValue <= 0) {
+                return state.Invalid(false, REJECT_INVALID, "bad-token-tx", strprintf("token input without legal OP code"));
+            }
+        }
+
+        CTokenTxIssueInfo issueinfo;
+        if (!GetIssueInfoFromScriptData(issueinfo, tokenDataFromScript)) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issueinfo");
+        }
+        CAmount totalSupply = issueinfo.amount;
+        CTokenId tokenid = uint272hex( tx.vin[0].prevout.hash, tx.vin[0].prevout.n );
+
+
+        int n = -1;
+
+        for (unsigned int i = 0; i < tx.vout.size(); i++)
+        {
+            if ((tx.vout[i].nTokenValue != 0 && tx.vout[i].tokenId == CTokenId()) || (tx.vout[i].nTokenValue == 0 && tx.vout[i].tokenId != CTokenId())) {
+                return state.Invalid(false, REJECT_INVALID, "bad-token-define", "invalid token define");
+            }
+            if (tx.vout[i].nTokenValue != 0 && tx.vout[i].tokenId != CTokenId()) {
+                if (n == -1){
+                    n = i;
+                    if (!TokenRange(tx.vout[i].nTokenValue)) {
+                        return state.DoS(100, false, REJECT_INVALID, "bad-token-issuevalues-outofrange");
+                    }
+                }else{
+                    return state.Invalid(false, REJECT_INVALID, "bad-token-issue","multiple token in one issue tx");
+                }
+            }
+        }
+        if (n == -1) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-issue", "no token in issue tx");
+        }
+        if (totalSupply != tx.vout[n].nTokenValue || tokenid != tx.vout[n].tokenId) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-issue", "issue info not match");
+        }
+    }
+
+    if (scriptcode == TTC_SEND) {
+        CAmount nValueIn = 0;
+        CTokenId inputId;
+        for (const auto& in : tx.vin)
+        {
+            const CTxOut& preout = inputs.GetOutputFor(in);
+            if ((preout.nTokenValue != 0 && preout.tokenId == CTokenId()) || (preout.nTokenValue == 0 && preout.tokenId != CTokenId())) {
+                return state.Invalid(false, REJECT_INVALID, "bad-token-input", "invalid token input");
+            }
+            if (preout.nTokenValue != 0 && preout.tokenId != CTokenId()) {
+                if (inputId == CTokenId()){
+                    inputId = preout.tokenId;
+                }else{
+                    if (inputId != preout.tokenId) {
+                        return state.Invalid(false, REJECT_INVALID, "bad-token-send", "various token input of send");
+                    }
+                }
+                nValueIn += preout.nTokenValue;
+                if (!TokenRange(preout.nTokenValue) || !TokenRange(nValueIn)) {
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
+                }
+            }
+        }
+        if (inputId == CTokenId()) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", "no token input of send");
+        }
+
+        CTokenId scripttokenid;
+        if (!GetSendInfoFromScriptData(scripttokenid, tokenDataFromScript)){
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-sendinfo");
+        }
+
+        if (inputId != scripttokenid) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", strprintf("different token intput: %s - script: %s", inputId.ToString(), scripttokenid.ToString()));
+        }
+
+        CAmount nValueOut = 0;
+        CTokenId outputId;
+        for (const auto& out : tx.vout)
+        {
+            if ((out.nTokenValue != 0 && out.tokenId == CTokenId()) || (out.nTokenValue == 0 && out.tokenId != CTokenId())) {
+                return state.Invalid(false, REJECT_INVALID, "bad-token-define", "invalid token define");
+            }
+            if (out.nTokenValue != 0 && out.tokenId != CTokenId()) {
+                if (outputId == CTokenId()){
+                    outputId = out.tokenId;
+                }else{
+                    if (outputId != out.tokenId) {
+                        return state.Invalid(false, REJECT_INVALID, "bad-token-send", "various token output of send");
+                    }
+                }
+                nValueOut += out.nTokenValue;
+                if (!TokenRange(out.nTokenValue) || !TokenRange(nValueOut) ) {
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-outputvalues-outofrange");
+                }
+            }
+        }
+        if (outputId == CTokenId()) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", "no token out of send");
+        }
+        if (outputId != inputId) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", strprintf("different token intput: %s - output: %s", inputId.ToString(), outputId.ToString()));
+        }
+        if (nValueOut != nValueIn) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", strprintf("different token value intput: %d - output: %d",nValueIn, nValueOut));
+        }
+    }
+
+    return true;
+}
+
 namespace Consensus {
 bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight)
 {
@@ -1453,6 +1632,9 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
 
         }
+
+        if ( !CheckTokenInputs(tx, state, inputs))
+        	return false;
 
         if( !tx.IsCoinStake() ){
             if (nValueIn < tx.GetValueOut())
@@ -1727,6 +1909,13 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
 
         // remove outputs
         outs->Clear();
+        }
+
+        tokencode scriptcode = GetTxTokenCode(tx);
+        if (scriptcode == TTC_ISSUE) {
+            if (!ptokendbview->ExistsTokenInfo(tx.vout[1].tokenId))
+                return error("DisconnectBlock(): failure reading token data");
+            ptokendbview->EraseTokenInfo(tx.vout[1].tokenId);
         }
 
         // restore inputs
