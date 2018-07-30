@@ -362,7 +362,7 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, CTokenId(), 0, fSubtractFeeFromAmount};
+    CRecipient recipient = {scriptPubKey, nValue, TOKENID_ZERO, 0, fSubtractFeeFromAmount};
     vecSend.push_back(recipient);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
@@ -401,7 +401,7 @@ static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAm
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = 2;
-    CRecipient recipient0 = {scriptTokenSend, 0, CTokenId(), 0, false};
+    CRecipient recipient0 = {scriptTokenSend, 0, TOKENID_ZERO, 0, false};
     vecSend.push_back(recipient0);
     CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, tokenid, nValue, false};
     vecSend.push_back(recipient1);
@@ -440,9 +440,9 @@ static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, co
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = 2;
-    CRecipient recipient0 = {scriptTokenIssue, 0, CTokenId(), 0, false};
+    CRecipient recipient0 = {scriptTokenIssue, 0, TOKENID_ZERO, 0, false};
     vecSend.push_back(recipient0);
-    CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, CTokenId(), nAmount, false};
+    CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, TOKENID_ZERO, nAmount, false};
     vecSend.push_back(recipient1);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_ISSUE)) {
         if (TOKEN_DEFAULT_VALUE + TOKEN_ISSUE_FEE + nFeeRequired > curBalance)
@@ -1177,7 +1177,7 @@ UniValue sendmany(const JSONRPCRequest& request)
                 fSubtractFeeFromAmount = true;
         }
 
-        CRecipient recipient = {scriptPubKey, nAmount, CTokenId(), 0, fSubtractFeeFromAmount};
+        CRecipient recipient = {scriptPubKey, nAmount, TOKENID_ZERO, 0, fSubtractFeeFromAmount};
         vecSend.push_back(recipient);
     }
 

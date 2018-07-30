@@ -38,13 +38,26 @@ struct CTokenTxIssueInfo
     std::string name;
     std::string url;
     std::string description;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(type);
+        READWRITE(amount);
+        READWRITE(issueAddress);
+        READWRITE(symbol);
+        READWRITE(name);
+        READWRITE(url);
+        READWRITE(description);
+    }
+
 };
 
-CScript CreateIssuanceScript(CTokenTxIssueInfo issueinfo);
-bool GetIssueInfoFromScriptData(CTokenTxIssueInfo issueinfo, std::vector<unsigned char> scriptdata);
+CScript CreateIssuanceScript(const CTokenTxIssueInfo& issueinfo);
+bool GetIssueInfoFromScriptData(CTokenTxIssueInfo& issueinfo, const std::vector<unsigned char>& scriptdata);
 
-CScript CreateSendScript(CTokenId tokenid);
-bool GetSendInfoFromScriptData(CTokenId tokenid, std::vector<unsigned char> scriptdata);
+CScript CreateSendScript(const CTokenId& tokenid);
+bool GetSendInfoFromScriptData(CTokenId& tokenid, const std::vector<unsigned char>& scriptdata);
 
 struct CTokenInfo {
 
@@ -75,7 +88,7 @@ struct CTokenInfo {
         READWRITE(txHash);
     }
 
-    CTokenInfo(const CTokenTxIssueInfo info);
+    CTokenInfo(const CTokenTxIssueInfo& info);
     CTokenInfo() {
         setnull();
     }
@@ -92,5 +105,7 @@ struct CTokenInfo {
     }
 
 };
+
+static const CTokenId TOKENID_ZERO;
 
 #endif // TOKEN_H

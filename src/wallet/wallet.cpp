@@ -1291,7 +1291,7 @@ std::pair<CTokenId, CAmount> CWallet::GetTokenIdAndDebit(const CTxIn &txin, cons
                     return std::make_pair(prev.tx->vout[txin.prevout.n].tokenId, prev.tx->vout[txin.prevout.n].nTokenValue);
         }
     }
-    return std::make_pair(CTokenId(), 0);
+    return std::make_pair(TOKENID_ZERO, 0);
 }
 
 isminetype CWallet::IsMine(const CTxOut& txout) const
@@ -1313,7 +1313,7 @@ std::pair<CTokenId, CAmount> CWallet::GetTokenIdAndCredit(const CTxOut& txout, c
     if (IsMine(txout) & filter) {
         return std::make_pair(txout.tokenId, txout.nTokenValue);
     }
-    return std::make_pair(CTokenId(), 0);
+    return std::make_pair(TOKENID_ZERO, 0);
 }
 
 bool CWallet::IsChange(const CTxOut& txout) const
@@ -2271,12 +2271,12 @@ void CWallet::AvailableToken(const CTokenId tokenid, vector<COutput>& vCoins, bo
 
 void CWallet::AvailablePureCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
 {
-    AvailableUtxos(false, CTokenId(), vCoins, fOnlyConfirmed, coinControl, fIncludeZeroValue);
+    AvailableUtxos(false, TOKENID_ZERO, vCoins, fOnlyConfirmed, coinControl, fIncludeZeroValue);
 }
 
 void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
 {
-    AvailableUtxos(true, CTokenId(), vCoins, fOnlyConfirmed, coinControl, fIncludeZeroValue);
+    AvailableUtxos(true, TOKENID_ZERO, vCoins, fOnlyConfirmed, coinControl, fIncludeZeroValue);
 }
 
 void CWallet::AvailableUtxos(bool isall, const CTokenId tokenid, vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
@@ -2429,7 +2429,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
 
         int i = output.i;
         CAmount n = 0;
-        if(tokenid == CTokenId()){
+        if(tokenid == TOKENID_ZERO){
             n = pcoin->tx->vout[i].nValue;
         }else if(tokenid == pcoin->tx->vout[i].tokenId){
             n = pcoin->tx->vout[i].nTokenValue;
@@ -2447,7 +2447,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
             nValueRet += coin.first;
             return true;
         }
-        else if (n < nTargetValue + ( tokenid == CTokenId() ? MIN_CHANGE : 0) )
+        else if (n < nTargetValue + ( tokenid == TOKENID_ZERO ? MIN_CHANGE : 0) )
         {
             vValue.push_back(coin);
             nTotalLower += n;
@@ -2525,7 +2525,7 @@ bool CWallet::SelectUtxos(const vector<COutput>& vAvailableCoins, const CAmount&
             if (!out.fSpendable)
                  continue;
             CAmount amount = 0;
-            if (tokenid == CTokenId()) {
+            if (tokenid == TOKENID_ZERO) {
                 amount = out.tx->tx->vout[out.i].nValue;
             }else if(tokenid == out.tx->tx->vout[out.i].tokenId){
                 amount = out.tx->tx->vout[out.i].nTokenValue;
@@ -2555,7 +2555,7 @@ bool CWallet::SelectUtxos(const vector<COutput>& vAvailableCoins, const CAmount&
             if (pcoin->tx->vout.size() <= outpoint.n)
                 return false;
             CAmount amount = 0;
-            if (tokenid == CTokenId()) {
+            if (tokenid == TOKENID_ZERO) {
                 amount = pcoin->tx->vout[outpoint.n].nValue;
             }else if(tokenid == pcoin->tx->vout[outpoint.n].tokenId){
                 amount = pcoin->tx->vout[outpoint.n].nTokenValue;
@@ -2603,7 +2603,7 @@ bool CWallet::SelectToken(const CTokenId tokenid, const vector<COutput>& vAvaila
 }
 
 bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl) const {
-    return SelectUtxos(vAvailableCoins, nTargetValue, setCoinsRet, nValueRet, coinControl, CTokenId());
+    return SelectUtxos(vAvailableCoins, nTargetValue, setCoinsRet, nValueRet, coinControl, TOKENID_ZERO);
 }
 
 bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool overrideEstimatedFeeRate, const CFeeRate& specificFeeRate, int& nChangePosInOut, std::string& strFailReason, bool includeWatching, bool lockUnspents, const std::set<int>& setSubtractFeeFromOutputs, bool keepReserveKey, const CTxDestination& destChange)

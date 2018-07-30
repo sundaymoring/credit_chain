@@ -47,7 +47,7 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
 {
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
-    tokenId = CTokenId();
+    tokenId = TOKENID_ZERO;
     nTokenValue = 0;
 }
 

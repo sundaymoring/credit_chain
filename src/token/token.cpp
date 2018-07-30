@@ -1,6 +1,9 @@
 #include "token.h"
 #include "script/standard.h"
 #include "base58.h"
+#include "streams.h"
+#include "clientversion.h"
+#include "util.h"
 
 tokencode GetTokenCodeFromScript(const CScript& script, std::vector<unsigned char>* pTokenData)
 {
@@ -14,7 +17,7 @@ tokencode GetTokenCodeFromScript(const CScript& script, std::vector<unsigned cha
     if (whichType == TX_TOKEN){
         if (pTokenData && vPushData.size() > 0)
             *pTokenData = vPushData[0];
-        return (tokencode)script[3];
+        return (tokencode)script[2];
     }
 
     return TTC_NONE;
@@ -83,7 +86,7 @@ void CTokenId::FromBase58String(const std::string& strBase58Id)
     CBase58Id(strBase58Id).ConvertToTokenID(*this);
 }
 
-CTokenInfo::CTokenInfo(const CTokenTxIssueInfo info)
+CTokenInfo::CTokenInfo(const CTokenTxIssueInfo& info)
 {
     issueToAddress = info.issueAddress;
     moneySupply = info.amount;
@@ -93,3 +96,59 @@ CTokenInfo::CTokenInfo(const CTokenTxIssueInfo info)
     url = info.url;
     description = info.description;
 }
+
+CScript CreateIssuanceScript(const CTokenTxIssueInfo& issueinfo)
+{
+    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    ds << issueinfo;
+
+    CScript script;
+    script.resize(3);
+    script[0] = OP_TOKEN;
+    script[1] = TOKEN_PROTOCOL_VERSION;
+    script[2] = TTC_ISSUE;
+
+    script << std::vector<unsigned char>(ds.begin(), ds.end());
+
+    return script;
+
+}
+
+bool GetIssueInfoFromScriptData(CTokenTxIssueInfo& issueinfo, const std::vector<unsigned char>& scriptdata)
+{
+    CDataStream ssValue(scriptdata, SER_DISK, CLIENT_VERSION);
+    try {
+        ssValue >> issueinfo;
+    } catch (const std::exception& e) {
+        return error("%s: decode token data error : %s", __func__, e.what());
+    }
+    return true;
+}
+
+CScript CreateSendScript(const CTokenId& tokenid)
+{
+    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    ds << tokenid;
+
+    CScript script;
+    script.resize(3);
+    script[0] = OP_TOKEN;
+    script[1] = TOKEN_PROTOCOL_VERSION;
+    script[2] = TTC_ISSUE;
+
+    script << std::vector<unsigned char>(ds.begin(), ds.end());
+
+    return script;
+}
+
+bool GetSendInfoFromScriptData(CTokenId& tokenid, const std::vector<unsigned char>& scriptdata)
+{
+    CDataStream ssValue(scriptdata, SER_DISK, CLIENT_VERSION);
+    try {
+        ssValue >> tokenid;
+    } catch (const std::exception& e) {
+        return error("%s: decode token data error : %s", __func__, e.what());
+    }
+    return true;
+}
+

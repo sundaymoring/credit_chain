@@ -514,25 +514,25 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
     CAmount nTokenValueOut = 0;
-    CTokenId tokenid = CTokenId();
+    CTokenId tokenid = TOKENID_ZERO;
     for (const auto& txout : tx.vout)
     {
         if (txout.nValue < 0 || txout.nTokenValue < 0 )
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
         if (txout.nValue > MAX_MONEY || txout.nTokenValue > MAX_TOKEN)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
-        if ((txout.nTokenValue != 0 && txout.tokenId == CTokenId()) || (txout.nTokenValue == 0 && txout.tokenId != CTokenId()))
+        if ((txout.nTokenValue != 0 && txout.tokenId == TOKENID_ZERO) || (txout.nTokenValue == 0 && txout.tokenId != TOKENID_ZERO))
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-invalid-token");
         nValueOut += txout.nValue;
         nTokenValueOut += txout.nTokenValue;
         if (!MoneyRange(nValueOut) || !TokenRange(nTokenValueOut))
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
         if (scriptcode == TTC_NONE) {
-            if (txout.tokenId != CTokenId() || txout.nTokenValue != 0)
+            if (txout.tokenId != TOKENID_ZERO || txout.nTokenValue != 0)
                 return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-code");
         }else if(scriptcode == TTC_SEND || scriptcode == TTC_BURN || scriptcode == TTC_ISSUE) {
-            if (txout.tokenId != CTokenId()) {
-                if (tokenid == CTokenId()) {
+            if (txout.tokenId != TOKENID_ZERO) {
+                if (tokenid == TOKENID_ZERO) {
                     tokenid = txout.tokenId;
                 }else if(tokenid != txout.tokenId){
                     return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-multitoken");
@@ -541,7 +541,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         }
     }
     if (scriptcode != TTC_NONE) {
-        if (tokenid == CTokenId() || nTokenValueOut <=0) {
+        if (tokenid == TOKENID_ZERO || nTokenValueOut <=0) {
             return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-out");
         }
         if (scriptcode == TTC_ISSUE) {
@@ -1477,7 +1477,7 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
         for (const auto& in : tx.vin)
         {
             const CTxOut& preout = inputs.GetOutputFor(in);
-            if ( preout.nTokenValue != 0 || preout.tokenId != CTokenId()) {
+            if ( preout.nTokenValue != 0 || preout.tokenId != TOKENID_ZERO) {
                 return state.Invalid(false, REJECT_INVALID, "bad-token-tx", strprintf("token input without legal OP code"));
             }
         }
@@ -1492,7 +1492,7 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
         for (const auto& in : tx.vin)
         {
             const CTxOut& preout = inputs.GetOutputFor(in);
-            if ( preout.nTokenValue != 0 || preout.tokenId != CTokenId() || preout.nValue <= 0) {
+            if ( preout.nTokenValue != 0 || preout.tokenId != TOKENID_ZERO || preout.nValue <= 0) {
                 return state.Invalid(false, REJECT_INVALID, "bad-token-tx", strprintf("token input without legal OP code"));
             }
         }
@@ -1509,10 +1509,10 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
 
         for (unsigned int i = 0; i < tx.vout.size(); i++)
         {
-            if ((tx.vout[i].nTokenValue != 0 && tx.vout[i].tokenId == CTokenId()) || (tx.vout[i].nTokenValue == 0 && tx.vout[i].tokenId != CTokenId())) {
+            if ((tx.vout[i].nTokenValue != 0 && tx.vout[i].tokenId == TOKENID_ZERO) || (tx.vout[i].nTokenValue == 0 && tx.vout[i].tokenId != TOKENID_ZERO)) {
                 return state.Invalid(false, REJECT_INVALID, "bad-token-define", "invalid token define");
             }
-            if (tx.vout[i].nTokenValue != 0 && tx.vout[i].tokenId != CTokenId()) {
+            if (tx.vout[i].nTokenValue != 0 && tx.vout[i].tokenId != TOKENID_ZERO) {
                 if (n == -1){
                     n = i;
                     if (!TokenRange(tx.vout[i].nTokenValue)) {
@@ -1537,11 +1537,11 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
         for (const auto& in : tx.vin)
         {
             const CTxOut& preout = inputs.GetOutputFor(in);
-            if ((preout.nTokenValue != 0 && preout.tokenId == CTokenId()) || (preout.nTokenValue == 0 && preout.tokenId != CTokenId())) {
+            if ((preout.nTokenValue != 0 && preout.tokenId == TOKENID_ZERO) || (preout.nTokenValue == 0 && preout.tokenId != TOKENID_ZERO)) {
                 return state.Invalid(false, REJECT_INVALID, "bad-token-input", "invalid token input");
             }
-            if (preout.nTokenValue != 0 && preout.tokenId != CTokenId()) {
-                if (inputId == CTokenId()){
+            if (preout.nTokenValue != 0 && preout.tokenId != TOKENID_ZERO) {
+                if (inputId == TOKENID_ZERO){
                     inputId = preout.tokenId;
                 }else{
                     if (inputId != preout.tokenId) {
@@ -1554,7 +1554,7 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
                 }
             }
         }
-        if (inputId == CTokenId()) {
+        if (inputId == TOKENID_ZERO) {
             return state.Invalid(false, REJECT_INVALID, "bad-token-send", "no token input of send");
         }
 
@@ -1571,11 +1571,11 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
         CTokenId outputId;
         for (const auto& out : tx.vout)
         {
-            if ((out.nTokenValue != 0 && out.tokenId == CTokenId()) || (out.nTokenValue == 0 && out.tokenId != CTokenId())) {
+            if ((out.nTokenValue != 0 && out.tokenId == TOKENID_ZERO) || (out.nTokenValue == 0 && out.tokenId != TOKENID_ZERO)) {
                 return state.Invalid(false, REJECT_INVALID, "bad-token-define", "invalid token define");
             }
-            if (out.nTokenValue != 0 && out.tokenId != CTokenId()) {
-                if (outputId == CTokenId()){
+            if (out.nTokenValue != 0 && out.tokenId != TOKENID_ZERO) {
+                if (outputId == TOKENID_ZERO){
                     outputId = out.tokenId;
                 }else{
                     if (outputId != out.tokenId) {
@@ -1588,7 +1588,7 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
                 }
             }
         }
-        if (outputId == CTokenId()) {
+        if (outputId == TOKENID_ZERO) {
             return state.Invalid(false, REJECT_INVALID, "bad-token-send", "no token out of send");
         }
         if (outputId != inputId) {
