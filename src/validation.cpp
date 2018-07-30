@@ -814,6 +814,16 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
         }
 
+        const tokencode returnTokenCode = GetTxTokenCode(tx);
+        if (returnTokenCode==TTC_ISSUE ){
+            if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee + TOKEN_ISSUE_FEE )
+                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool issue token min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee + TOKEN_ISSUE_FEE));
+
+            if (nModifiedFees<::minRelayTxFee.GetFee(nSize) + TOKEN_ISSUE_FEE)
+                return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issue-token-insufficien-fee", strprintf("%d < %d", nFees, ::minRelayTxFee.GetFee(nSize)+TOKEN_ISSUE_FEE));
+        }
+
+
         // Continuously rate-limit free (really, very-low-fee) transactions
         // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
         // be annoying or make others' transactions take longer to confirm.
@@ -837,10 +847,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             dFreeCount += nSize;
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee)
+        if (nAbsurdFee && nFees > nAbsurdFee + (returnTokenCode == TTC_ISSUE ? TOKEN_ISSUE_FEE : 0))
             return state.Invalid(false,
                 REJECT_HIGHFEE, "absurdly-high-fee",
                 strprintf("%d > %d", nFees, nAbsurdFee));
+
+        if (returnTokenCode==TTC_ISSUE && nFees <= TOKEN_ISSUE_FEE )
+            return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issue-token-insufficien-tee", strprintf("%d < %d", nFees, TOKEN_ISSUE_FEE));
+
 
         // Calculate in-mempool ancestors, up to a limit.
         CTxMemPool::setEntries setAncestors;
@@ -1529,6 +1543,11 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
         if (totalSupply != tx.vout[n].nTokenValue || tokenid != tx.vout[n].tokenId) {
             return state.Invalid(false, REJECT_INVALID, "bad-token-issue", "issue info not match");
         }
+
+        // check fee
+        if (inputs.GetValueIn(tx) - tx.GetValueOut() <= TOKEN_ISSUE_FEE )
+            return state.Invalid(false, REJECT_INSUFFICIENTFEE, "bad-token-issue", "issue-token-insufficien-fee");
+
     }
 
     if (scriptcode == TTC_SEND) {

@@ -2764,6 +2764,9 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
             }
 
             nFeeRet = 0;
+            if (code == TTC_ISSUE){
+                nFeeRet += TOKEN_ISSUE_FEE;
+            }
             // Start with no fee and loop until there is enough fee
             while (true)
             {
@@ -3025,8 +3028,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     if (dPriority >= dPriorityNeeded && AllowFree(dPriority))
                         break;
                 }
-
-                CAmount nFeeNeeded = GetMinimumFee(nBytes, currentConfirmationTarget, mempool);
+                CAmount nFeeNeeded = GetMinimumFee(nBytes, currentConfirmationTarget, mempool) + (code == TTC_ISSUE ? TOKEN_ISSUE_FEE : 0);
                 if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
                     nFeeNeeded = coinControl->nMinimumTotalFee;
                 }
