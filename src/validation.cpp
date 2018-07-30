@@ -1516,7 +1516,7 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issueinfo");
         }
         CAmount totalSupply = issueinfo.amount;
-        CTokenId tokenid = uint272hex( tx.vin[0].prevout.hash, tx.vin[0].prevout.n );
+        CTokenId tokenid(tx.vin[0].prevout.hash, tx.vin[0].prevout.n);
 
 
         int n = -1;

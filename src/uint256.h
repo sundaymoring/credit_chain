@@ -158,29 +158,29 @@ inline uint256 uint256S(const std::string& str)
     return rv;
 }
 
-/** 272-bit opaque blob.
+/** 288-bit opaque blob.
  * @note This type is called uint160 for historical reasons only. It is an opaque
- * blob of 272 bits and has no integer operations.
+ * blob of 288 bits and has no integer operations.
  */
-class uint272 : public base_blob<272> {
+class uint288 : public base_blob<288> {
 public:
-    uint272() {}
-    uint272(const base_blob<272>& b) : base_blob<272>(b) {}
-    explicit uint272(const std::vector<unsigned char>& vch) : base_blob<272>(vch) {}
+    uint288() {}
+    uint288(const base_blob<288>& b) : base_blob<288>(b) {}
+    explicit uint288(const std::vector<unsigned char>& vch) : base_blob<288>(vch) {}
 };
 
 // TTTODO improve algorithm
-inline uint272 uint272hex(const std::string& l, const unsigned int& r) {
-    uint272 rv;
-    char c[5];
-    sprintf(c,"%04x", r);
+inline uint288 uint288hex(const std::string& l, const unsigned int& r) {
+    uint288 rv;
+    char c[9];
+    sprintf(c,"%08x", r);
     rv.SetHex(l+c);
     return rv;
 }
 
-inline uint272 uint272hex(const uint256& l, const unsigned int& r){
+inline uint288 uint288hex(const uint256& l, const unsigned int& r){
     std::string ll = l.ToString();
-    return uint272hex(ll, r);
+    return uint288hex(ll, r);
 }
 
 #endif // BITCOIN_UINT256_H

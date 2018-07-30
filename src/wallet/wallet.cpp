@@ -3000,7 +3000,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
                 if (code == TTC_ISSUE)
                 {
-                    txNew.vout[1].tokenId = uint272hex( txNew.vin[0].prevout.hash, txNew.vin[0].prevout.n );  //just use first vin
+                    txNew.vout[1].tokenId = CTokenId( txNew.vin[0].prevout.hash, txNew.vin[0].prevout.n );  //just use first vin
                 }
 
                 unsigned int nBytes = GetVirtualTransactionSize(txNew);

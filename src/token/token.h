@@ -1,6 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
+#include "tinyformat.h"
 #include "script/script.h"
 #include "uint256.h"
 #include "serialize.h"
@@ -16,14 +17,18 @@ class CTransaction;
 tokencode GetTokenCodeFromScript(const CScript& script, std::vector<unsigned char>* pTokenData = NULL);
 tokencode GetTxTokenCode(const CTransaction& tx, std::vector<unsigned char>* pTokenData = NULL);
 
-class CTokenId : public uint272
+class CTokenId : public uint288
 {
 private:
     class CBase58Id;
 public:
-    CTokenId() : uint272() {}
-    CTokenId(const base_blob<272>& b) : uint272(b) {}
-    explicit CTokenId(const std::vector<unsigned char>& vch) : uint272(vch) {}
+    CTokenId() : uint288() {}
+    CTokenId(const base_blob<288>& b) : uint288(b) {}
+    CTokenId(const uint256& left, const unsigned int& right){
+        SetHex( strprintf("%s%08x", left.ToString().c_str(), right) );
+    }
+
+    explicit CTokenId(const std::vector<unsigned char>& vch) : uint288(vch) {}
 
     std::string ToBase58String() const;
     void FromBase58String(const std::string& strBase58Id);
@@ -93,7 +98,7 @@ struct CTokenInfo {
         setnull();
     }
     void setnull() {
-        tokenId = uint272();
+        tokenId = uint288();
         type = 0;
         moneySupply = 0;
         symbol.clear();
