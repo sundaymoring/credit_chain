@@ -169,6 +169,8 @@ struct COutputEntry
 {
     CTxDestination destination;
     CAmount amount;
+    CTokenId tokenId;
+    CAmount tokenAmount;
     int vout;
 };
 
@@ -413,6 +415,7 @@ public:
     CAmount GetImmatureCredit(bool fUseCache=true) const;
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
     CAmount GetAvailableCredit(bool fUseCache=true) const;
+    std::map<CTokenId, CAmount> GetTokenAvailableCredit(bool fUseCache=true) const;
     CAmount GetAvailableTokenCredit(const CTokenId tokenId, bool fUseCache=true) const;
     std::pair<CTokenId, CAmount> GetAvailableTokenIdAndCredit(bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;
@@ -815,6 +818,7 @@ public:
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
     CAmount GetBalance() const;
     CAmount GetTokenBalance(const CTokenId tokenid) const;
+    std::map<CTokenId, CAmount> GetAllTokenBalance() const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetStakeBalance() const;

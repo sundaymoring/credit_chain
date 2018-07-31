@@ -1594,7 +1594,7 @@ void CWalletTx::GetAmounts(list<COutputEntry>& listReceived,
             address = CNoDestination();
         }
 
-        COutputEntry output = {address, txout.nValue, (int)i};
+        COutputEntry output = {address, txout.nValue, txout.tokenId, txout.nTokenValue, (int)i};
 
         // If we are debited by the transaction, add the output as a "sent" entry
         if (nDebit > 0)
@@ -1953,6 +1953,44 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
     return nCredit;
 }
 
+std::map<CTokenId, CAmount> CWalletTx::GetTokenAvailableCredit(bool fUseCache) const
+{
+    std::map<CTokenId, CAmount> ret;
+    if (pwallet == 0)
+        return std::move(ret);
+
+    // Must wait until coinbase is safely deep enough in the chain before valuing it
+    if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity() > 0)
+        return std::move(ret);
+
+//    if (fUseCache && fAvailableCreditCached)
+//        return nAvailableCreditCached;
+
+
+    uint256 hashTx = GetHash();
+    for (unsigned int i = 0; i < tx->vout.size(); i++)
+    {
+        if (!pwallet->IsSpent(hashTx, i))
+        {
+            const CTxOut &txout = tx->vout[i];
+            const std::pair<CTokenId, CAmount> token = pwallet->GetTokenIdAndCredit(txout, ISMINE_SPENDABLE);
+            if (token.first != TOKENID_ZERO &&token.second > 0) {
+                if (ret.find(token.first) == ret.end()) {
+                    ret.insert(token);
+                }else{
+                    ret[token.first] += token.second;
+                }
+                if (!TokenRange(ret[token.first]))
+                    throw std::runtime_error("CWalletTx::GetTokenAvailableCredit() : value out of range");
+            }
+        }
+    }
+
+//    nAvailableCreditCached = nCredit;
+//    fAvailableCreditCached = true;
+    return std::move(ret);
+}
+
 CAmount CWalletTx::GetAvailableTokenCredit(CTokenId tokenid, bool fUseCache) const
 {
     if (pwallet == 0)
@@ -2174,6 +2212,31 @@ CAmount CWallet::GetTokenBalance(const CTokenId tokenid) const
     }
 
     return nTotal;
+}
+
+std::map<CTokenId, CAmount> CWallet::GetAllTokenBalance() const
+{
+    std::map<CTokenId, CAmount> tokenBalances;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (pcoin->IsTrusted()){
+                const std::map<CTokenId, CAmount> mapCredit = pcoin->GetTokenAvailableCredit();
+                BOOST_FOREACH(const PAIRTYPE(CTokenId,CAmount)& item, mapCredit){
+                    if (item.first != TOKENID_ZERO){
+                        if (tokenBalances.find(item.first) == tokenBalances.end())
+                            tokenBalances.insert(item);
+                        else
+                            tokenBalances[item.first] += item.second;
+                    }
+                }
+            }
+        }
+    }
+
+    return std::move(tokenBalances);
 }
 
 CAmount CWallet::GetUnconfirmedBalance() const

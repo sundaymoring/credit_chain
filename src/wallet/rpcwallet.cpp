@@ -958,6 +958,133 @@ UniValue getbalance(const JSONRPCRequest& request)
     return ValueFromAmount(nBalance);
 }
 
+UniValue gettokenbalance(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() > 3 || request.params.size() < 1)
+        throw runtime_error(
+            "gettokenbalance \"tokenid\" ( minconf include_watchonly )\n"
+            "\nReturns the server's total available balance of the specified token.\n"
+            "\nArguments:\n"
+            "1. \"tokenid\"         (string, required) The specified token id\n"
+            "2. minconf           (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
+            "3. include_watchonly (bool, optional, default=false) Also include balance in watch-only addresses (see 'importaddress')\n"
+            "\nResult:\n"
+            "amount              (numeric) The total amount in " + CURRENCY_UNIT + " received for this account.\n"
+            "\nExamples:\n"
+            "\nThe total amount in the wallet\n"
+            + HelpExampleCli("gettokenbalance", "\"*\"") +
+            "\nThe total amount in the wallet at least 5 blocks confirmed\n"
+            + HelpExampleCli("gettokenbalance", "\"tokenid\" 6") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("gettokenbalance", "\"*\", 6")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CTokenId tokenid;
+    tokenid.FromBase58String(request.params[0].get_str());
+    if ( !ptokendbview->ExistsTokenInfo(tokenid)) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
+    }
+
+    if (request.params.size() == 1)
+        return ValueFromAmount(pwalletMain->GetTokenBalance(tokenid));
+
+    int nMinDepth = 1;
+    if (request.params.size() > 1)
+        nMinDepth = request.params[1].get_int();
+    isminefilter filter = ISMINE_SPENDABLE;
+    if(request.params.size() > 2)
+        if(request.params[2].get_bool())
+            filter = filter | ISMINE_WATCH_ONLY;
+
+
+    // Calculate total balance in a very different way from GetBalance().
+    // The biggest difference is that GetBalance() sums up all unspent
+    // TxOuts paying to the wallet, while this sums up both spent and
+    // unspent TxOuts paying to the wallet, and then subtracts the values of
+    // TxIns spending from the wallet. This also has fewer restrictions on
+    // which unconfirmed transactions are considered trusted.
+    CAmount nBalance = 0;
+    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
+    {
+        const CWalletTx& wtx = (*it).second;
+        if (!CheckFinalTx(wtx) || wtx.GetBlocksToMaturity() > 0 || wtx.GetDepthInMainChain() < 0)
+            continue;
+
+        CAmount allFee;
+        string strSentAccount;
+        list<COutputEntry> listReceived;
+        list<COutputEntry> listSent;
+        wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount, filter);
+        if (wtx.GetDepthInMainChain() >= nMinDepth)
+        {
+            BOOST_FOREACH(const COutputEntry& r, listReceived)
+            {
+                if (r.tokenId == tokenid)
+                    nBalance += r.tokenAmount;
+            }
+        }
+        BOOST_FOREACH(const COutputEntry& s, listSent)
+        {
+            if (s.tokenId == tokenid)
+                nBalance -= s.tokenAmount;
+        }
+    }
+    return  ValueFromAmount(nBalance);
+}
+
+UniValue gettokenbalanceall(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp)
+        throw runtime_error(
+            "gettokenbalanceall\n"
+            "\nReturns all token banlance in this server.\n"
+            "\nResult:\n"
+            "{\n"
+            "   [\n"
+            "      \"tokenid\":   tokenid      (string)the token id\n"
+            "      \"symbol\":    symbol       (string)the token symbol\n"
+            "      \"balance\":   x.xxxx       (numeric)the total balance of this token \n"
+            "   ]\n"
+            "   ...\n"
+            "}\n"
+            "\nExamples:\n"
+            "\nThe total amount in the wallet\n"
+            + HelpExampleCli("gettokenbalance", "\"*\"") +
+            "\nThe total amount in the wallet at least 5 blocks confirmed\n"
+            + HelpExampleCli("gettokenbalance", "\"tokenid\" 6") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("gettokenbalance", "\"*\", 6")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    std::map<CTokenId, CAmount> mTokenBalances = pwalletMain->GetAllTokenBalance();
+
+    UniValue result(UniValue::VARR);
+    BOOST_FOREACH (const auto& t, mTokenBalances){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("tokenid", t.first.ToBase58String()));
+        CTokenInfo tokeninfo;
+        if (!ptokendbview->GetTokenInfo(t.first, tokeninfo)) {
+            entry.push_back(Pair("symbol", "err: token not found"));
+        }else{
+            entry.push_back(Pair("symbol", tokeninfo.symbol));
+        }
+        entry.push_back(Pair("balance", t.second));
+        result.push_back(entry);
+    }
+    return result;
+}
+
+
 UniValue getunconfirmedbalance(const JSONRPCRequest &request)
 {
     if (!EnsureWalletIsAvailable(request.fHelp))
@@ -1589,6 +1716,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             MaybePushAddress(entry, s.destination);
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
+            entry.push_back(Pair("tokenid", s.tokenId.ToBase58String()));
+            entry.push_back(Pair("tokenamount", ValueFromAmount(-s.tokenAmount)));
             if (pwalletMain->mapAddressBook.count(s.destination))
                 entry.push_back(Pair("label", pwalletMain->mapAddressBook[s.destination].name));
             entry.push_back(Pair("vout", s.vout));
@@ -1629,6 +1758,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     entry.push_back(Pair("category", "receive"));
                 }
                 entry.push_back(Pair("amount", ValueFromAmount(r.amount)));
+                entry.push_back(Pair("tokenid", r.tokenId.ToBase58String()));
+                entry.push_back(Pair("tokenamount", ValueFromAmount(r.tokenAmount)));
                 if (pwalletMain->mapAddressBook.count(r.destination))
                     entry.push_back(Pair("label", account));
                 entry.push_back(Pair("vout", r.vout));
@@ -3230,6 +3361,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf"} },
     { "wallet",             "getreceivedbyaddress",     &getreceivedbyaddress,     false,  {"address","minconf"} },
     { "wallet",             "gettransaction",           &gettransaction,           false,  {"txid","include_watchonly"} },
+    { "wallet",             "gettokenbalance",          &gettokenbalance,          false,  {"tokenid","minconf","include_watchonly"} },
+    { "wallet",             "gettokenbalanceall",       &gettokenbalanceall,       false,  {} },
     { "wallet",             "getunconfirmedbalance",    &getunconfirmedbalance,    false,  {} },
     { "wallet",             "getwalletinfo",            &getwalletinfo,            false,  {} },
     { "wallet",             "importmulti",              &importmulti,              true,   {"requests","options"} },
