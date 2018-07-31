@@ -100,6 +100,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
         out.push_back(Pair("valueSat", txout.nValue));
+        out.push_back(Pair("tokenId", txout.tokenId.ToBase58String()));
+        out.push_back(Pair("tokenValue", ValueFromAmount(txout.nTokenValue)));
+        out.push_back(Pair("tokenValueSat", txout.nTokenValue));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
@@ -183,6 +186,8 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
             "  \"vout\" : [              (array of json objects)\n"
             "     {\n"
             "       \"value\" : x.xxx,            (numeric) The value in " + CURRENCY_UNIT + "\n"
+			"		\"tokeniD\" : tokenId		  (string) The token id if vout has\n"
+			"		\"tokenValue\" : x.xxx		  (numeric) The token value in " + CURRENCY_UNIT + "\n"
             "       \"n\" : n,                    (numeric) index\n"
             "       \"scriptPubKey\" : {          (json object)\n"
             "         \"asm\" : \"asm\",          (string) the asm\n"
