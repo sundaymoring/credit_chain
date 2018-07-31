@@ -134,7 +134,7 @@ CScript CreateSendScript(const CTokenId& tokenid)
     script.resize(3);
     script[0] = OP_TOKEN;
     script[1] = TOKEN_PROTOCOL_VERSION;
-    script[2] = TTC_ISSUE;
+    script[2] = TTC_SEND;
 
     script << std::vector<unsigned char>(ds.begin(), ds.end());
 

@@ -98,7 +98,7 @@ struct CTokenInfo {
         setnull();
     }
     void setnull() {
-        tokenId = uint288();
+        tokenId = CTokenId();
         type = 0;
         moneySupply = 0;
         symbol.clear();
