@@ -46,8 +46,8 @@ public:
     CBase58Id(const CTokenId& id)
     {
         //prefix code do not same to address
-        //40 or 41 prefix 'T'
-        vchVersion.assign(1, 40);
+        //119 120 121 122 123 prefix 'T'
+        vchVersion.assign(1, 121);
         vchData.resize(id.size());
         if (!vchData.empty())
             memcpy(&vchData[0], id.begin(), id.size());
@@ -73,7 +73,7 @@ public:
     bool IsValid() const
     {
         bool fCorrectSize = vchData.size() == 36;
-        bool fKnownVersion = vchVersion == std::vector<unsigned char>(1,40);
+        bool fKnownVersion = vchVersion == std::vector<unsigned char>(1,121);
         return fCorrectSize && fKnownVersion;
     }
 
@@ -88,11 +88,16 @@ public:
 
 std::string CTokenId::ToBase58String() const
 {
+    if (*this == TOKENID_ZERO)
+        return "";
     return CBase58Id(*this).ToString();
 }
 
 bool CTokenId::FromBase58String(const std::string& strBase58Id)
 {
+    if (strBase58Id.empty())
+        return false;
+
     CBase58Id id(strBase58Id);
     if (!id.IsValid()){
         return false;
