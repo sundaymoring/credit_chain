@@ -98,7 +98,7 @@ struct CTokenInfo {
         setnull();
     }
     void setnull() {
-        tokenId = CTokenId();
+        tokenId.SetNull();
         type = 0;
         moneySupply = 0;
         symbol.clear();
@@ -106,7 +106,7 @@ struct CTokenInfo {
         url.clear();
         description.clear();
         issueToAddress.clear();
-        txHash = uint256();
+        txHash.SetNull();
     }
 
 };

@@ -1370,7 +1370,7 @@ CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) co
     return nDebit;
 }
 
-CAmount CWallet::GetTokenDebit(CTokenId tokenid, const CTransaction& tx, const isminefilter& filter) const
+CAmount CWallet::GetTokenDebit(const CTokenId& tokenid, const CTransaction& tx, const isminefilter& filter) const
 {
     CAmount nDebit = 0;
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
@@ -1417,7 +1417,7 @@ CAmount CWallet::GetCredit(const CTransaction& tx, const isminefilter& filter) c
     return nCredit;
 }
 
-CAmount CWallet::GetTokenCredit(CTokenId tokenid, const CTransaction& tx, const isminefilter& filter) const
+CAmount CWallet::GetTokenCredit(const CTokenId& tokenid, const CTransaction& tx, const isminefilter& filter) const
 {
     CAmount nCredit = 0;
     BOOST_FOREACH(const CTxOut& txout, tx.vout)
@@ -1794,7 +1794,7 @@ CAmount CWalletTx::GetDebit(const isminefilter& filter) const
     return debit;
 }
 
-CAmount CWalletTx::GetTokenDebit(CTokenId tokenid, const isminefilter& filter) const
+CAmount CWalletTx::GetTokenDebit(const CTokenId& tokenid, const isminefilter& filter) const
 {
     if (tx->vin.empty())
         return 0;
@@ -1860,7 +1860,7 @@ CAmount CWalletTx::GetCredit(const isminefilter& filter) const
     return credit;
 }
 
-CAmount CWalletTx::GetTokenCredit(CTokenId tokenid, const isminefilter& filter) const
+CAmount CWalletTx::GetTokenCredit(const CTokenId& tokenid, const isminefilter& filter) const
 {
     // Must wait until coinbase is safely deep enough in the chain before valuing it
     if ((IsCoinBase() || IsCoinStake())&& GetBlocksToMaturity() > 0)
@@ -1991,7 +1991,7 @@ std::map<CTokenId, CAmount> CWalletTx::GetTokenAvailableCredit(bool fUseCache) c
     return std::move(ret);
 }
 
-CAmount CWalletTx::GetAvailableTokenCredit(CTokenId tokenid, bool fUseCache) const
+CAmount CWalletTx::GetAvailableTokenCredit(const CTokenId& tokenid, bool fUseCache) const
 {
     if (pwallet == 0)
         return 0;
@@ -2198,7 +2198,7 @@ CAmount CWallet::GetBalance() const
     return nTotal;
 }
 
-CAmount CWallet::GetTokenBalance(const CTokenId tokenid) const
+CAmount CWallet::GetTokenBalance(const CTokenId& tokenid) const
 {
     CAmount nTotal = 0;
     {
@@ -2327,7 +2327,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     return nTotal;
 }
 
-void CWallet::AvailableToken(const CTokenId tokenid, vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
+void CWallet::AvailableToken(const CTokenId& tokenid, vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
 {
     AvailableUtxos(false, tokenid, vCoins, fOnlyConfirmed, coinControl, fIncludeZeroValue);
 }
@@ -2342,7 +2342,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
     AvailableUtxos(true, TOKENID_ZERO, vCoins, fOnlyConfirmed, coinControl, fIncludeZeroValue);
 }
 
-void CWallet::AvailableUtxos(bool isall, const CTokenId tokenid, vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
+void CWallet::AvailableUtxos(bool isall, const CTokenId& tokenid, vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
 {
     vCoins.clear();
 
@@ -2463,7 +2463,7 @@ static void ApproximateBestSubset(vector<pair<CAmount, pair<const CWalletTx*,uns
 }
 
 bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors, vector<COutput> vCoins,
-                                 set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CTokenId tokenid) const
+                                 set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CTokenId& tokenid) const
 {
     setCoinsRet.clear();
     nValueRet = 0;
@@ -2576,7 +2576,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     return true;
 }
 
-bool CWallet::SelectUtxos(const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, const CTokenId tokenid) const
+bool CWallet::SelectUtxos(const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, const CTokenId& tokenid) const
 {
     vector<COutput> vCoins(vAvailableCoins);
 
@@ -2661,7 +2661,7 @@ bool CWallet::SelectUtxos(const vector<COutput>& vAvailableCoins, const CAmount&
     return res;
 }
 
-bool CWallet::SelectToken(const CTokenId tokenid, const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl) const {
+bool CWallet::SelectToken(const CTokenId& tokenid, const vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl) const {
     return SelectUtxos(vAvailableCoins, nTargetValue, setCoinsRet, nValueRet, coinControl, tokenid);
 }
 
