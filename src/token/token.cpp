@@ -70,9 +70,19 @@ public:
         memory_cleanse(&vchTemp[0], vchTemp.size());
     }
 
-    void ConvertToTokenID(CTokenId& tokenID)
+    bool IsValid() const
     {
+        bool fCorrectSize = vchData.size() == 36;
+        bool fKnownVersion = vchVersion == std::vector<unsigned char>(1,40);
+        return fCorrectSize && fKnownVersion;
+    }
+
+    bool ConvertToTokenID(CTokenId& tokenID)
+    {
+        if (vchData.size() != tokenID.size())
+            return false;
         memcpy(tokenID.begin(), &vchData[0], tokenID.size());
+        return true;
     }
 };
 
@@ -81,9 +91,13 @@ std::string CTokenId::ToBase58String() const
     return CBase58Id(*this).ToString();
 }
 
-void CTokenId::FromBase58String(const std::string& strBase58Id)
+bool CTokenId::FromBase58String(const std::string& strBase58Id)
 {
-    CBase58Id(strBase58Id).ConvertToTokenID(*this);
+    CBase58Id id(strBase58Id);
+    if (!id.IsValid()){
+        return false;
+    }
+    return id.ConvertToTokenID(*this);
 }
 
 CTokenInfo::CTokenInfo(const CTokenTxIssueInfo& info)

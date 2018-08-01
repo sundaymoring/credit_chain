@@ -544,7 +544,9 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CTokenId tokenid;
-    tokenid.FromBase58String(request.params[0].get_str());
+    if (!tokenid.FromBase58String(request.params[0].get_str())){
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
+    }
 
     if ( !ptokendbview->ExistsTokenInfo(tokenid)) {
         throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
@@ -986,7 +988,9 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CTokenId tokenid;
-    tokenid.FromBase58String(request.params[0].get_str());
+    if (!tokenid.FromBase58String(request.params[0].get_str())){
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
+    }
     if ( !ptokendbview->ExistsTokenInfo(tokenid)) {
         throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
     }

@@ -1352,7 +1352,9 @@ UniValue gettokeninfo(const JSONRPCRequest& request){
     if (request.params.size() == 1) {
         CTokenInfo tokenInfo;
         CTokenId tokenid;
-        tokenid.FromBase58String(request.params[0].get_str());
+        if (!tokenid.FromBase58String(request.params[0].get_str())){
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
+        }
         if ( !ptokendbview->GetTokenInfo(tokenid, tokenInfo)){
             throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
         }

@@ -31,7 +31,7 @@ public:
     explicit CTokenId(const std::vector<unsigned char>& vch) : uint288(vch) {}
 
     std::string ToBase58String() const;
-    void FromBase58String(const std::string& strBase58Id);
+    bool FromBase58String(const std::string& strBase58Id);
 };
 
 struct CTokenTxIssueInfo
