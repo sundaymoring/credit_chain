@@ -4,7 +4,7 @@ static const char DB_TOKEN_INFO = 'I';
 
 CTokenDB* ptokendbview;
 
-CTokenDB::CTokenDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "tokens", nCacheSize, fMemory, fWipe) {
+CTokenDB::CTokenDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "token", nCacheSize, fMemory, fWipe) {
 }
 
 bool CTokenDB::GetTokenInfo(const CTokenId& tokenId, CTokenInfo& tokenInfo)

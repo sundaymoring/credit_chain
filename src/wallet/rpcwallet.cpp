@@ -1083,7 +1083,7 @@ UniValue gettokenbalanceall(const JSONRPCRequest& request)
         }else{
             entry.push_back(Pair("symbol", tokeninfo.symbol));
         }
-        entry.push_back(Pair("balance", t.second));
+        entry.push_back(Pair("balance", ValueFromAmount(t.second)));
         result.push_back(entry);
     }
     return result;
@@ -2770,6 +2770,8 @@ UniValue listunspent(const JSONRPCRequest& request)
             "    \"account\" : \"account\",    (string) DEPRECATED. The associated account, or \"\" for the default account\n"
             "    \"scriptPubKey\" : \"key\",   (string) the script key\n"
             "    \"amount\" : x.xxx,         (numeric) the transaction output amount in " + CURRENCY_UNIT + "\n"
+            "    \"tokenid\" : x.xxx,        (numeric) the transaction output token id\n"
+            "    \"tokenamount\" : x.xxx,    (numeric) the transaction output token amount in " + CURRENCY_UNIT + "\n"
             "    \"confirmations\" : n,      (numeric) The number of confirmations\n"
             "    \"redeemScript\" : n        (string) The redeemScript if scriptPubKey is P2SH\n"
             "    \"spendable\" : xxx,        (bool) Whether we have the private keys to spend this output\n"
@@ -2853,6 +2855,8 @@ UniValue listunspent(const JSONRPCRequest& request)
 
         entry.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
         entry.push_back(Pair("amount", ValueFromAmount(out.tx->tx->vout[out.i].nValue)));
+        entry.push_back(Pair("tokenid", out.tx->tx->vout[out.i].tokenId.ToBase58String()));
+        entry.push_back(Pair("tokenamount", ValueFromAmount(out.tx->tx->vout[out.i].nTokenValue)));
         entry.push_back(Pair("confirmations", out.nDepth));
         entry.push_back(Pair("spendable", out.fSpendable));
         entry.push_back(Pair("solvable", out.fSolvable));
