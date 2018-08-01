@@ -61,7 +61,7 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, CTokenId tokenId
 
 std::string CTxOut::ToString() const
 {
-    return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
+    return strprintf("CTxOut(nValue=%d.%08d, nTokenValue=%d.%08d, tokenId=%s, scriptPubKey=%s)", nValue / COIN, nValue % COIN, nTokenValue / COIN, nTokenValue % COIN, tokenId.ToBase58String(),  HexStr(scriptPubKey).substr(0, 30));
 }
 
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nTime(0), nLockTime(0) {}
