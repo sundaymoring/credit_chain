@@ -406,8 +406,8 @@ static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAm
     CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, tokenid, nValue, false};
     vecSend.push_back(recipient1);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_SEND)) {
-        if (nValue + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+        if (TOKEN_DEFAULT_VALUE + nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired + TOKEN_DEFAULT_VALUE));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     CValidationState state;
@@ -446,7 +446,7 @@ static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, co
     vecSend.push_back(recipient1);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_ISSUE)) {
         if (TOKEN_DEFAULT_VALUE + TOKEN_ISSUE_FEE + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(TOKEN_DEFAULT_VALUE + TOKEN_ISSUE_FEE + nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     CValidationState state;
@@ -635,7 +635,7 @@ UniValue issuenewtoken(const JSONRPCRequest& request){
         if (url.length() > 80) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "issue url too long");
         }
-        std::string description = request.params[5].get_str();
+        std::string description = request.params[6].get_str();
         if (description.length() > 255) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "issue url too long");
         }
