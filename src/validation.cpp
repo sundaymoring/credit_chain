@@ -2003,11 +2003,13 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
         }
     }
 
-    tokencode scriptcode = GetTxTokenCode(tx);
-    if (scriptcode == TTC_ISSUE) {
-        if (!ptokendbview->ExistsTokenInfo(tx.vout[1].tokenId))
-            return error("DisconnectBlock(): failure reading token data");
-        ptokendbview->EraseTokenInfo(tx.vout[1].tokenId);
+    for (int i = block.vtx.size() - 1; i > 0; i--) {
+        const CTransaction &tx = *(block.vtx[i]);
+        if (GetTxTokenCode(tx) == TTC_ISSUE) {
+            if (!ptokendbview->ExistsTokenInfo(tx.vout[1].tokenId))
+                return error("DisconnectBlock(): failure reading token data");
+            ptokendbview->EraseTokenInfo(tx.vout[1].tokenId);
+        }
     }
 
     return fClean;
