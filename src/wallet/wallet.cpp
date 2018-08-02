@@ -2828,7 +2828,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 
             nFeeRet = 0;
             if (code == TTC_ISSUE){
-                nFeeRet += TOKEN_ISSUE_FEE;
+                nFeeRet = TOKEN_ISSUE_FEE;
             }
             // Start with no fee and loop until there is enough fee
             while (true)

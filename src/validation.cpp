@@ -814,8 +814,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
         }
 
-        const tokencode returnTokenCode = GetTxTokenCode(tx);
-        if (returnTokenCode==TTC_ISSUE ){
+        const tokencode scriptTokenCode = GetTxTokenCode(tx);
+        if (scriptTokenCode==TTC_ISSUE ){
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee + TOKEN_ISSUE_FEE )
                 return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool issue token min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee + TOKEN_ISSUE_FEE));
 
@@ -847,12 +847,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             dFreeCount += nSize;
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee + (returnTokenCode == TTC_ISSUE ? TOKEN_ISSUE_FEE : 0))
+        if (nAbsurdFee && nFees > nAbsurdFee + (scriptTokenCode == TTC_ISSUE ? TOKEN_ISSUE_FEE : 0))
             return state.Invalid(false,
                 REJECT_HIGHFEE, "absurdly-high-fee",
                 strprintf("%d > %d", nFees, nAbsurdFee));
 
-        if (returnTokenCode==TTC_ISSUE && nFees <= TOKEN_ISSUE_FEE )
+        if (scriptTokenCode==TTC_ISSUE && nFees <= TOKEN_ISSUE_FEE )
             return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issue-token-insufficien-tee", strprintf("%d < %d", nFees, TOKEN_ISSUE_FEE));
 
 
@@ -1545,7 +1545,7 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
         }
 
         // check fee
-        if (inputs.GetValueIn(tx) - tx.GetValueOut() <= TOKEN_ISSUE_FEE )
+        if (inputs.GetValueIn(tx) - tx.GetValueOut() < TOKEN_ISSUE_FEE )
             return state.Invalid(false, REJECT_INSUFFICIENTFEE, "bad-token-issue", "issue-token-insufficien-fee");
 
     }
