@@ -406,8 +406,8 @@ static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAm
     CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, tokenid, nValue, false};
     vecSend.push_back(recipient1);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_SEND)) {
-        if (TOKEN_DEFAULT_VALUE + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired + TOKEN_DEFAULT_VALUE));
+        if (nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     CValidationState state;
@@ -445,8 +445,8 @@ static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, co
     CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, TOKENID_ZERO, nAmount, false};
     vecSend.push_back(recipient1);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_ISSUE)) {
-        if (TOKEN_DEFAULT_VALUE + TOKEN_ISSUE_FEE + nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(TOKEN_DEFAULT_VALUE + TOKEN_ISSUE_FEE + nFeeRequired));
+        if (nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     CValidationState state;
