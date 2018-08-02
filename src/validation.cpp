@@ -1930,13 +1930,6 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
         outs->Clear();
         }
 
-        tokencode scriptcode = GetTxTokenCode(tx);
-        if (scriptcode == TTC_ISSUE) {
-            if (!ptokendbview->ExistsTokenInfo(tx.vout[1].tokenId))
-                return error("DisconnectBlock(): failure reading token data");
-            ptokendbview->EraseTokenInfo(tx.vout[1].tokenId);
-        }
-
         // restore inputs
         if (i > 0) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i-1];
@@ -2008,6 +2001,13 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
         if (!pblocktree->UpdateAddressUnspentIndex(addressUnspentIndex)) {
             return AbortNode(state, "Failed to write address unspent index");
         }
+    }
+
+    tokencode scriptcode = GetTxTokenCode(tx);
+    if (scriptcode == TTC_ISSUE) {
+        if (!ptokendbview->ExistsTokenInfo(tx.vout[1].tokenId))
+            return error("DisconnectBlock(): failure reading token data");
+        ptokendbview->EraseTokenInfo(tx.vout[1].tokenId);
     }
 
     return fClean;
