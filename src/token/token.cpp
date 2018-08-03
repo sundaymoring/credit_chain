@@ -17,7 +17,7 @@ tokencode GetTokenCodeFromScript(const CScript& script, std::vector<unsigned cha
     if (whichType == TX_TOKEN){
         if (pTokenData && vPushData.size() > 0)
             *pTokenData = vPushData[0];
-        return (tokencode)script[2];
+        return (tokencode)script[3];
     }
 
     return TTC_NONE;
@@ -122,10 +122,11 @@ CScript CreateIssuanceScript(const CTokenTxIssueInfo& issueinfo)
     ds << issueinfo;
 
     CScript script;
-    script.resize(3);
+    script.resize(4);
     script[0] = OP_TOKEN;
-    script[1] = TOKEN_PROTOCOL_VERSION;
-    script[2] = TTC_ISSUE;
+    script[1] = 0x02;
+    script[2] = TOKEN_PROTOCOL_VERSION;
+    script[3] = TTC_ISSUE;
 
     script << std::vector<unsigned char>(ds.begin(), ds.end());
 
@@ -150,10 +151,11 @@ CScript CreateSendScript(const CTokenId& tokenid)
     ds << tokenid;
 
     CScript script;
-    script.resize(3);
+    script.resize(4);
     script[0] = OP_TOKEN;
-    script[1] = TOKEN_PROTOCOL_VERSION;
-    script[2] = TTC_SEND;
+    script[1] = 0x02;
+    script[2] = TOKEN_PROTOCOL_VERSION;
+    script[3] = TTC_SEND;
 
     script << std::vector<unsigned char>(ds.begin(), ds.end());
 

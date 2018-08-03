@@ -86,7 +86,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     }
 
     if (scriptPubKey.IsTokenFlag()) {
-        CScript::const_iterator pc = scriptPubKey.begin() + 3;
+        CScript::const_iterator pc = scriptPubKey.begin() + 4;
         while (pc<scriptPubKey.end()){
             opcodetype opcode;
             std::vector<unsigned char> t;

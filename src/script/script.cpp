@@ -238,15 +238,16 @@ bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program
 
 bool CScript::IsTokenFlag() const
 {
-    if (this->size() < 3 || this->size() > MAX_SCRIPT_SIZE)
+    if (this->size() < 4 || this->size() > MAX_SCRIPT_SIZE)
         return false;
 
     if ((*this)[0] != OP_TOKEN ||
-            (*this)[1] > TOKEN_PROTOCOL_VERSION ||
-            ((*this)[2] < TTC_ISSUE || (*this)[2] > TTC_MAX))
+            (*this)[1] != 0x02 ||
+            (*this)[2] > TOKEN_PROTOCOL_VERSION ||
+            ((*this)[3] < TTC_ISSUE || (*this)[3] > TTC_MAX))
         return false;
 
-    return this->IsPushOnly(this->begin()+3);
+    return this->IsPushOnly(this->begin()+4);
 }
 
 bool CScript::IsPushOnly(const_iterator pc) const
