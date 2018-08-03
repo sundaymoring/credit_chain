@@ -133,6 +133,18 @@ CAmount AmountFromValue(const UniValue& value)
     return amount;
 }
 
+CAmount TokenAmountFromValue(const UniValue& value)
+{
+    if (!value.isNum() && !value.isStr())
+        throw JSONRPCError(RPC_TYPE_ERROR, "Amount is not a number or string");
+    CAmount amount;
+    if (!ParseFixedPoint(value.getValStr(), 8, &amount))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
+    if (!TokenRange(amount))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Token Amount out of range");
+    return amount;
+}
+
 UniValue ValueFromAmount(const CAmount& amount)
 {
     bool sign = amount < 0;
