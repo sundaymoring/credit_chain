@@ -603,7 +603,7 @@ UniValue createrawtokentransaction(const JSONRPCRequest& request)
             scriptPubKey = GetScriptForDestination(address.Get());
 
             nAmount = AmountFromValue(outValues["amount"]);
-            if (outValues.exists("token")){
+            if (outValues.exists("tokenamount") && outValues.exists("tokenid")){
                 nTokenAmount = TokenAmountFromValue(outValues["tokenamount"]);
                 if(!id.FromBase58String(outValues["tokenid"].getValStr()))
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
