@@ -483,11 +483,11 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
     return EncodeHexTx(rawTx);
 }
 
-UniValue createrawtokentransaction(const JSONRPCRequest& request)
+UniValue createtokenrawtransaction(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw runtime_error(
-            "createrawtokentransaction [{\"txid\":\"id\",\"vout\":n},...] {\"address\":amount,\"data\":\"hex\",...} ( locktime )\n"
+            "createtokenrawtransaction [{\"txid\":\"id\",\"vout\":n},...] {\"address\":amount,\"data\":\"hex\",...} ( locktime )\n"
             "\nCreate a transaction spending the given inputs and creating new outputs.\n"
             "Outputs can be addresses or data.\n"
             "Returns hex-encoded raw transaction.\n"
@@ -495,8 +495,7 @@ UniValue createrawtokentransaction(const JSONRPCRequest& request)
             "it is not stored in the wallet or transmitted to the network.\n"
 
             "\nArguments:\n"
-            "1. type                      (numeric, required) The token transaction code (1--issue new token, 2--send token, other illegal)"
-            "2. \"inputs\"                (array, required) A json array of json objects\n"
+            "1. \"inputs\"                (array, required) A json array of json objects\n"
             "     [\n"
             "       {\n"
             "         \"txid\":\"id\",    (string, required) The transaction id\n"
@@ -505,7 +504,7 @@ UniValue createrawtokentransaction(const JSONRPCRequest& request)
             "       } \n"
             "       ,...\n"
             "     ]\n"
-            "3. \"outputs\"               (object, required) a json object with outputs\n"
+            "2. \"outputs\"               (object, required) a json object with outputs\n"
             "    {\n"
             "      \"address\":           (string, required) The key is the bitcoin address\n"
             "        {\n"
@@ -516,15 +515,15 @@ UniValue createrawtokentransaction(const JSONRPCRequest& request)
             "      \"data\": \"hex\"      (string, required) The key is \"data\", the value is hex encoded data\n"
             "      ,...\n"
             "    }\n"
-            "4. locktime                  (numeric, optional, default=0) Raw locktime. Non-0 value also locktime-activates inputs\n"
+            "3. locktime                  (numeric, optional, default=0) Raw locktime. Non-0 value also locktime-activates inputs\n"
             "\nResult:\n"
             "\"transaction\"              (string) hex string of the transaction\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("createrawtokentransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
-            + HelpExampleCli("createrawtokentransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"data\\\":\\\"00010203\\\"}\"")
-            + HelpExampleRpc("createrawtokentransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
-            + HelpExampleRpc("createrawtokentransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"data\\\":\\\"00010203\\\"}\"")
+            + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
+            + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"data\\\":\\\"00010203\\\"}\"")
+            + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
+            + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"data\\\":\\\"00010203\\\"}\"")
         );
 
     RPCTypeCheck(request.params, boost::assign::list_of(UniValue::VARR)(UniValue::VOBJ)(UniValue::VNUM), true);
@@ -602,8 +601,8 @@ UniValue createrawtokentransaction(const JSONRPCRequest& request)
 
             scriptPubKey = GetScriptForDestination(address.Get());
 
-            nAmount = AmountFromValue(outValues["amount"]);
-            if (outValues.exists("tokenamount") && outValues.exists("tokenid")){
+            if (outValues.exists("tokenamount") && outValues.exists("tokenid") && outValues.exists("amount")){
+                nAmount = AmountFromValue(outValues["amount"]);
                 nTokenAmount = TokenAmountFromValue(outValues["tokenamount"]);
                 if(!id.FromBase58String(outValues["tokenid"].getValStr()))
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
@@ -1102,7 +1101,7 @@ static const CRPCCommand commands[] =
   //  --------------------- ------------------------  -----------------------  ----------
     { "rawtransactions",    "getrawtransaction",      &getrawtransaction,      true,  {"txid","verbose"} },
     { "rawtransactions",    "createrawtransaction",   &createrawtransaction,   true,  {"inputs","outputs","locktime"} },
-    { "rawtransactions",    "createrawtokentransaction",&createrawtokentransaction,true,  {"inputs","outputs","locktime"} },
+    { "rawtransactions",    "createtokenrawtransaction",&createtokenrawtransaction,true,  {"inputs","outputs","locktime"} },
     { "rawtransactions",    "decoderawtransaction",   &decoderawtransaction,   true,  {"hexstring"} },
     { "rawtransactions",    "decodescript",           &decodescript,           true,  {"hexstring"} },
     { "rawtransactions",    "sendrawtransaction",     &sendrawtransaction,     false, {"hexstring","allowhighfees"} },
