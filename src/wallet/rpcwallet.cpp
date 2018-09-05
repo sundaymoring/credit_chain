@@ -1337,6 +1337,113 @@ UniValue sendmany(const JSONRPCRequest& request)
     return wtx.GetHash().GetHex();
 }
 
+UniValue tokensendmany(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
+        throw runtime_error(
+            "tokensendmany \"tokenid\" {\"address\":amount,...} ( \"comment\" )\n"
+            "\nSend multiple times. Amounts are double-precision floating point numbers."
+            + HelpRequiringPassphrase() + "\n"
+            "\nArguments:\n"
+            "1. \"tokenid\"             (string, required) The token id\n"
+//            "2. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
+            "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
+            "    {\n"
+            "      \"address\":amount   (numeric or string) The bitcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "      ,...\n"
+            "    }\n"
+//            "3. minconf                 (numeric, optional, default=1) Only use the balance confirmed at least this many times.\n"
+            "3. \"comment\"             (string, optional) A comment\n"
+            "\nResult:\n"
+            "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+            "                                    the number of addresses.\n"
+            "\nExamples:\n"
+            "\nSend two amounts to two different addresses:\n"
+            + HelpExampleCli("tokensendmany", "\"tokenid\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
+            "\nSend two amounts to two different addresses setting the comment:\n"
+            + HelpExampleCli("tokensendmany", "\"tokenid\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" \"testing\"") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("tokensendmany", "\"tokenid\", \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\", \"testing\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    CTokenId tokenid = TOKENID_ZERO;
+    if(!tokenid.FromBase58String(request.params[0].get_str()))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
+
+//    string strAccount = AccountFromValue(request.params[1]);
+    UniValue sendTo = request.params[1].get_obj();
+//    int nMinDepth = 1;
+//    if (request.params.size() > 3)
+//        nMinDepth = request.params[3].get_int();
+
+    CWalletTx wtx;
+//    wtx.strFromAccount = strAccount;
+    if (request.params.size() > 2 && !request.params[2].isNull() && !request.params[2].get_str().empty())
+        wtx.mapValue["comment"] = request.params[2].get_str();
+
+    set<CBitcoinAddress> setAddress;
+    vector<CRecipient> vecSend;
+
+    CAmount totalAmount = 0;
+    vector<string> keys = sendTo.getKeys();
+    BOOST_FOREACH(const string& name_, keys)
+    {
+        CBitcoinAddress address(name_);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Bitcoin address: ")+name_);
+
+        if (setAddress.count(address))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
+        setAddress.insert(address);
+
+        CScript scriptPubKey = GetScriptForDestination(address.Get());
+        CAmount nAmount = AmountFromValue(sendTo[name_]);
+        if (nAmount <= 0)
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        totalAmount += nAmount;
+
+        bool fSubtractFeeFromAmount = false;
+
+        CRecipient recipient = {scriptPubKey, TOKEN_DEFAULT_VALUE, tokenid, nAmount, fSubtractFeeFromAmount};
+        vecSend.push_back(recipient);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    // Check funds
+    CAmount nBalance = pwalletMain->GetTokenBalance(tokenid);
+    if (totalAmount > nBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+
+    // Send
+    CReserveKey keyChange(pwalletMain);
+    CAmount nFeeRequired = 0;
+    CScript scriptTokenSend = CreateSendScript(tokenid);
+    CRecipient scout = {scriptTokenSend, 0, TOKENID_ZERO, 0, false};
+    vecSend.insert(vecSend.begin(), scout);
+
+    int nChangePosRet = vecSend.size();
+    string strFailReason;
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, NULL, true, TTC_SEND);
+    if (!fCreated)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtx, keyChange, g_connman.get(), state)) {
+        strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
+        throw JSONRPCError(RPC_WALLET_ERROR, strFailReason);
+    }
+
+    return wtx.GetHash().GetHex();
+}
+
 // Defined in rpc/misc.cpp
 extern CScript _createmultisig_redeemScript(const UniValue& params);
 
@@ -3394,6 +3501,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "move",                     &movecmd,                  false,  {"fromaccount","toaccount","amount","minconf","comment"} },
     { "wallet",             "sendfrom",                 &sendfrom,                 false,  {"fromaccount","toaddress","amount","minconf","comment","comment_to"} },
     { "wallet",             "sendmany",                 &sendmany,                 false,  {"fromaccount","amounts","minconf","comment","subtractfeefrom"} },
+    { "wallet",             "tokensendmany",            &tokensendmany,            false,  {"tokenid","amounts","comment"} },
     { "wallet",             "sendtoaddress",            &sendtoaddress,            false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
     { "wallet",             "sendtokentoaddress",       &sendtokentoaddress,       false,  {"tokenid","address","amount","comment","comment_to"} },
     { "wallet",             "setaccount",               &setaccount,               true,   {"address","account"} },
