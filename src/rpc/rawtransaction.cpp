@@ -100,7 +100,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
         out.push_back(Pair("valueSat", txout.nValue));
-        out.push_back(Pair("tokenId", txout.tokenId.ToBase58String()));
+        out.push_back(Pair("tokenId", txout.tokenId.ToString()));
         out.push_back(Pair("tokenValue", ValueFromAmount(txout.nTokenValue)));
         out.push_back(Pair("tokenValueSat", txout.nTokenValue));
         out.push_back(Pair("n", (int64_t)i));
@@ -604,7 +604,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
             if (outValues.exists("tokenamount") && outValues.exists("tokenid") && outValues.exists("amount")){
                 nAmount = AmountFromValue(outValues["amount"]);
                 nTokenAmount = TokenAmountFromValue(outValues["tokenamount"]);
-                if(!id.FromBase58String(outValues["tokenid"].getValStr()))
+                if(!id.FromString(outValues["tokenid"].getValStr()))
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
                 if (id != TOKENID_ZERO){
                     if (tokenid==TOKENID_ZERO){

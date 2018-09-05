@@ -1352,7 +1352,7 @@ UniValue gettokeninfo(const JSONRPCRequest& request){
     if (request.params.size() == 1) {
         CTokenInfo tokenInfo;
         CTokenId tokenid;
-        if (!tokenid.FromBase58String(request.params[0].get_str())){
+        if (!tokenid.FromString(request.params[0].get_str())){
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
         }
         if ( !ptokendbview->GetTokenInfo(tokenid, tokenInfo)){
@@ -1365,7 +1365,7 @@ UniValue gettokeninfo(const JSONRPCRequest& request){
 
     BOOST_FOREACH (const auto& info, list){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", info.tokenId.ToBase58String()));
+        entry.push_back(Pair("tokenid", info.tokenId.ToString()));
         entry.push_back(Pair("symbol", info.symbol));
         entry.push_back(Pair("supply", ValueFromAmount(info.moneySupply)));
         entry.push_back(Pair("type", info.type));
@@ -1415,7 +1415,7 @@ UniValue listtokeninfo(const JSONRPCRequest& request){
 
     BOOST_FOREACH (const auto& info, list){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", info.tokenId.ToBase58String()));
+        entry.push_back(Pair("tokenid", info.tokenId.ToString()));
         entry.push_back(Pair("symbol", info.symbol));
         entry.push_back(Pair("supply", ValueFromAmount(info.moneySupply)));
         entry.push_back(Pair("txid", info.txHash.ToString()));

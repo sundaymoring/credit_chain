@@ -544,7 +544,7 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CTokenId tokenid;
-    if (!tokenid.FromBase58String(request.params[0].get_str())){
+    if (!tokenid.FromString(request.params[0].get_str())){
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
     }
 
@@ -988,7 +988,7 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CTokenId tokenid;
-    if (!tokenid.FromBase58String(request.params[0].get_str())){
+    if (!tokenid.FromString(request.params[0].get_str())){
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
     }
     if ( !ptokendbview->ExistsTokenInfo(tokenid)) {
@@ -1076,7 +1076,7 @@ UniValue gettokenbalanceall(const JSONRPCRequest& request)
     UniValue result(UniValue::VARR);
     BOOST_FOREACH (const auto& t, mTokenBalances){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", t.first.ToBase58String()));
+        entry.push_back(Pair("tokenid", t.first.ToString()));
         CTokenInfo tokeninfo;
         if (!ptokendbview->GetTokenInfo(t.first, tokeninfo)) {
             entry.push_back(Pair("symbol", "err: token not found"));
@@ -1375,7 +1375,7 @@ UniValue tokensendmany(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
     CTokenId tokenid = TOKENID_ZERO;
-    if(!tokenid.FromBase58String(request.params[0].get_str()))
+    if(!tokenid.FromString(request.params[0].get_str()))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
 
 //    string strAccount = AccountFromValue(request.params[1]);
@@ -1828,7 +1828,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             MaybePushAddress(entry, s.destination);
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
-            entry.push_back(Pair("tokenid", s.tokenId.ToBase58String()));
+            entry.push_back(Pair("tokenid", s.tokenId.ToString()));
             entry.push_back(Pair("tokenamount", ValueFromAmount(-s.tokenAmount)));
             if (pwalletMain->mapAddressBook.count(s.destination))
                 entry.push_back(Pair("label", pwalletMain->mapAddressBook[s.destination].name));
@@ -1870,7 +1870,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     entry.push_back(Pair("category", "receive"));
                 }
                 entry.push_back(Pair("amount", ValueFromAmount(r.amount)));
-                entry.push_back(Pair("tokenid", r.tokenId.ToBase58String()));
+                entry.push_back(Pair("tokenid", r.tokenId.ToString()));
                 entry.push_back(Pair("tokenamount", ValueFromAmount(r.tokenAmount)));
                 if (pwalletMain->mapAddressBook.count(r.destination))
                     entry.push_back(Pair("label", account));
@@ -2962,7 +2962,7 @@ UniValue listunspent(const JSONRPCRequest& request)
 
         entry.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
         entry.push_back(Pair("amount", ValueFromAmount(out.tx->tx->vout[out.i].nValue)));
-        entry.push_back(Pair("tokenid", out.tx->tx->vout[out.i].tokenId.ToBase58String()));
+        entry.push_back(Pair("tokenid", out.tx->tx->vout[out.i].tokenId.ToString()));
         entry.push_back(Pair("tokenamount", ValueFromAmount(out.tx->tx->vout[out.i].nTokenValue)));
         entry.push_back(Pair("confirmations", out.nDepth));
         entry.push_back(Pair("spendable", out.fSpendable));

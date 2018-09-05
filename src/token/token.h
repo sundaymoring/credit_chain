@@ -27,8 +27,19 @@ public:
     CTokenId(const uint256& left, const unsigned int& right){
         SetHex( strprintf("%s%08x", left.ToString().c_str(), right) );
     }
+    CTokenId(const std::string& str){
+        SetHex(str);
+    }
 
     explicit CTokenId(const std::vector<unsigned char>& vch) : uint288(vch) {}
+
+    bool FromString(const std::string& str){
+        if (str.length() != size()*2){
+            return false;
+        }
+        SetHex(str);
+        return true;
+    }
 
     std::string ToBase58String() const;
     bool FromBase58String(const std::string& strBase58Id);
