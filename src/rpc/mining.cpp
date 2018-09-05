@@ -879,7 +879,7 @@ UniValue estimatepriority(const JSONRPCRequest& request)
 
 UniValue estimatesmartfee(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 1)
+    if (request.fHelp || request.params.size() != 2)
         throw runtime_error(
             "estimatesmartfee nblocks\n"
             "\nWARNING: This interface is unstable and may disappear or change!\n"
@@ -909,8 +909,13 @@ UniValue estimatesmartfee(const JSONRPCRequest& request)
     UniValue result(UniValue::VOBJ);
     int answerFound;
     CFeeRate feeRate = mempool.estimateSmartFee(nBlocks, &answerFound);
-    result.push_back(Pair("feerate", feeRate == CFeeRate(0) ? -1.0 : ValueFromAmount(feeRate.GetFeePerK())));
-    result.push_back(Pair("blocks", answerFound));
+//    result.push_back(Pair("feerate", feeRate == CFeeRate(0) ? -1.0 : ValueFromAmount(feeRate.GetFeePerK())));
+//    result.push_back(Pair("blocks", answerFound));
+
+    UniValue errors(UniValue::VARR);
+    errors.push_back("Insufficient data or no feerate found");
+    result.pushKV("errors", errors);
+    result.pushKV("blocks", answerFound);
     return result;
 }
 
