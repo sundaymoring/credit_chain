@@ -6,6 +6,7 @@
 #include "uint256.h"
 #include "serialize.h"
 #include "amount.h"
+#include "utilstrencodings.h"
 
 #include <vector>
 
@@ -35,6 +36,9 @@ public:
 
     bool FromString(const std::string& str){
         if (str.length() != size()*2){
+            return false;
+        }
+        if (!IsHex(str)) {
             return false;
         }
         SetHex(str);
