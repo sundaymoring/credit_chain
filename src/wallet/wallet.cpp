@@ -2762,13 +2762,13 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
     CTokenId tokenId;
     if (code == TTC_SEND) {
         tokenId = vecSend[1].tokenId;
-        CTokenId scripttokenid;
-        if (!GetSendInfoFromScriptData(scripttokenid, tokenDataFromScript)){
+        CScriptTokenSendInfo scriptInfo;
+        if (!GetSendInfoFromScriptData(scriptInfo, tokenDataFromScript)){
             strFailReason = _("bad send tx");
             return false;
         }
 
-        if (scripttokenid != tokenId) {
+        if (scriptInfo.tokenid != tokenId) {
             strFailReason = _("different tokenid in send tx");
             return false;
         }
@@ -2888,6 +2888,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     for (const auto& pcoin : setToken){
                         nValueFromToken += pcoin.first->tx->vout[pcoin.second].nValue;
                     }
+                    txNew.vout[0].scriptPubKey = CreateSendScript(tokenId, nTokenValueIn);
                 }
                 const CAmount nTokenChange = nTokenValueIn - nTokenValue;
                 if (nTokenChange > 0) {
@@ -3064,6 +3065,14 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 if (code == TTC_ISSUE)
                 {
                     txNew.vout[1].tokenId = CTokenId( txNew.vin[0].prevout.hash, txNew.vin[0].prevout.n );  //just use first vin
+
+                    CScriptTokenIssueInfo scriptInfo;
+                    if (!GetIssueInfoFromScriptData(scriptInfo, tokenDataFromScript))
+                    {
+                        strFailReason = _("bad asset script in issue tx");
+                        return false;
+                    }
+                    txNew.vout[0].scriptPubKey = AppendIssuanceScript(scriptInfo, txNew.vout[1].tokenId);
                 }
 
                 unsigned int nBytes = GetVirtualTransactionSize(txNew);

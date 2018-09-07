@@ -545,20 +545,20 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-out");
         }
         if (scriptcode == TTC_ISSUE) {
-            CTokenTxIssueInfo issueinfo;
+            CScriptTokenIssueInfo issueinfo;
             if (!GetIssueInfoFromScriptData(issueinfo, tokenDataFromScript)) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issueinfo");
             }
-            if (issueinfo.amount != tx.vout[1].nTokenValue || issueinfo.amount != nTokenValueOut) {
+            if (issueinfo.totalSupply != tx.vout[1].nTokenValue || issueinfo.totalSupply != nTokenValueOut) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issue-amount");
             }
         }
         if (scriptcode == TTC_SEND) {
-            CTokenId scripttokenid;
-            if (!GetSendInfoFromScriptData(scripttokenid, tokenDataFromScript)){
+            CScriptTokenSendInfo sendinfo;
+            if (!GetSendInfoFromScriptData(sendinfo, tokenDataFromScript)){
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-sendinfo");
             }
-            if (tokenid != scripttokenid) {
+            if (tokenid != sendinfo.tokenid) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-send-tokenid");
             }
         }
@@ -1511,12 +1511,15 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
             }
         }
 
-        CTokenTxIssueInfo issueinfo;
+        CScriptTokenIssueInfo issueinfo;
         if (!GetIssueInfoFromScriptData(issueinfo, tokenDataFromScript)) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issueinfo");
         }
-        CAmount totalSupply = issueinfo.amount;
+        CAmount totalSupply = issueinfo.totalSupply;
         CTokenId tokenid(tx.vin[0].prevout.hash, tx.vin[0].prevout.n);
+        if (tokenid != issueinfo.tokenid) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-token-issue-different-tokenid");
+        }
 
 
         int n = -1;
@@ -1577,13 +1580,16 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
             return state.Invalid(false, REJECT_INVALID, "bad-token-send", "no token input of send");
         }
 
-        CTokenId scripttokenid;
-        if (!GetSendInfoFromScriptData(scripttokenid, tokenDataFromScript)){
+        CScriptTokenSendInfo sendinfo;
+        if (!GetSendInfoFromScriptData(sendinfo, tokenDataFromScript)){
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-sendinfo");
         }
 
-        if (inputId != scripttokenid) {
-            return state.Invalid(false, REJECT_INVALID, "bad-token-send", strprintf("different token intput: %s - script: %s", inputId.ToString(), scripttokenid.ToString()));
+        if (inputId != sendinfo.tokenid) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", strprintf("different token intput: %s - script: %s", inputId.ToString(), sendinfo.tokenid.ToString()));
+        }
+        if ( nValueIn!= sendinfo.sendAmount) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", strprintf("different token amount: %d - script: %d", nValueIn, sendinfo.sendAmount));
         }
 
         CAmount nValueOut = 0;
@@ -2407,7 +2413,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             std::vector<unsigned char> tokenDataFromScript;
             tokencode scriptcode = GetTxTokenCode(tx, &tokenDataFromScript);
             if (scriptcode == TTC_ISSUE) {
-                CTokenTxIssueInfo issueinfo;
+                CScriptTokenIssueInfo issueinfo;
                 if (!GetIssueInfoFromScriptData(issueinfo, tokenDataFromScript)) {
                     return state.DoS(100, error("ConnectBlock(): bad token info"), REJECT_INVALID, "bad-token-issue");
                 }

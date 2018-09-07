@@ -578,6 +578,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
     set<CBitcoinAddress> setAddress;
     vector<string> addrList = sendTo.getKeys();
     CTokenId tokenid = TOKENID_ZERO;
+    CAmount ntotalTokenAmount = 0;
     BOOST_FOREACH(const string& name_, addrList) {
         if (name_ == "data") {
             std::vector<unsigned char> data = ParseHexV(sendTo[name_].getValStr(),"Data");
@@ -613,6 +614,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
                         throw JSONRPCError(RPC_INVALID_PARAMETER, "Multi tokenid output");
                     }
                 }
+                ntotalTokenAmount += nTokenAmount;
                 if ((id != TOKENID_ZERO && nTokenAmount<=0) || (id==TOKENID_ZERO && nTokenAmount>0))
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, Tokenid and tokenamount are inconsistent");
             }
@@ -623,7 +625,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
     }
     if (tokenid==TOKENID_ZERO)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, No valid tokenid");
-    CScript scriptToken = CreateSendScript(tokenid);
+    CScript scriptToken = CreateSendScript(tokenid, ntotalTokenAmount);
     CTxOut out( 0, scriptToken, TOKENID_ZERO, 0);
     rawTx.vout.insert(rawTx.vout.begin(), out);
 

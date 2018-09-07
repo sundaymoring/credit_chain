@@ -49,35 +49,52 @@ public:
     bool FromBase58String(const std::string& strBase58Id);
 };
 
-struct CTokenTxIssueInfo
+struct CScriptTokenIssueInfo
 {
     uint8_t type;
-    CAmount amount;
-    std::string issueAddress;
+    CAmount totalSupply;
+    CTokenId tokenid;
     std::string symbol;
     std::string name;
     std::string url;
     std::string description;
+    std::string ownerAddress;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(type);
-        READWRITE(amount);
-        READWRITE(issueAddress);
+        READWRITE(totalSupply);
+        READWRITE(tokenid);
         READWRITE(symbol);
         READWRITE(name);
         READWRITE(url);
         READWRITE(description);
+        READWRITE(ownerAddress);
     }
-
 };
 
-CScript CreateIssuanceScript(const CTokenTxIssueInfo& issueinfo);
-bool GetIssueInfoFromScriptData(CTokenTxIssueInfo& issueinfo, const std::vector<unsigned char>& scriptdata);
+struct CScriptTokenSendInfo
+{
+    CTokenId tokenid;
+    CAmount sendAmount;
 
-CScript CreateSendScript(const CTokenId& tokenid);
-bool GetSendInfoFromScriptData(CTokenId& tokenid, const std::vector<unsigned char>& scriptdata);
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(tokenid);
+        READWRITE(sendAmount);
+    }
+};
+
+//CScript CreateIssuanceScript(const CScriptTokenIssueInfo& issueinfo);
+CScript CreateIssuanceScriptDummy(CScriptTokenIssueInfo &issueinfo);
+CScript AppendIssuanceScript(CScriptTokenIssueInfo& issueinfo, const CTokenId tokenid);
+bool GetIssueInfoFromScriptData(CScriptTokenIssueInfo& issueinfo, const std::vector<unsigned char>& scriptdata);
+
+CScript CreateSendScript(const CTokenId tokenid, const CAmount sendAmount);
+CScript CreateSendScriptDummy(const CTokenId tokenid);
+bool GetSendInfoFromScriptData(CScriptTokenSendInfo& sendinfo, const std::vector<unsigned char>& scriptdata);
 
 struct CTokenInfo {
 
@@ -108,7 +125,7 @@ struct CTokenInfo {
         READWRITE(txHash);
     }
 
-    CTokenInfo(const CTokenTxIssueInfo& info);
+    CTokenInfo(const CScriptTokenIssueInfo& info);
     CTokenInfo() {
         setnull();
     }

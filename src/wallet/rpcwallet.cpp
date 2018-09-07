@@ -393,7 +393,7 @@ static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAm
 
     // Parse Bitcoin address
     CScript scriptPubKey = GetScriptForDestination(address);
-    CScript scriptTokenSend = CreateSendScript(tokenid);
+    CScript scriptTokenSend = CreateSendScriptDummy(tokenid);
 
     // Create and send the transaction
     CReserveKey reservekey(pwalletMain);
@@ -417,7 +417,7 @@ static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAm
     }
 }
 
-static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, const CTokenTxIssueInfo issueInfo, CWalletTx& wtxNew)
+static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, CScriptTokenIssueInfo issueInfo, CWalletTx& wtxNew)
 {
     CAmount curBalance = pwalletMain->GetBalance();
 
@@ -433,7 +433,7 @@ static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, co
 
     // Parse Bitcoin address
     CScript scriptPubKey = GetScriptForDestination(address);
-    CScript scriptTokenIssue = CreateIssuanceScript(issueInfo);
+    CScript scriptTokenIssue = CreateIssuanceScriptDummy(issueInfo);
     // Create and send the transaction
     CReserveKey reservekey(pwalletMain);
     CAmount nFeeRequired;
@@ -604,7 +604,7 @@ UniValue issuenewtoken(const JSONRPCRequest& request){
     }
 
     CWalletTx wtx;
-    CTokenTxIssueInfo issueInfo;
+    CScriptTokenIssueInfo issueInfo;
 
     CBitcoinAddress address(request.params[0].get_str());
     if (!address.IsValid()){
@@ -622,9 +622,9 @@ UniValue issuenewtoken(const JSONRPCRequest& request){
     if (symbol.length() > 20) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "issue symbol too long");
     }
-    issueInfo.issueAddress = request.params[0].get_str();
+    issueInfo.ownerAddress = request.params[0].get_str();
     issueInfo.type = type;
-    issueInfo.amount = amount;
+    issueInfo.totalSupply = amount;
     issueInfo.symbol = symbol;
     if (request.params.size() == 7) {
         std::string name = request.params[4].get_str();
@@ -1426,7 +1426,7 @@ UniValue tokensendmany(const JSONRPCRequest& request)
     // Send
     CReserveKey keyChange(pwalletMain);
     CAmount nFeeRequired = 0;
-    CScript scriptTokenSend = CreateSendScript(tokenid);
+    CScript scriptTokenSend = CreateSendScriptDummy(tokenid);
     CRecipient scout = {scriptTokenSend, 0, TOKENID_ZERO, 0, false};
     vecSend.insert(vecSend.begin(), scout);
 

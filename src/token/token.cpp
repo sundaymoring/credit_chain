@@ -105,10 +105,10 @@ bool CTokenId::FromBase58String(const std::string& strBase58Id)
     return id.ConvertToTokenID(*this);
 }
 
-CTokenInfo::CTokenInfo(const CTokenTxIssueInfo& info)
+CTokenInfo::CTokenInfo(const CScriptTokenIssueInfo& info)
 {
-    issueToAddress = info.issueAddress;
-    moneySupply = info.amount;
+    issueToAddress = info.ownerAddress;
+    moneySupply = info.totalSupply;
     type = info.type;
     symbol = info.symbol;
     name = info.name;
@@ -116,25 +116,41 @@ CTokenInfo::CTokenInfo(const CTokenTxIssueInfo& info)
     description = info.description;
 }
 
-CScript CreateIssuanceScript(const CTokenTxIssueInfo& issueinfo)
-{
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
-    ds << issueinfo;
-
+CScript CreateTokenScriptHeader(tokencode code) {
     CScript script;
     script.resize(4);
     script[0] = OP_TOKEN;
     script[1] = 0x02;
     script[2] = TOKEN_PROTOCOL_VERSION;
-    script[3] = TTC_ISSUE;
+    script[3] = code;
+    return script;
+}
+
+CScript CreateIssuanceScript(const CScriptTokenIssueInfo& issueinfo)
+{
+    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    ds << issueinfo;
+
+    CScript script = CreateTokenScriptHeader(TTC_ISSUE);
 
     script << std::vector<unsigned char>(ds.begin(), ds.end());
 
     return script;
-
 }
 
-bool GetIssueInfoFromScriptData(CTokenTxIssueInfo& issueinfo, const std::vector<unsigned char>& scriptdata)
+CScript CreateIssuanceScriptDummy(CScriptTokenIssueInfo& issueinfo)
+{
+    issueinfo.tokenid = TOKENID_ZERO;
+    return CreateIssuanceScript(issueinfo);
+}
+
+CScript AppendIssuanceScript(CScriptTokenIssueInfo& issueinfo, const CTokenId tokenid)
+{
+    issueinfo.tokenid = tokenid;
+    return CreateIssuanceScript(issueinfo);
+}
+
+bool GetIssueInfoFromScriptData(CScriptTokenIssueInfo& issueinfo, const std::vector<unsigned char>& scriptdata)
 {
     CDataStream ssValue(scriptdata, SER_DISK, CLIENT_VERSION);
     try {
@@ -145,28 +161,30 @@ bool GetIssueInfoFromScriptData(CTokenTxIssueInfo& issueinfo, const std::vector<
     return true;
 }
 
-CScript CreateSendScript(const CTokenId& tokenid)
+CScript CreateSendScript(const CTokenId tokenid, const CAmount sendAmount)
 {
+    CScriptTokenSendInfo sendinfo = { tokenid, sendAmount };
     CDataStream ds(SER_DISK, CLIENT_VERSION);
-    ds << tokenid;
+    ds << sendinfo;
 
-    CScript script;
-    script.resize(4);
-    script[0] = OP_TOKEN;
-    script[1] = 0x02;
-    script[2] = TOKEN_PROTOCOL_VERSION;
-    script[3] = TTC_SEND;
+    CScript script = CreateTokenScriptHeader(TTC_SEND);
 
     script << std::vector<unsigned char>(ds.begin(), ds.end());
 
     return script;
 }
 
-bool GetSendInfoFromScriptData(CTokenId& tokenid, const std::vector<unsigned char>& scriptdata)
+CScript CreateSendScriptDummy(const CTokenId tokenid)
+{
+    return CreateSendScript(tokenid, 0);
+}
+
+
+bool GetSendInfoFromScriptData(CScriptTokenSendInfo& sendinfo, const std::vector<unsigned char>& scriptdata)
 {
     CDataStream ssValue(scriptdata, SER_DISK, CLIENT_VERSION);
     try {
-        ssValue >> tokenid;
+        ssValue >> sendinfo;
     } catch (const std::exception& e) {
         return error("%s: decode token data error : %s", __func__, e.what());
     }
