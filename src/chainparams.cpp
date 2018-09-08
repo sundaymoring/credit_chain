@@ -76,7 +76,7 @@ public:
         strNetworkID = "main";
         consensus.nSubsidyHalvingInterval = 210000;
         consensus.BIP34Height = 0;
-        consensus.BIP34Hash = uint256();
+        consensus.BIP34Hash = uint256S("0x00000000bf832061efc15ed324d30494e031c1552f7b8ef8b270b973c4a1428b");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
         consensus.powLimit = uint256S("0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -120,39 +120,11 @@ public:
         nDefaultPort = 8566;
         nPruneAfterHeight = 100000;
 
-        genesis = CreateGenesisBlock(1521273366, 0, 0x1d00ffff, 0x20000000, 0);
+        genesis = CreateGenesisBlock(1521273366, 842002102, 0x1d00ffff, 0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
 
-        bool fNegative;
-        bool fOverflow;
-        arith_uint256 bnTarget;
-        uint32_t nBits = 0x1d00ffff;
-        bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
-        uint256 ministGenesis = genesis.GetHash();
-        int ministNonce = 0;
-        for(genesis.nNonce = 0;;genesis.nNonce++){
-            consensus.hashGenesisBlock = genesis.GetHash();
-            if (UintToArith256(genesis.GetHash()) < UintToArith256(ministGenesis)){
-                ministGenesis = genesis.GetHash();
-                ministNonce = genesis.nNonce;
-            }
-            if (genesis.nNonce % 200000 == 0 || UintToArith256(genesis.GetHash()) < bnTarget){
-                if (UintToArith256(genesis.GetHash()) < bnTarget)
-                    printf( "=======================！！！ FOUND ！！！====================");
-                printf( "\ntry times =%d\n", genesis.nNonce);
-                printf( "consensus.hashGenesisBlock = 0x%s\r\n", consensus.hashGenesisBlock.ToString().data());
-                printf( "genesis.hashMerkleRoot     = 0x%s\r\n", genesis.hashMerkleRoot.ToString().data());
-                printf( "nBits                      = 0x%x\n", nBits);
-                printf( "bnTarget                   = 0x%s\n", bnTarget.GetHex().data());
-                printf( "ministGenesis              = 0x%s\n", ministGenesis.ToString().data());
-                printf( "ministNonce                = %d\n", ministNonce);
-                if (UintToArith256(genesis.GetHash()) < bnTarget)
-                    break;
-            }
-        }
-
-        assert(consensus.hashGenesisBlock == uint256S("0x0000071c7d26c324f4043bbd3a27844703bba8765e1f476fa8f90cd13e9173d7"));
-        assert(genesis.hashMerkleRoot == uint256S("0xb9b4bb3dd7d18f5b323a634a28888a0d4b480de06f28648157f2fbe57c7d7f5c"));
+        assert(consensus.hashGenesisBlock == uint256S("0x00000000bf832061efc15ed324d30494e031c1552f7b8ef8b270b973c4a1428b"));
+        assert(genesis.hashMerkleRoot == uint256S("0x1218f4c250d69dfbced8059702ce5f75914df56b11e6501c821fbd545f584548"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,34);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,88);
@@ -168,10 +140,11 @@ public:
         fMineBlocksOnDemand = false;
 
         checkpointData = (CCheckpointData) {
+                boost::assign::map_list_of
+                ( 0, uint256S("0x00000000bf832061efc15ed324d30494e031c1552f7b8ef8b270b973c4a1428b")),
         };
 
         chainTxData = ChainTxData{
-            // Data as of block 00000000000000000166d612d5595e2b1cd88d71d695fc580af64d8da8658c23 (height 446482).
             0, // * UNIX timestamp of last known number of transactions
             0,  // * total number of transactions between genesis and that timestamp
                         //   (the tx=... number in the SetBestChain debug.log lines)
@@ -191,7 +164,7 @@ public:
         strNetworkID = "test";
         consensus.nSubsidyHalvingInterval = 210000;
         consensus.BIP34Height = 0;
-        consensus.BIP34Hash = uint256S("0x0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8");
+        consensus.BIP34Hash = uint256S("0x0000006a4a57113eb76d2361f4fd37c0413d5cbabf7b040f76c46c065baf4cd4");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
         consensus.powLimit = uint256S("0x000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -231,10 +204,11 @@ public:
         nDefaultPort = 18566;
         nPruneAfterHeight = 1000;
 
-        genesis = CreateGenesisBlock(1296688602, 414098458, 0x1d00ffff,  0x20000000, 0);
+        genesis = CreateGenesisBlock(1296688602, 7722247, 0x1e00ffff,  0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
-//        assert(consensus.hashGenesisBlock == uint256S("0x000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"));
-//        assert(genesis.hashMerkleRoot == uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+
+        assert(consensus.hashGenesisBlock == uint256S("0x0000006a4a57113eb76d2361f4fd37c0413d5cbabf7b040f76c46c065baf4cd4"));
+        assert(genesis.hashMerkleRoot == uint256S("0xc7549a010d446262858511703fe43fbeb49215d89dd27597ff10777aa61ebcc1"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
@@ -255,11 +229,10 @@ public:
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
-            ( 546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70")),
+            ( 0, uint256S("0x0000006a4a57113eb76d2361f4fd37c0413d5cbabf7b040f76c46c065baf4cd4")),
         };
 
         chainTxData = ChainTxData{
-            // Data as of block 00000000c2872f8f8a8935c8e3c5862be9038c97d4de2cf37ed496991166928a (height 1063660)
             0,
             0,
             0
@@ -314,15 +287,11 @@ public:
         nDefaultPort = 18577;
         nPruneAfterHeight = 1000;
 
-//        genesis = CreateGenesisBlock(1296688602, 2, 0x207fffff, 0x20000000, 0);
-        genesis = CreateGenesisBlock(1296688602, 4, 0x207fffff, 0x20000000, 0);
+        genesis = CreateGenesisBlock(1533660000, 0, 0x207fffff, 0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
-//        printf( "regtest consensus.hashGenesisBlock = 0x%s\r\n", consensus.hashGenesisBlock.ToString().data() );
-//        printf( "regtest genesis.hashMerkleRoot = 0x%s\r\n", genesis.hashMerkleRoot.ToString().data() );
-//        assert(consensus.hashGenesisBlock == uint256S("0x72d1834e8120039436dbdc195053de911256908944aef2a0e53cae672d012303"));
-//        assert(genesis.hashMerkleRoot == uint256S("0x1a729a545a2004e9e18580daa79bc43ab0597dc89bcbcf9cd5919fb0ee853751"));
-//        assert(consensus.hashGenesisBlock == uint256S("0x61021c1e847a100c4ee42198eb211169066d6633077d70919d40f935091ac703"));
-//        assert(genesis.hashMerkleRoot == uint256S("0x1754f5f1fd407ed952db2791fd1e1a466627ca6c0739a287fa029acc370823ff"));
+
+        assert(consensus.hashGenesisBlock == uint256S("0x5749b00048ce7eab2b68957b3af7f4e1f51da6cf11b20940d4ab216a88d41a6b"));
+        assert(genesis.hashMerkleRoot == uint256S("0xc71c8b181519535b3ac4c70c0f43346a4058f0c0f78654ead5ff498c3bbab339"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
@@ -334,7 +303,7 @@ public:
 
         checkpointData = (CCheckpointData){
             boost::assign::map_list_of
-            ( 0, uint256S("0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"))
+            ( 0, uint256S("0x5749b00048ce7eab2b68957b3af7f4e1f51da6cf11b20940d4ab216a88d41a6b"))
         };
 
         chainTxData = ChainTxData{

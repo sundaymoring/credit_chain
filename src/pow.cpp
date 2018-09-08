@@ -23,12 +23,10 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     if (pindexLast->nHeight < params.nLastPOWBlock)
     	 return pindexLast->nBits;
 
-	const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, pindexLast->nHeight >= params.nLastPOWBlock);
-	if (pindexPrev->pprev == NULL)
-		return nTargetLimit; // first block
-	const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, pindexLast->nHeight >= params.nLastPOWBlock);
-	if (pindexPrevPrev->pprev == NULL)
-		return nTargetLimit; // second block
+    if (pindexLast->nHeight == params.nLastPOWBlock)
+        return UintToArith256(params.posLimit).GetCompact();
+
+    nTargetLimit = UintToArith256(params.posLimit).GetCompact();
 
 	int height = pindexLast->nHeight+1;
 	int interval = params.DifficultyAdjustmentInterval();
@@ -40,8 +38,10 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
             // Special difficulty rule for testnet:
             // If the new block's timestamp is more than 2* 10 minutes
             // then allow mining of a min-difficulty block.
-            if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nTargetSpacing*2)
+            if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nTargetSpacing * 16) {
+                LogPrintf("Reset Target in Testnet\n");
                 return nTargetLimit;
+            }
         }
         return pindexLast->nBits;
     }
@@ -72,7 +72,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
         nActualTimespan = nTargetTimespan*limit;
 
     // Retarget
-    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
+    const arith_uint256 bnPowLimit = UintToArith256(params.posLimit);
     arith_uint256 bnNew;
     arith_uint256 bnOld;
     bnNew.SetCompact(pindexLast->nBits);
