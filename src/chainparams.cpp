@@ -120,7 +120,7 @@ public:
         nDefaultPort = 8566;
         nPruneAfterHeight = 100000;
 
-        genesis = CreateGenesisBlock(1521273300, 954276, 0x1d00ffff, 0x20000000, 0);
+        genesis = CreateGenesisBlock(1521273366, 0, 0x1d00ffff, 0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
 
         bool fNegative;
@@ -130,17 +130,16 @@ public:
         bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
         uint256 ministGenesis = genesis.GetHash();
         int ministNonce = 0;
-        for(int i = 0;;i++){
-            genesis = CreateGenesisBlock(1532411418, i, nBits, 0x20000000, 0);
+        for(genesis.nNonce = 0;;genesis.nNonce++){
             consensus.hashGenesisBlock = genesis.GetHash();
             if (UintToArith256(genesis.GetHash()) < UintToArith256(ministGenesis)){
                 ministGenesis = genesis.GetHash();
-                ministNonce = i;
+                ministNonce = genesis.nNonce;
             }
-            if (i % 200000 == 0 || UintToArith256(genesis.GetHash()) < bnTarget){
+            if (genesis.nNonce % 200000 == 0 || UintToArith256(genesis.GetHash()) < bnTarget){
                 if (UintToArith256(genesis.GetHash()) < bnTarget)
                     printf( "=======================！！！ FOUND ！！！====================");
-                printf( "\ntry times =%d\n", i);
+                printf( "\ntry times =%d\n", genesis.nNonce);
                 printf( "consensus.hashGenesisBlock = 0x%s\r\n", consensus.hashGenesisBlock.ToString().data());
                 printf( "genesis.hashMerkleRoot     = 0x%s\r\n", genesis.hashMerkleRoot.ToString().data());
                 printf( "nBits                      = 0x%x\n", nBits);
