@@ -107,7 +107,7 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
 
-        consensus.nLastPOWBlock = 100;
+        consensus.nLastPOWBlock = 200;
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -120,7 +120,7 @@ public:
         nDefaultPort = 8777;
         nPruneAfterHeight = 100000;
 
-        genesis = CreateGenesisBlock(1532411418, 954276, 0x1e0fffff, 0x20000000, 0);
+        genesis = CreateGenesisBlock(1533870183, 1537634, 0x1e0fffff, 0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
 
 //        bool fNegative;
@@ -131,7 +131,7 @@ public:
 //        uint256 ministGenesis = genesis.GetHash();
 //        int ministNonce = 0;
 //        for(int i = 0;;i++){
-//            genesis = CreateGenesisBlock(1532411418, i, nBits, 0x20000000, 0);
+//            genesis = CreateGenesisBlock(1533870183, i, nBits, 0x20000000, 0);
 //            consensus.hashGenesisBlock = genesis.GetHash();
 //            if (UintToArith256(genesis.GetHash()) < UintToArith256(ministGenesis)){
 //                ministGenesis = genesis.GetHash();
@@ -148,11 +148,11 @@ public:
 //            }
 //        }
 
-        assert(consensus.hashGenesisBlock == uint256S("0x0000071c7d26c324f4043bbd3a27844703bba8765e1f476fa8f90cd13e9173d7"));
-        assert(genesis.hashMerkleRoot == uint256S("0xb9b4bb3dd7d18f5b323a634a28888a0d4b480de06f28648157f2fbe57c7d7f5c"));
+        assert(consensus.hashGenesisBlock == uint256S("0x000003374fbb935e13c9578c2d2c488b72e9511fba344dc69ffc2d2193160a8a"));
+        assert(genesis.hashMerkleRoot == uint256S("0xf76d808602b5643d5b754f5bef84dacda101c377a63ce179c9ab3fb9c57a978b"));
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,25);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,85);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,128);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container<std::vector<unsigned char> >();
@@ -305,7 +305,7 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
 
-        consensus.nLastPOWBlock = 2000;
+        consensus.nLastPOWBlock = 5000;
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -319,8 +319,8 @@ public:
         consensus.hashGenesisBlock = genesis.GetHash();
 //        printf( "regtest consensus.hashGenesisBlock = 0x%s\r\n", consensus.hashGenesisBlock.ToString().data() );
 //        printf( "regtest genesis.hashMerkleRoot = 0x%s\r\n", genesis.hashMerkleRoot.ToString().data() );
-//        assert(consensus.hashGenesisBlock == uint256S("0x72d1834e8120039436dbdc195053de911256908944aef2a0e53cae672d012303"));
-//        assert(genesis.hashMerkleRoot == uint256S("0x1a729a545a2004e9e18580daa79bc43ab0597dc89bcbcf9cd5919fb0ee853751"));
+        assert(consensus.hashGenesisBlock == uint256S("0x1951c015f7b96a5d8728395783c813d9fc0fa16121174300a74d0006c38f37ad"));
+        assert(genesis.hashMerkleRoot == uint256S("0xe5bdd68c9bcaa16f0fae1ca6d2dab61e31f9c3d7c9d90d2f0f314e747bcc85c6"));
 //        assert(consensus.hashGenesisBlock == uint256S("0x61021c1e847a100c4ee42198eb211169066d6633077d70919d40f935091ac703"));
 //        assert(genesis.hashMerkleRoot == uint256S("0x1754f5f1fd407ed952db2791fd1e1a466627ca6c0739a287fa029acc370823ff"));
 
