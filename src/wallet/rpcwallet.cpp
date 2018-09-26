@@ -575,6 +575,101 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
     return wtx.GetHash().GetHex();
 }
 
+static void SendTokenBurn(const CTokenId tokenid, CAmount nValue, CWalletTx& wtxNew)
+{
+    CAmount curBalance = pwalletMain->GetBalance();
+    CAmount curTokenBalance = pwalletMain->GetTokenBalance(tokenid);
+
+    // Check amount
+    if (nValue <= 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
+
+    if (nValue > curTokenBalance || TOKEN_DEFAULT_VALUE > curBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    CScript scriptTokenBurn = CreateBurnScript(tokenid, nValue);
+
+    // Create and send the transaction
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    std::string strError;
+    vector<CRecipient> vecSend;
+    int nChangePosRet = 1;
+    CRecipient recipient0 = {scriptTokenBurn, 0, TOKENID_ZERO, 0, false};
+    vecSend.push_back(recipient0);
+    CRecipient recipient1 = {CScript(), 0, tokenid, nValue, false};
+    vecSend.push_back(recipient1);
+    if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_BURN)) {
+        if (nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+}
+
+UniValue burntoken(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
+        throw runtime_error(
+            "sendtokentoaddress \"tokenid\" \"address\" amount ( \"comment\" \"comment_to\" )\n"
+            "\nBurn token of a specified tokeind\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"tokenid\"            (string, required) The token to burn.\n"
+            "2. \"amount\"             (numeric or string, required) The amount in " + CURRENCY_UNIT + " to burn. eg 0.1\n"
+            "3. \"comment\"            (string, optional) A comment used to store what the transaction is for. \n"
+            "                             This is not part of the transaction, just kept in your wallet.\n"
+            "4. \"comment_to\"         (string, optional) A comment to store the name of the person or organization \n"
+            "                             to which you're sending the transaction. This is not part of the \n"
+            "                             transaction, just kept in your wallet.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("burntoken", "\"tokenid\" 100")
+            + HelpExampleCli("burntoken", "\"tokenid\" 100 \"burn\" \"burn 100\"")
+            + HelpExampleRpc("burntoken", "\"tokenid\" 100 \"burn\" \"burn 100\"")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CTokenId tokenid;
+    if (!tokenid.FromString(request.params[0].get_str())){
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
+    }
+
+    if ( !ptokendbview->ExistsTokenInfo(tokenid)) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
+    }
+
+    // Amount
+    CAmount nAmount = TokenAmountFromValue(request.params[1]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+    // Wallet comments
+    CWalletTx wtx;
+    if (request.params.size() > 2 && !request.params[2].isNull() && !request.params[2].get_str().empty())
+        wtx.mapValue["comment"] = request.params[2].get_str();
+    if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
+        wtx.mapValue["to"]      = request.params[3].get_str();
+
+    EnsureWalletIsUnlocked();
+
+    SendTokenBurn(tokenid, nAmount, wtx);
+
+    return wtx.GetHash().GetHex();
+}
+
 
 UniValue issuenewtoken(const JSONRPCRequest& request){
     if (request.fHelp || (request.params.size() != 7 && request.params.size() != 4) ) {
@@ -3504,6 +3599,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "tokensendmany",            &tokensendmany,            false,  {"tokenid","amounts","comment"} },
     { "wallet",             "sendtoaddress",            &sendtoaddress,            false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
     { "wallet",             "sendtokentoaddress",       &sendtokentoaddress,       false,  {"tokenid","address","amount","comment","comment_to"} },
+    { "wallet",             "burntoken",                &burntoken,                false,  {"tokenid","amount","comment","comment_to"} },
     { "wallet",             "setaccount",               &setaccount,               true,   {"address","account"} },
     { "wallet",             "settxfee",                 &settxfee,                 true,   {"amount"} },
     { "wallet",             "signmessage",              &signmessage,              true,   {"address","message"} },

@@ -540,7 +540,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             }
         }
     }
-    if (scriptcode != TTC_NONE) {
+    if (scriptcode != TTC_NONE && scriptcode != TTC_BURN) {
         if (tokenid == TOKENID_ZERO || nTokenValueOut <=0) {
             return state.DoS(100, false, REJECT_INVALID, "token-tx-without-token-out");
         }
@@ -560,6 +560,18 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             }
             if (tokenid != sendinfo.tokenid) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-send-tokenid");
+            }
+        }
+        if (scriptcode == TTC_BURN) {
+            CScriptTokenBurnInfo burninfo;
+            if (!GetBurnInfoFromScriptData(burninfo, tokenDataFromScript)){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-burninfo");
+            }
+            if (tokenid != burninfo.tokenid) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-burn-tokenid");
+            }
+            if (burninfo.burnAmount <= 0) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-burn-amount");
             }
         }
     }
@@ -1555,7 +1567,7 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
 
     if (scriptcode == TTC_SEND) {
         CAmount nValueIn = 0;
-        CTokenId inputId;
+        CTokenId inputId = TOKENID_ZERO;
         for (const auto& in : tx.vin)
         {
             const CTxOut& preout = inputs.GetOutputFor(in);
@@ -1593,7 +1605,7 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
         }
 
         CAmount nValueOut = 0;
-        CTokenId outputId;
+        CTokenId outputId = TOKENID_ZERO;
         for (const auto& out : tx.vout)
         {
             if ((out.nTokenValue != 0 && out.tokenId == TOKENID_ZERO) || (out.nTokenValue == 0 && out.tokenId != TOKENID_ZERO)) {
@@ -1621,6 +1633,74 @@ bool CheckTokenInputs(const CTransaction& tx, CValidationState& state, const CCo
         }
         if (nValueOut != nValueIn) {
             return state.Invalid(false, REJECT_INVALID, "bad-token-send", strprintf("different token value intput: %d - output: %d",nValueIn, nValueOut));
+        }
+    }
+
+    if (scriptcode == TTC_BURN) {
+        CAmount nValueIn = 0;
+        CTokenId inputId = TOKENID_ZERO;
+        for (const auto& in : tx.vin)
+        {
+            const CTxOut& preout = inputs.GetOutputFor(in);
+            if ((preout.nTokenValue != 0 && preout.tokenId == TOKENID_ZERO) || (preout.nTokenValue == 0 && preout.tokenId != TOKENID_ZERO)) {
+                return state.Invalid(false, REJECT_INVALID, "bad-token-input", "invalid token input");
+            }
+            if (preout.nTokenValue != 0 && preout.tokenId != TOKENID_ZERO) {
+                if (inputId == TOKENID_ZERO){
+                    inputId = preout.tokenId;
+                }else{
+                    if (inputId != preout.tokenId) {
+                        return state.Invalid(false, REJECT_INVALID, "bad-token-send", "various token input of send");
+                    }
+                }
+                nValueIn += preout.nTokenValue;
+                if (!TokenRange(preout.nTokenValue) || !TokenRange(nValueIn)) {
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputvalues-outofrange");
+                }
+            }
+        }
+        if (inputId == TOKENID_ZERO) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", "no token input of send");
+        }
+
+        CScriptTokenBurnInfo burninfo;
+        if (!GetBurnInfoFromScriptData(burninfo, tokenDataFromScript)){
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-burninfo");
+        }
+
+        if (inputId != burninfo.tokenid) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-send", strprintf("different token intput: %s - script: %s", inputId.ToString(), burninfo.tokenid.ToString()));
+        }
+
+        CAmount nValueOut = 0;
+        CTokenId outputId = TOKENID_ZERO;
+        for (const auto& out : tx.vout)
+        {
+            if ((out.nTokenValue != 0 && out.tokenId == TOKENID_ZERO) || (out.nTokenValue == 0 && out.tokenId != TOKENID_ZERO)) {
+                return state.Invalid(false, REJECT_INVALID, "bad-token-define", "invalid token define");
+            }
+            if (out.nTokenValue != 0 && out.tokenId != TOKENID_ZERO) {
+                if (outputId == TOKENID_ZERO){
+                    outputId = out.tokenId;
+                }else{
+                    if (outputId != out.tokenId) {
+                        return state.Invalid(false, REJECT_INVALID, "bad-token-send", "various token output of send");
+                    }
+                }
+                nValueOut += out.nTokenValue;
+                if (!TokenRange(out.nTokenValue) || !TokenRange(nValueOut) ) {
+                    return state.DoS(100, false, REJECT_INVALID, "bad-txns-outputvalues-outofrange");
+                }
+            }
+        }
+        if (outputId != inputId && outputId != TOKENID_ZERO) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-burn", strprintf("different token intput: %s - output: %s", inputId.ToString(), outputId.ToString()));
+        }
+        if ( nValueIn <= nValueOut) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-burn", strprintf("bad token burn value intput: %d - output: %d",nValueIn, nValueOut));
+        }
+        if ( nValueIn - nValueOut != burninfo.burnAmount) {
+            return state.Invalid(false, REJECT_INVALID, "bad-token-burn", strprintf("different token burn value intput: %d - output: %d - script: %d",nValueIn, nValueOut, burninfo.burnAmount));
         }
     }
 

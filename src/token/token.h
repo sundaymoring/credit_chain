@@ -87,6 +87,19 @@ struct CScriptTokenSendInfo
     }
 };
 
+struct CScriptTokenBurnInfo
+{
+    CTokenId tokenid;
+    CAmount burnAmount;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(tokenid);
+        READWRITE(burnAmount);
+    }
+};
+
 //CScript CreateIssuanceScript(const CScriptTokenIssueInfo& issueinfo);
 CScript CreateIssuanceScriptDummy(CScriptTokenIssueInfo &issueinfo);
 CScript AppendIssuanceScript(CScriptTokenIssueInfo& issueinfo, const CTokenId tokenid);
@@ -95,6 +108,9 @@ bool GetIssueInfoFromScriptData(CScriptTokenIssueInfo& issueinfo, const std::vec
 CScript CreateSendScript(const CTokenId tokenid, const CAmount sendAmount);
 CScript CreateSendScriptDummy(const CTokenId tokenid);
 bool GetSendInfoFromScriptData(CScriptTokenSendInfo& sendinfo, const std::vector<unsigned char>& scriptdata);
+
+CScript CreateBurnScript(const CTokenId tokenid, const CAmount burnAmount);
+bool GetBurnInfoFromScriptData(CScriptTokenBurnInfo& burninfo, const std::vector<unsigned char>& scriptdata);
 
 struct CTokenInfo {
 

@@ -2725,7 +2725,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, bool ov
     return true;
 }
 
-bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
+bool CWallet::CreateTransaction(vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, tokencode code)
 {
     CAmount nValue = 0;
@@ -2772,6 +2772,25 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
             strFailReason = _("different tokenid in send tx");
             return false;
         }
+    }
+    if (code == TTC_BURN) {
+        tokenId = vecSend[1].tokenId;
+        CScriptTokenBurnInfo scriptInfo;
+        if (!GetBurnInfoFromScriptData(scriptInfo, tokenDataFromScript)){
+            strFailReason = _("bad send tx");
+            return false;
+        }
+
+        if (scriptInfo.tokenid != tokenId) {
+            strFailReason = _("different tokenid in burn tx");
+            return false;
+        }
+        if (scriptInfo.burnAmount != vecSend[1].nTokenAmount) {
+            strFailReason = _("different token amount in burn tx");
+            return false;
+        }
+
+        vecSend.erase(vecSend.begin() + 1);
     }
 
     wtxNew.fTimeReceivedIsTxTime = true;
@@ -2822,7 +2841,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
             std::vector<COutput> vAvailableCoins;
             AvailablePureCoins(vAvailableCoins, true, coinControl);
 
-            if (code == TTC_SEND) {
+            if (code == TTC_SEND || code == TTC_BURN) {
                 AvailableToken(tokenId, vAvailableToken, true, coinControl);
             }
 
@@ -2879,7 +2898,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 CAmount nTokenValueIn = 0;
                 CAmount nValueFromToken = 0;
                 setToken.clear();
-                if (code == TTC_SEND) {
+                if (code == TTC_SEND  || code == TTC_BURN) {
                     if(!SelectToken(tokenId, vAvailableToken, nTokenValue, setToken, nTokenValueIn, coinControl))
                     {
                         strFailReason = _("Insufficient token");
@@ -2888,7 +2907,8 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     for (const auto& pcoin : setToken){
                         nValueFromToken += pcoin.first->tx->vout[pcoin.second].nValue;
                     }
-                    txNew.vout[0].scriptPubKey = CreateSendScript(tokenId, nTokenValueIn);
+                    if (code == TTC_SEND)
+                        txNew.vout[0].scriptPubKey = CreateSendScript(tokenId, nTokenValueIn);
                 }
                 const CAmount nTokenChange = nTokenValueIn - nTokenValue;
                 if (nTokenChange > 0) {
@@ -2902,7 +2922,7 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                     strFailReason = _("Insufficient funds");
                     return false;
                 }
-                if (code == TTC_SEND) {
+                if (code == TTC_SEND || code == TTC_BURN) {
                     setCoins.insert(setToken.begin(), setToken.end());
                 }
                 for (const auto& pcoin : setCoins)

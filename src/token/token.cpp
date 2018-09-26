@@ -191,3 +191,26 @@ bool GetSendInfoFromScriptData(CScriptTokenSendInfo& sendinfo, const std::vector
     return true;
 }
 
+CScript CreateBurnScript(const CTokenId tokenid, const CAmount burnAmount)
+{
+    CScriptTokenBurnInfo burninfo = { tokenid, burnAmount };
+    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    ds << burninfo;
+
+    CScript script = CreateTokenScriptHeader(TTC_BURN);
+
+    script << std::vector<unsigned char>(ds.begin(), ds.end());
+
+    return script;
+}
+
+bool GetBurnInfoFromScriptData(CScriptTokenBurnInfo& burninfo, const std::vector<unsigned char>& scriptdata)
+{
+    CDataStream ssValue(scriptdata, SER_DISK, CLIENT_VERSION);
+    try {
+        ssValue >> burninfo;
+    } catch (const std::exception& e) {
+        return error("%s: decode token data error : %s", __func__, e.what());
+    }
+    return true;
+}
