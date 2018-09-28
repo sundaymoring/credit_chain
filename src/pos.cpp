@@ -127,7 +127,9 @@ bool VerifySignature(const CMutableTransaction& txFrom, const CTransaction& txTo
         return false;
 
     const CAmount& amount = txout.nValue;
+    const CTokenId& tokenId = txout.tokenId;
+    const CAmount& tokenAmount = txout.nTokenValue;
 
     const CScriptWitness *witness = &txTo.vin[nIn].scriptWitness;
-    return VerifyScript(txin.scriptSig, txout.scriptPubKey, witness, flags, TransactionSignatureChecker(&txTo, nIn, amount),  NULL);
+    return VerifyScript(txin.scriptSig, txout.scriptPubKey, witness, flags, TransactionSignatureChecker(&txTo, nIn, amount, tokenId, tokenAmount),  NULL);
 }

@@ -18,7 +18,7 @@ using namespace std;
 
 typedef std::vector<unsigned char> valtype;
 
-TransactionSignatureCreator::TransactionSignatureCreator(const CKeyStore* keystoreIn, const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn, int nHashTypeIn) : BaseSignatureCreator(keystoreIn), txTo(txToIn), nIn(nInIn), nHashType(nHashTypeIn), amount(amountIn), checker(txTo, nIn, amountIn) {}
+TransactionSignatureCreator::TransactionSignatureCreator(const CKeyStore* keystoreIn, const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn,  const CTokenId& tokenIdIn, const CAmount& tokenAmountIn, int nHashTypeIn) : BaseSignatureCreator(keystoreIn), txTo(txToIn), nIn(nInIn), nHashType(nHashTypeIn), amount(amountIn), tokenID(tokenIdIn), tokenAmount(tokenAmountIn), checker(txTo, nIn, amountIn, tokenIdIn, tokenAmountIn) {}
 
 bool TransactionSignatureCreator::CreateSig(std::vector<unsigned char>& vchSig, const CKeyID& address, const CScript& scriptCode, SigVersion sigversion) const
 {
@@ -30,7 +30,7 @@ bool TransactionSignatureCreator::CreateSig(std::vector<unsigned char>& vchSig, 
     if (sigversion == SIGVERSION_WITNESS_V0 && !key.IsCompressed())
         return false;
 
-    uint256 hash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, sigversion);
+    uint256 hash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, tokenID, tokenAmount, sigversion);
     if (!key.Sign(hash, vchSig))
         return false;
     vchSig.push_back((unsigned char)nHashType);
@@ -205,12 +205,12 @@ void UpdateTransaction(CMutableTransaction& tx, unsigned int nIn, const Signatur
     tx.vin[nIn].scriptWitness = data.scriptWitness;
 }
 
-bool SignSignature(const CKeyStore &keystore, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, const CAmount& amount, int nHashType)
+bool SignSignature(const CKeyStore &keystore, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, const CAmount& amount, const CTokenId& tokenId, const CAmount& tokenAmount, int nHashType)
 {
     assert(nIn < txTo.vin.size());
 
     CTransaction txToConst(txTo);
-    TransactionSignatureCreator creator(&keystore, &txToConst, nIn, amount, nHashType);
+    TransactionSignatureCreator creator(&keystore, &txToConst, nIn, amount, tokenId, tokenAmount, nHashType);
 
     SignatureData sigdata;
     bool ret = ProduceSignature(creator, fromPubKey, sigdata);
@@ -225,7 +225,7 @@ bool SignSignature(const CKeyStore &keystore, const CTransaction& txFrom, CMutab
     assert(txin.prevout.n < txFrom.vout.size());
     const CTxOut& txout = txFrom.vout[txin.prevout.n];
 
-    return SignSignature(keystore, txout.scriptPubKey, txTo, nIn, txout.nValue, nHashType);
+    return SignSignature(keystore, txout.scriptPubKey, txTo, nIn, txout.nValue, txout.tokenId, txout.nTokenValue, nHashType);
 }
 
 static vector<valtype> CombineMultisig(const CScript& scriptPubKey, const BaseSignatureChecker& checker,

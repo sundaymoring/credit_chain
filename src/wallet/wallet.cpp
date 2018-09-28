@@ -3182,7 +3182,7 @@ bool CWallet::CreateTransaction(vector<CRecipient>& vecSend, CWalletTx& wtxNew, 
                 const CScript& scriptPubKey = coin.first->tx->vout[coin.second].scriptPubKey;
                 SignatureData sigdata;
 
-                if (!ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->tx->vout[coin.second].nValue, SIGHASH_ALL), scriptPubKey, sigdata))
+                if (!ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->tx->vout[coin.second].nValue, coin.first->tx->vout[coin.second].tokenId, coin.first->tx->vout[coin.second].nTokenValue, SIGHASH_ALL), scriptPubKey, sigdata))
                 {
                     strFailReason = _("Signing transaction failed");
                     return false;
