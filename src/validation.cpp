@@ -2095,6 +2095,19 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
             if (!ptokendbview->ExistsTokenInfo(tx.vout[1].tokenId))
                 return error("DisconnectBlock(): failure reading token data");
             ptokendbview->EraseTokenInfo(tx.vout[1].tokenId);
+        } else if (GetTxTokenCode(tx) == TTC_BURN) {
+            CTokenInfo tokenInfo;
+            if (!ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokenInfo)){
+                return error("DisconnectBlock(): failure reading token data");
+            }
+            CAmount tokenAmountIn = 0;
+            for (const auto& in : tx.vin)
+            {
+                const CTxOut& preout = view.GetOutputFor(in);
+                tokenAmountIn += preout.nTokenValue;
+            }
+            tokenInfo.moneySupply = tokenAmountIn;
+            ptokendbview->WriteTokenInfo(tokenInfo);
         }
     }
 
@@ -2503,6 +2516,13 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 if (ptokendbview->ExistsTokenInfo(tokeninfo.tokenId)) {
                     return state.DoS(100, error("ConnectBlock(): tried to overwrite token info"), REJECT_INVALID, "bad-token-issue");
                 }
+                ptokendbview->WriteTokenInfo(tokeninfo);
+            } else if (scriptcode == TTC_BURN) {
+                CTokenInfo tokeninfo;
+                if (! ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokeninfo)){
+                    return state.DoS(100, error("ConnectBlock(): token not exist"), REJECT_INVALID, "bad-token-burn");
+                }
+                tokeninfo.moneySupply =  tx.vout[1].nTokenValue;
                 ptokendbview->WriteTokenInfo(tokeninfo);
             }
         }
