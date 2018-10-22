@@ -242,6 +242,8 @@ void Shutdown()
         pblocktree = NULL;
         delete ptokendbview;
         ptokendbview = NULL;
+        delete psymboldbview;
+        psymboldbview = NULL;
     }
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -1414,6 +1416,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     int64_t nTokenDBCache = nTotalCache / 25;
     nTokenDBCache = std::min(nTokenDBCache, nMaxTokenDBCache << 20);
     nTotalCache -= nTokenDBCache;
+    int64_t nSymbolDBCache = nTotalCache / 25;
+    nSymbolDBCache = std::min(nSymbolDBCache, nMaxSymbolDBCache << 20);
+    nTotalCache -= nSymbolDBCache;
     int64_t nCoinDBCache = std::min(nTotalCache / 2, (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
     nCoinDBCache = std::min(nCoinDBCache, nMaxCoinsDBCache << 20); // cap total coins db cache
     nTotalCache -= nCoinDBCache;
@@ -1441,8 +1446,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 delete pcoinscatcher;
                 delete pblocktree;
                 delete ptokendbview;
+                delete psymboldbview;
 
                 ptokendbview = new CTokenDB(nTokenDBCache, false,  fReindex || fReindexChainState);
+                psymboldbview = new CSymbolDB(nSymbolDBCache, false,  fReindex || fReindexChainState);
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);

@@ -1,6 +1,7 @@
 #ifndef BITCOIN_TOKEN_DB_H
 #define BITCOIN_TOKEN_DB_H
 
+#include <string>
 #include "dbwrapper.h"
 #include "uint256.h"
 #include "amount.h"
@@ -19,6 +20,17 @@ public:
     const std::vector<CTokenInfo> ListTokenInfo();
 };
 
+class CSymbolDB : public CDBWrapper {
+public:
+    CSymbolDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
+    bool GetSymbolTokenId(const std::string& symbol, CTokenId& tokenId );
+    bool WriteSymbolTokenId(const std::string& symbol, const CTokenId& tokenId);
+    bool EraseSymbolTokenId(const std::string& symbol);
+    bool ExistsSymbol(const std::string& symbol);
+    const std::vector<std::string> ListSymbols();
+};
+
 extern CTokenDB* ptokendbview;
+extern CSymbolDB* psymboldbview;
 
 #endif // BITCOIN_TOKEN_DB_H
