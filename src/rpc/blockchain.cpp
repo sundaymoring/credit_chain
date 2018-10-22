@@ -1317,7 +1317,7 @@ UniValue gettokeninfo(const JSONRPCRequest& request){
 
     if (request.fHelp || request.params.size() > 1)
         throw runtime_error(
-            "gettokeninfo ( \"tokenid\" )\n"
+            "gettokeninfo ( \"symbol\" )\n"
 
             "\nReturn info of a specific tokenid,\n"
             "or list all token info if tokenid is not given"
@@ -1325,7 +1325,6 @@ UniValue gettokeninfo(const JSONRPCRequest& request){
             "\nResult:\n"
             "[\n"
             "    {\n"
-            "        \"tokenid\": \"id\",		(string) The token Id\n"
             "        \"symbol\": \"symbol\",	(string) The token symbol\n"
             "        \"supply\": n,				(numeric) Total supply of the token\n"
             "		 \"type\": n,				(numeric) The token type\n"
@@ -1334,13 +1333,14 @@ UniValue gettokeninfo(const JSONRPCRequest& request){
             "        \"description\": \"description\",	(string) The token description\n"
             "        \"address\": \"addressr\", (string) The address where the token issue to\n"
             "        \"txid\": \"id\"			(string) Id of transaction where the token issued\n"
+            "        \"tokenid\": \"id\",		(string) The token Id\n"
             "    }\n"
             "    ...\n"
             "]\n"
             "\nExamples:\n"
             + HelpExampleCli("gettokeninfo", "")
-            + HelpExampleCli("gettokeninfo", "\"tokenid\"")
-            + HelpExampleRpc("gettokeninfo", "\"tokenid\"")
+            + HelpExampleCli("gettokeninfo", "\"symbol\"")
+            + HelpExampleRpc("gettokeninfo", "\"symbol\"")
        );
 
     LOCK(cs_main);
@@ -1365,15 +1365,15 @@ UniValue gettokeninfo(const JSONRPCRequest& request){
 
     BOOST_FOREACH (const auto& info, list){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", info.tokenId.ToString()));
         entry.push_back(Pair("symbol", info.symbol));
         entry.push_back(Pair("supply", ValueFromAmount(info.moneySupply)));
         entry.push_back(Pair("type", info.type));
         entry.push_back(Pair("name", info.name));
         entry.push_back(Pair("url", info.url));
         entry.push_back(Pair("description", info.description));
-        entry.push_back(Pair("txid", info.txHash.ToString()));
         entry.push_back(Pair("address", info.issueToAddress));
+        entry.push_back(Pair("txid", info.txHash.ToString()));
+        entry.push_back(Pair("tokenid", info.tokenId.ToString()));
         result.push_back(entry);
     }
     return result;
@@ -1391,11 +1391,11 @@ UniValue listtokeninfo(const JSONRPCRequest& request){
             "\nResult:\n"
             "[\n"
             "    {\n"
-            "        \"tokenid\": \"id\",       (string) The token Id\n"
             "        \"symbol\": \"symbol\",	(string) The token symbol\n"
             "        \"supply\": n,				(numeric) Total supply of the token\n"
             "        \"address\": \"addressr\", (string) The address where the token issue to\n"
             "        \"txid\": \"id\"			(string) Id of transaction where the token issued\n"
+            "        \"tokenid\": \"id\",       (string) The token Id\n"
             "    }\n"
             "    ...\n"
             "]\n"
@@ -1415,11 +1415,11 @@ UniValue listtokeninfo(const JSONRPCRequest& request){
 
     BOOST_FOREACH (const auto& info, list){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", info.tokenId.ToString()));
         entry.push_back(Pair("symbol", info.symbol));
         entry.push_back(Pair("supply", ValueFromAmount(info.moneySupply)));
-        entry.push_back(Pair("txid", info.txHash.ToString()));
         entry.push_back(Pair("address", info.issueToAddress));
+        entry.push_back(Pair("txid", info.txHash.ToString()));
+        entry.push_back(Pair("tokenid", info.tokenId.ToString()));
         result.push_back(entry);
     }
     return result;

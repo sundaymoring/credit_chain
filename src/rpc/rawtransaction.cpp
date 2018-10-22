@@ -186,7 +186,7 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
             "  \"vout\" : [              (array of json objects)\n"
             "     {\n"
             "       \"value\" : x.xxx,            (numeric) The value in " + CURRENCY_UNIT + "\n"
-			"		\"tokeniD\" : tokenId		  (string) The token id if vout has\n"
+            "		\"symbol\" : tokenId		  (string) The token symbol if vout has\n"
 			"		\"tokenValue\" : x.xxx		  (numeric) The token value in " + CURRENCY_UNIT + "\n"
             "       \"n\" : n,                    (numeric) index\n"
             "       \"scriptPubKey\" : {          (json object)\n"
@@ -510,7 +510,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
             "        {\n"
             "            \"amount\":x.xxx,          (numeric or string, required) the numeric value (can be string) is the " + CURRENCY_UNIT + " amount\n"
             "            \"tokenamount\":x.xxx.\n   (numeric or string, required) the numeric value (can be string) is the token amount\n"
-            "            \"tokenid\": \"tokenid\"   (string, required) The tokenid to use\n"
+            "            \"symbol\": \"symbol\"     (string, required) The token symbol to use\n"
             "        }\n"
             "      \"data\": \"hex\"      (string, required) The key is \"data\", the value is hex encoded data\n"
             "      ,...\n"
@@ -520,9 +520,9 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
             "\"transaction\"              (string) hex string of the transaction\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
+            + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"symbol\\\":\\\"symbol\\\"}}\"")
             + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"data\\\":\\\"00010203\\\"}\"")
-            + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
+            + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"symbol\\\":\\\"symbol\\\"}}\"")
             + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"data\\\":\\\"00010203\\\"}\"")
         );
 

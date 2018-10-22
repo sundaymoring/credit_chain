@@ -521,11 +521,11 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 3 || request.params.size() > 5)
         throw runtime_error(
-            "sendtokentoaddress \"tokenid\" \"address\" amount ( \"comment\" \"comment_to\" )\n"
+            "sendtokentoaddress \"symbol\" \"address\" amount ( \"comment\" \"comment_to\" )\n"
             "\nSend an amount of token to a given address.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
-            "1. \"tokenid\"            (string, required) The token to send to.\n"
+            "1. \"symbol\"             (string, required) The token symbol to send to.\n"
             "2. \"address\"            (string, required) The bitcoin address to send to.\n"
             "3. \"amount\"             (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
             "4. \"comment\"            (string, optional) A comment used to store what the transaction is for. \n"
@@ -536,9 +536,9 @@ UniValue sendtokentoaddress(const JSONRPCRequest& request)
             "\nResult:\n"
             "\"txid\"                  (string) The transaction id.\n"
             "\nExamples:\n"
-            + HelpExampleCli("sendtokentoaddress", "\"tokenid\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
-            + HelpExampleCli("sendtokentoaddress", "\"tokenid\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"donation\" \"seans outpost\"")
-            + HelpExampleRpc("sendtokentoaddress", "\"tokenid\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.1, \"donation\", \"seans outpost\"")
+            + HelpExampleCli("sendtokentoaddress", "\"symbol\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
+            + HelpExampleCli("sendtokentoaddress", "\"symbol\" \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleRpc("sendtokentoaddress", "\"symbol\", \"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.1, \"donation\", \"seans outpost\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -621,11 +621,11 @@ UniValue burntoken(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
         throw runtime_error(
-            "sendtokentoaddress \"tokenid\" \"address\" amount ( \"comment\" \"comment_to\" )\n"
+            "sendtokentoaddress \"symbol\" \"address\" amount ( \"comment\" \"comment_to\" )\n"
             "\nBurn token of a specified tokeind\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
-            "1. \"tokenid\"            (string, required) The token to burn.\n"
+            "1. \"symbol\"             (string, required) The token to burn.\n"
             "2. \"amount\"             (numeric or string, required) The amount in " + CURRENCY_UNIT + " to burn. eg 0.1\n"
             "3. \"comment\"            (string, optional) A comment used to store what the transaction is for. \n"
             "                             This is not part of the transaction, just kept in your wallet.\n"
@@ -635,9 +635,9 @@ UniValue burntoken(const JSONRPCRequest& request)
             "\nResult:\n"
             "\"txid\"                  (string) The transaction id.\n"
             "\nExamples:\n"
-            + HelpExampleCli("burntoken", "\"tokenid\" 100")
-            + HelpExampleCli("burntoken", "\"tokenid\" 100 \"burn\" \"burn 100\"")
-            + HelpExampleRpc("burntoken", "\"tokenid\" 100 \"burn\" \"burn 100\"")
+            + HelpExampleCli("burntoken", "\"symbol\" 100")
+            + HelpExampleCli("burntoken", "\"symbol\" 100 \"burn\" \"burn 100\"")
+            + HelpExampleRpc("burntoken", "\"symbol\" 100 \"burn\" \"burn 100\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -1063,10 +1063,10 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() > 3 || request.params.size() < 1)
         throw runtime_error(
-            "gettokenbalance \"tokenid\" ( minconf include_watchonly )\n"
+            "gettokenbalance \"symbol\" ( minconf include_watchonly )\n"
             "\nReturns the server's total available balance of the specified token.\n"
             "\nArguments:\n"
-            "1. \"tokenid\"         (string, required) The specified token id\n"
+            "1. \"symbol\"         (string, required) The specified token id\n"
             "2. minconf           (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
             "3. include_watchonly (bool, optional, default=false) Also include balance in watch-only addresses (see 'importaddress')\n"
             "\nResult:\n"
@@ -1075,7 +1075,7 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
             "\nThe total amount in the wallet\n"
             + HelpExampleCli("gettokenbalance", "\"*\"") +
             "\nThe total amount in the wallet at least 5 blocks confirmed\n"
-            + HelpExampleCli("gettokenbalance", "\"tokenid\" 6") +
+            + HelpExampleCli("gettokenbalance", "\"symbol\" 6") +
             "\nAs a json rpc call\n"
             + HelpExampleRpc("gettokenbalance", "\"*\", 6")
         );
@@ -1149,9 +1149,9 @@ UniValue gettokenbalanceall(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "   [\n"
-            "      \"tokenid\":   tokenid      (string)the token id\n"
             "      \"symbol\":    symbol       (string)the token symbol\n"
             "      \"balance\":   x.xxxx       (numeric)the total balance of this token \n"
+            "      \"tokenid\":   tokenid      (string)the token id\n"
             "   ]\n"
             "   ...\n"
             "}\n"
@@ -1171,7 +1171,6 @@ UniValue gettokenbalanceall(const JSONRPCRequest& request)
     UniValue result(UniValue::VARR);
     BOOST_FOREACH (const auto& t, mTokenBalances){
         UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("tokenid", t.first.ToString()));
         CTokenInfo tokeninfo;
         if (!ptokendbview->GetTokenInfo(t.first, tokeninfo)) {
             entry.push_back(Pair("symbol", "err: token not found"));
@@ -1179,6 +1178,7 @@ UniValue gettokenbalanceall(const JSONRPCRequest& request)
             entry.push_back(Pair("symbol", tokeninfo.symbol));
         }
         entry.push_back(Pair("balance", ValueFromAmount(t.second)));
+        entry.push_back(Pair("tokenid", t.first.ToString()));
         result.push_back(entry);
     }
     return result;
@@ -1439,11 +1439,11 @@ UniValue tokensendmany(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw runtime_error(
-            "tokensendmany \"tokenid\" {\"address\":amount,...} ( \"comment\" )\n"
+            "tokensendmany \"symbol\" {\"address\":amount,...} ( \"comment\" )\n"
             "\nSend multiple times. Amounts are double-precision floating point numbers."
             + HelpRequiringPassphrase() + "\n"
             "\nArguments:\n"
-            "1. \"tokenid\"             (string, required) The token id\n"
+            "1. \"symbol\"             (string, required) The token id\n"
 //            "2. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
             "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
             "    {\n"
@@ -1457,11 +1457,11 @@ UniValue tokensendmany(const JSONRPCRequest& request)
             "                                    the number of addresses.\n"
             "\nExamples:\n"
             "\nSend two amounts to two different addresses:\n"
-            + HelpExampleCli("tokensendmany", "\"tokenid\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
+            + HelpExampleCli("tokensendmany", "\"symbol\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
             "\nSend two amounts to two different addresses setting the comment:\n"
-            + HelpExampleCli("tokensendmany", "\"tokenid\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" \"testing\"") +
+            + HelpExampleCli("tokensendmany", "\"symbol\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" \"testing\"") +
             "\nAs a json rpc call\n"
-            + HelpExampleRpc("tokensendmany", "\"tokenid\", \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\", \"testing\"")
+            + HelpExampleRpc("tokensendmany", "\"symbol\", \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\", \"testing\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -2972,7 +2972,7 @@ UniValue listunspent(const JSONRPCRequest& request)
             "    \"account\" : \"account\",    (string) DEPRECATED. The associated account, or \"\" for the default account\n"
             "    \"scriptPubKey\" : \"key\",   (string) the script key\n"
             "    \"amount\" : x.xxx,         (numeric) the transaction output amount in " + CURRENCY_UNIT + "\n"
-            "    \"tokenid\" : x.xxx,        (numeric) the transaction output token id\n"
+            "    \"symbol\" : x.xxx,         (numeric) the transaction output token symbol\n"
             "    \"tokenamount\" : x.xxx,    (numeric) the transaction output token amount in " + CURRENCY_UNIT + "\n"
             "    \"confirmations\" : n,      (numeric) The number of confirmations\n"
             "    \"redeemScript\" : n        (string) The redeemScript if scriptPubKey is P2SH\n"
