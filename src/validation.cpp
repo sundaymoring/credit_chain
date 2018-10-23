@@ -2096,18 +2096,18 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
                 return error("DisconnectBlock(): failure reading token data");
             ptokendbview->EraseTokenInfo(tx.vout[1].tokenId);
         } else if (GetTxTokenCode(tx) == TTC_BURN) {
-            CTokenInfo tokenInfo;
-            if (!ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokenInfo)){
-                return error("DisconnectBlock(): failure reading token data");
+            std::vector<unsigned char> tokenDataFromScript;
+            tokencode scriptcode = GetTxTokenCode(tx, &tokenDataFromScript);
+            CScriptTokenBurnInfo burninfo;
+            if (!GetBurnInfoFromScriptData(burninfo, tokenDataFromScript)) {
+                return state.DoS(100, error("DisconnectBlock(): bad burn info"), REJECT_INVALID, "bad-token-burn");
             }
-            CAmount tokenAmountIn = 0;
-            for (const auto& in : tx.vin)
-            {
-                const CTxOut& preout = view.GetOutputFor(in);
-                tokenAmountIn += preout.nTokenValue;
+            CTokenInfo tokeninfo;
+            if (! ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokeninfo)){
+                return state.DoS(100, error("DisconnectBlock(): token not exist"), REJECT_INVALID, "bad-token-burn");
             }
-            tokenInfo.moneySupply = tokenAmountIn;
-            ptokendbview->WriteTokenInfo(tokenInfo);
+            tokeninfo.moneySupply =  tokeninfo.moneySupply + burninfo.burnAmount;
+            ptokendbview->WriteTokenInfo(tokeninfo);
         }
     }
 
@@ -2519,11 +2519,15 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 ptokendbview->WriteTokenInfo(tokeninfo);
                 psymboldbview->WriteSymbolTokenId(tokeninfo.symbol, tokeninfo.tokenId);
             } else if (scriptcode == TTC_BURN) {
+                CScriptTokenBurnInfo burninfo;
+                if (!GetBurnInfoFromScriptData(burninfo, tokenDataFromScript)) {
+                    return state.DoS(100, error("ConnectBlock(): bad burn info"), REJECT_INVALID, "bad-token-burn");
+                }
                 CTokenInfo tokeninfo;
                 if (! ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokeninfo)){
                     return state.DoS(100, error("ConnectBlock(): token not exist"), REJECT_INVALID, "bad-token-burn");
                 }
-                tokeninfo.moneySupply =  tx.vout[1].nTokenValue;
+                tokeninfo.moneySupply =  tokeninfo.moneySupply - burninfo.burnAmount;
                 ptokendbview->WriteTokenInfo(tokeninfo);
             }
         }
