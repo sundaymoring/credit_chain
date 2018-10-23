@@ -711,7 +711,7 @@ UniValue issuenewtoken(const JSONRPCRequest& request){
     if (type != 0) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid issue type");
     }
-    CAmount amount = AmountFromValue(request.params[2]);
+    CAmount amount = TokenAmountFromValue(request.params[2]);
     if (!TokenRange(amount)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid issue amount");
     }
