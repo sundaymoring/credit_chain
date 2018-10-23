@@ -482,13 +482,13 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\Coinback
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\Coinback
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\Coinbank
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\Coinbank
     // Mac: ~/Library/Application Support/Bitcoin
-    // Unix: ~/.coinback
+    // Unix: ~/.coinbank
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "Coinback";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "Coinbank";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -498,10 +498,10 @@ boost::filesystem::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/Coinback";
+    return pathRet / "Library/Application Support/Coinbank";
 #else
     // Unix
-    return pathRet / ".coinback";
+    return pathRet / ".coinbank";
 #endif
 #endif
 }

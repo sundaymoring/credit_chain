@@ -23,7 +23,7 @@ public:
 class CSymbolDB : public CDBWrapper {
 public:
     CSymbolDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
-    bool GetSymbolTokenId(const std::string& symbol, CTokenId& tokenId );
+    bool GetTokenIdFromSymbol(const std::string& symbol, CTokenId& tokenId );
     bool WriteSymbolTokenId(const std::string& symbol, const CTokenId& tokenId);
     bool EraseSymbolTokenId(const std::string& symbol);
     bool ExistsSymbol(const std::string& symbol);

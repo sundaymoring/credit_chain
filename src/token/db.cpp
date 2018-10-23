@@ -47,7 +47,7 @@ CSymbolDB::CSymbolDB(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(G
 
 }
 
-bool CSymbolDB::GetSymbolTokenId(const std::string &symbol, CTokenId &tokenId)
+bool CSymbolDB::GetTokenIdFromSymbol(const std::string &symbol, CTokenId &tokenId)
 {
     return Read(std::make_pair(DB_SYMBOL, symbol), tokenId);
 }

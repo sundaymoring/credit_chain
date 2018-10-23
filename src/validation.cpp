@@ -2517,6 +2517,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                     return state.DoS(100, error("ConnectBlock(): tried to overwrite token info"), REJECT_INVALID, "bad-token-issue");
                 }
                 ptokendbview->WriteTokenInfo(tokeninfo);
+                psymboldbview->WriteSymbolTokenId(tokeninfo.symbol, tokeninfo.tokenId);
             } else if (scriptcode == TTC_BURN) {
                 CTokenInfo tokeninfo;
                 if (! ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokeninfo)){

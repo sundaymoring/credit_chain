@@ -1352,11 +1352,15 @@ UniValue gettokeninfo(const JSONRPCRequest& request){
     if (request.params.size() == 1) {
         CTokenInfo tokenInfo;
         CTokenId tokenid;
-        if (!tokenid.FromString(request.params[0].get_str())){
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
+        string symbol = request.params[0].get_str();
+        if ( !psymboldbview->GetTokenIdFromSymbol(symbol, tokenid)) {
+            throw JSONRPCError(RPC_INVALID_PARAMS, "Invalid Token Symbol");
         }
         if ( !ptokendbview->GetTokenInfo(tokenid, tokenInfo)){
             throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
+        }
+        if (tokenInfo.symbol != symbol) {
+            throw JSONRPCError(RPC_INVALID_PARAMS, "Token Symbol Not Match");
         }
         list.push_back(tokenInfo);
     }else{
