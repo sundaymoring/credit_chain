@@ -591,7 +591,7 @@ int atoi(const std::string& str)
  *  9223372036854775807  (1<<63)-1  (max int64_t)
  *  9999999999999999999  1^19-1     (would overflow)
  */
-static const int64_t UPPER_BOUND = 9000000000000000000LL - 1LL;
+static const int64_t UPPER_BOUND = 9000000000000000000LL;
 
 /** Helper function for ParseFixedPoint */
 static inline bool ProcessMantissaDigit(char ch, int64_t &mantissa, int &mantissa_tzeros)
@@ -685,7 +685,7 @@ bool ParseFixedPoint(const std::string &val, int decimals, int64_t *amount_out)
     exponent += decimals;
     if (exponent < 0)
         return false; /* cannot represent values smaller than 10^-decimals */
-    if (exponent >= 18)
+    if (exponent > 18)
         return false; /* cannot represent values larger than or equal to 10^(18-decimals) */
 
     for (int i=0; i < exponent; ++i) {
