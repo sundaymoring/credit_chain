@@ -2093,7 +2093,7 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
         const CTransaction &tx = *(block.vtx[i]);
         if (GetTxTokenCode(tx) == TTC_ISSUE) {
             CTokenInfo tokeninfo;
-            if (!ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokeninfo) {
+            if (!ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokeninfo)) {
                 return error("DisconnectBlock(): failure reading token data");
             }
             if (!psymboldbview->ExistsSymbol(tokeninfo.symbol)) {
@@ -2515,6 +2515,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 CScriptTokenIssueInfo issueinfo;
                 if (!GetIssueInfoFromScriptData(issueinfo, tokenDataFromScript)) {
                     return state.DoS(100, error("ConnectBlock(): bad token info"), REJECT_INVALID, "bad-token-issue");
+                }
+                if (psymboldbview->ExistsSymbol(issueinfo.symbol)) {
+                    return state.DoS(100, error("ConnectBlock(): tried to overwrite token symbol"), REJECT_INVALID, "bad-token-issue");
                 }
                 CTokenInfo tokeninfo = CTokenInfo(issueinfo);
                 tokeninfo.tokenId = tx.vout[1].tokenId;
