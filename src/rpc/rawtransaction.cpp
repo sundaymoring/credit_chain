@@ -23,6 +23,7 @@
 #include "txmempool.h"
 #include "uint256.h"
 #include "utilstrencodings.h"
+#include "token/db.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -99,10 +100,18 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-        out.push_back(Pair("valueSat", txout.nValue));
+        if (txout.tokenId != TOKENID_ZERO) {
+            CTokenInfo tokeninfo;
+            if (!ptokendbview->GetTokenInfo(txout.tokenId, tokeninfo)) {
+                out.push_back(Pair("symbol", "err: symbol not found"));
+            }else{
+                out.push_back(Pair("symbol", tokeninfo.symbol));
+            }
+        } else{
+            out.push_back(Pair("symbol", ""));
+        }
         out.push_back(Pair("tokenId", txout.tokenId.ToString()));
         out.push_back(Pair("tokenValue", ValueFromAmount(txout.nTokenValue)));
-        out.push_back(Pair("tokenValueSat", txout.nTokenValue));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
@@ -186,7 +195,8 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
             "  \"vout\" : [              (array of json objects)\n"
             "     {\n"
             "       \"value\" : x.xxx,            (numeric) The value in " + CURRENCY_UNIT + "\n"
-            "		\"symbol\" : tokenId		  (string) The token symbol if vout has\n"
+            "		\"symbol\" : symbol 		  (string) The token symbol if vout has\n"
+            "		\"tokenid\" : tokenid 		  (string) The token id if vout has\n"
 			"		\"tokenValue\" : x.xxx		  (numeric) The token value in " + CURRENCY_UNIT + "\n"
             "       \"n\" : n,                    (numeric) index\n"
             "       \"scriptPubKey\" : {          (json object)\n"
@@ -510,7 +520,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
             "        {\n"
             "            \"amount\":x.xxx,          (numeric or string, required) the numeric value (can be string) is the " + CURRENCY_UNIT + " amount\n"
             "            \"tokenamount\":x.xxx.\n   (numeric or string, required) the numeric value (can be string) is the token amount\n"
-            "            \"symbol\": \"symbol\"     (string, required) The token symbol to use\n"
+            "            \"tokenid\": \"tokenid\"   (string, required) The tokenid to use\n"
             "        }\n"
             "      \"data\": \"hex\"      (string, required) The key is \"data\", the value is hex encoded data\n"
             "      ,...\n"
@@ -520,9 +530,9 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
             "\"transaction\"              (string) hex string of the transaction\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"symbol\\\":\\\"symbol\\\"}}\"")
+            + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
             + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"data\\\":\\\"00010203\\\"}\"")
-            + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"symbol\\\":\\\"symbol\\\"}}\"")
+            + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
             + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"data\\\":\\\"00010203\\\"}\"")
         );
 
@@ -666,6 +676,9 @@ UniValue decoderawtransaction(const JSONRPCRequest& request)
             "  \"vout\" : [             (array of json objects)\n"
             "     {\n"
             "       \"value\" : x.xxx,            (numeric) The value in " + CURRENCY_UNIT + "\n"
+            "		\"symbol\" : symbol 		  (string) The token symbol if vout has\n"
+            "		\"tokenid\" : tokenid 		  (string) The token id if vout has\n"
+            "		\"tokenValue\" : x.xxx		  (numeric) The token value in " + CURRENCY_UNIT + "\n"
             "       \"n\" : n,                    (numeric) index\n"
             "       \"scriptPubKey\" : {          (json object)\n"
             "         \"asm\" : \"asm\",          (string) the asm\n"

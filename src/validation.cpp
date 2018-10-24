@@ -2092,8 +2092,14 @@ bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockI
     for (int i = block.vtx.size() - 1; i > 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
         if (GetTxTokenCode(tx) == TTC_ISSUE) {
-            if (!ptokendbview->ExistsTokenInfo(tx.vout[1].tokenId))
+            CTokenInfo tokeninfo;
+            if (!ptokendbview->GetTokenInfo(tx.vout[1].tokenId, tokeninfo) {
                 return error("DisconnectBlock(): failure reading token data");
+            }
+            if (!psymboldbview->ExistsSymbol(tokeninfo.symbol)) {
+                return error("DisconnectBlock(): symbol not exists");
+            }
+            psymboldbview->EraseSymbolTokenId(tokeninfo.symbol);
             ptokendbview->EraseTokenInfo(tx.vout[1].tokenId);
         } else if (GetTxTokenCode(tx) == TTC_BURN) {
             std::vector<unsigned char> tokenDataFromScript;

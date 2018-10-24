@@ -1473,8 +1473,13 @@ UniValue tokensendmany(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
     CTokenId tokenid = TOKENID_ZERO;
-    if(!tokenid.FromString(request.params[0].get_str()))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
+    string symbol = request.params[0].get_str();
+    if ( !psymboldbview->GetTokenIdFromSymbol(symbol, tokenid)) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Invalid Token Symbol");
+    }
+    if ( !ptokendbview->ExistsTokenInfo(tokenid)) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Token Not Found");
+    }
 
 //    string strAccount = AccountFromValue(request.params[1]);
     UniValue sendTo = request.params[1].get_obj();
