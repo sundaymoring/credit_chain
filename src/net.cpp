@@ -1466,7 +1466,7 @@ void ThreadMapPort()
             }
         }
 
-        std::string strDesc = "CoinNet " + FormatFullVersion();
+        std::string strDesc = "CurrNet " + FormatFullVersion();
 
         try {
             while (true) {

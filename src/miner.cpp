@@ -782,7 +782,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
-            return error("CoinNetMiner: generated block is stale");
+            return error("CurrNetMiner: generated block is stale");
     }
 
     // Inform about the new block
@@ -792,7 +792,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
     CValidationState state;
     std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
     if (!ProcessNewBlock(chainparams, shared_pblock, true, NULL))
-        return error("CoinNetMiner: ProcessNewBlock, block not accepted");
+        return error("CurrNetMiner: ProcessNewBlock, block not accepted");
 
     return true;
 }
@@ -800,9 +800,9 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
 
 void static BitcoinMiner(const CChainParams& chainparams)
 {
-    LogPrintf("CoinNetMiner started\n");
+    LogPrintf("CurrNetMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("coinnet-miner");
+    RenameThread("currnet-miner");
 
 
     unsigned int nExtraNonce = 0;
@@ -843,13 +843,13 @@ void static BitcoinMiner(const CChainParams& chainparams)
             std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
             if (!pblocktemplate.get())
             {
-                LogPrintf("Error in CoinNetMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+                LogPrintf("Error in CurrNetMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 return;
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-            LogPrintf("Running CoinNetMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
+            LogPrintf("Running CurrNetMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                 ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             //
@@ -870,7 +870,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
                         assert(hash == pblock->GetHash());
 
                         SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                        LogPrintf("CoinNetMiner:\n");
+                        LogPrintf("CurrNetMiner:\n");
                         LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex(), hashTarget.GetHex());
                         ProcessBlockFound(pblock, chainparams);
                         SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -911,12 +911,12 @@ void static BitcoinMiner(const CChainParams& chainparams)
     }
     catch (const boost::thread_interrupted&)
     {
-        LogPrintf("CoinNetMiner terminated\n");
+        LogPrintf("CurrNetMiner terminated\n");
         throw;
     }
     catch (const std::runtime_error &e)
     {
-        LogPrintf("CoinNetMiner runtime error: %s\n", e.what());
+        LogPrintf("CurrNetMiner runtime error: %s\n", e.what());
         return;
     }
 }
@@ -1034,7 +1034,7 @@ bool CheckStake(CBlock* pblock, CWallet& wallet, const CChainParams& chainparams
 }
 
 void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
-    LogPrintf("CoinNetMiner started\n");
+    LogPrintf("CurrNetMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("stake-miner");
 
@@ -1074,7 +1074,7 @@ void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
             std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlockPOS(coinbaseScript->reserveScript, nFees));
             if (!pblocktemplate.get())
             {
-                LogPrintf("Error in CoinNetMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+                LogPrintf("Error in CurrNetMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 return;
             }
 
