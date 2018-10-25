@@ -96,7 +96,7 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const std::string strMessageMagic = "Biteco Signed Message:\n";
+const std::string strMessageMagic = "CurrNet Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -2166,7 +2166,7 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 static CCheckQueue<CScriptCheck> scriptcheckqueue(128);
 
 void ThreadScriptCheck() {
-    RenameThread("bitcoin-scriptch");
+    RenameThread("currnet-scriptch");
     scriptcheckqueue.Thread();
 }
 

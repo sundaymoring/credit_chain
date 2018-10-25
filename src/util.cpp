@@ -103,8 +103,8 @@ namespace boost {
 
 using namespace std;
 
-const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf";
-const char * const BITCOIN_PID_FILENAME = "bitcoind.pid";
+const char * const BITCOIN_CONF_FILENAME = "currnet.conf";
+const char * const BITCOIN_PID_FILENAME = "currnetd.pid";
 
 CCriticalSection cs_args;
 map<string, string> mapArgs;
@@ -462,7 +462,7 @@ static std::string FormatException(const std::exception* pex, const char* pszThr
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(NULL, pszModule, sizeof(pszModule));
 #else
-    const char* pszModule = "bitcoin";
+    const char* pszModule = "currnet";
 #endif
     if (pex)
         return strprintf(
@@ -482,13 +482,13 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\Coinbank
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\Coinbank
-    // Mac: ~/Library/Application Support/Bitcoin
-    // Unix: ~/.coinbank
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\CurrNet
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\CurrNet
+    // Mac: ~/Library/Application Support/CurrNet
+    // Unix: ~/.currnet
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "Coinbank";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "CurrNet";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -498,10 +498,10 @@ boost::filesystem::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/Coinbank";
+    return pathRet / "Library/Application Support/CurrNet";
 #else
     // Unix
-    return pathRet / ".coinbank";
+    return pathRet / ".currnet";
 #endif
 #endif
 }
