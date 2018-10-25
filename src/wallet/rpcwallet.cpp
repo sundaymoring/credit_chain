@@ -719,6 +719,9 @@ UniValue issuenewtoken(const JSONRPCRequest& request){
     if (symbol.length() > 20) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "issue symbol too long");
     }
+    if (psymboldbview->ExistsSymbol(symbol)) {
+        throw JSONRPCError(RPC_DATABASE_ERROR, "issue symbol already exist");
+    }
     issueInfo.ownerAddress = request.params[0].get_str();
     issueInfo.type = type;
     issueInfo.totalSupply = amount;

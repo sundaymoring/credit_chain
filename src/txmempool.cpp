@@ -423,6 +423,16 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
         mapNextTx.insert(std::make_pair(&tx.vin[i].prevout, &tx));
         setParentTransactions.insert(tx.vin[i].prevout.hash);
     }
+
+    std::vector<unsigned char> scriptTokenData;
+    const tokencode scriptTokenCode = GetTxTokenCode(tx, &scriptTokenData);
+    if (scriptTokenCode == TTC_ISSUE){
+        CScriptTokenIssueInfo tokenIssueInfo;
+        if (GetIssueInfoFromScriptData(tokenIssueInfo, scriptTokenData)){
+            mapTokenSymbol.insert(std::make_pair(tokenIssueInfo.symbol, hash));
+        }
+    }
+
     // Don't bother worrying about child transactions of this one.
     // Normal case of a new transaction arriving is that there can't be any
     // children, because such children would be orphans.
@@ -456,6 +466,15 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
     const uint256 hash = it->GetTx().GetHash();
     BOOST_FOREACH(const CTxIn& txin, it->GetTx().vin)
         mapNextTx.erase(txin.prevout);
+
+    std::vector<unsigned char> scriptTokenData;
+    const tokencode scriptTokenCode = GetTxTokenCode(it->GetTx(), &scriptTokenData);
+    if (scriptTokenCode == TTC_ISSUE){
+        CScriptTokenIssueInfo tokenIssueInfo;
+        if (GetIssueInfoFromScriptData(tokenIssueInfo, scriptTokenData)){
+            mapTokenSymbol.erase(tokenIssueInfo.symbol);
+        }
+    }
 
     if (vTxHashes.size() > 1) {
         vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());

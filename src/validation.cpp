@@ -826,7 +826,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
         }
 
-        const tokencode scriptTokenCode = GetTxTokenCode(tx);
+        std::vector<unsigned char> scriptTokenData;
+        const tokencode scriptTokenCode = GetTxTokenCode(tx, &scriptTokenData);
         if (scriptTokenCode==TTC_ISSUE ){
             if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee + TOKEN_ISSUE_FEE )
                 return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool issue token min fee not met", false, strprintf("%d < %d", nFees, mempoolRejectFee + TOKEN_ISSUE_FEE));
@@ -893,6 +894,23 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                                  strprintf("%s spends conflicting transaction %s",
                                            hash.ToString(),
                                            hashAncestor.ToString()));
+            }
+        }
+
+
+        // same symbol, as conflict
+        if (scriptTokenCode == TTC_ISSUE){
+            CScriptTokenIssueInfo tokenIssueInfo;
+            if (!GetIssueInfoFromScriptData(tokenIssueInfo, scriptTokenData))
+                return state.DoS(100, false, REJECT_INVALID, strprintf("%s: bad-txns-bad-issueinfo", __func__));
+            // find symbol in db
+            if (psymboldbview->ExistsSymbol(tokenIssueInfo.symbol)) {
+                return state.DoS(100, error("bad-token-issue"), REJECT_INVALID,
+                                 strprintf("%s: token symbol already exist", __func__));
+            }
+            auto itSymbolConfict = pool.mapTokenSymbol.find(tokenIssueInfo.symbol);
+            if (itSymbolConfict != pool.mapTokenSymbol.end()){
+                setConflicts.insert(itSymbolConfict->second);
             }
         }
 

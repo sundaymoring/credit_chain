@@ -528,6 +528,7 @@ private:
 public:
     indirectmap<COutPoint, const CTransaction*> mapNextTx;
     std::map<uint256, std::pair<double, CAmount> > mapDeltas;
+    std::map<std::string, uint256> mapTokenSymbol;
 
     /** Create a new CTxMemPool.
      */
