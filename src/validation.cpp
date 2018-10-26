@@ -1311,12 +1311,12 @@ bool ReadFromDisk(CMutableTransaction& tx, CDiskTxPos& txindex)
 
 CAmount GetProofOfWorkSubsidy()
 {
-    return 10000 * COIN;
+    return int64_t(1000000) * int64_t(COIN);
 }
 
 CAmount GetProofOfStakeSubsidy()
 {
-    return COIN * 3 / 2;
+    return 0;
 }
 
 bool IsInitialBlockDownload()

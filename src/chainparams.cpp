@@ -54,7 +54,7 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
  */
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
-    const char* pszTimestamp = "1 Sept 2018 CoinBank Redefined Bank";
+    const char* pszTimestamp = "1 Sept 2018 Currency Network";
     const CScript genesisOutputScript = CScript() << ParseHex("0490a64f0b6b56a8501abe3367c42170db154188fd310fd9880b00b62f1446b9c5fcb8e642bd24d20ddf7c2630d1ea17756dcd7a69b36863b57a92238d3e0ff897") << OP_CHECKSIG;
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
 }
@@ -74,13 +74,12 @@ class CMainParams : public CChainParams {
 public:
     CMainParams() {
         strNetworkID = "main";
-        consensus.nSubsidyHalvingInterval = 210000;
         consensus.BIP34Height = 0;
-        consensus.BIP34Hash = uint256S("0x00000000bf832061efc15ed324d30494e031c1552f7b8ef8b270b973c4a1428b");
+        consensus.BIP34Hash = uint256S("0x0000003e8a7022bffe52f2dacf8fe1cb2f2d15c8e0f90243d395d2a6f9bd658f");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
-        consensus.powLimit = uint256S("0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.posLimit = uint256S("0x0000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("0x000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.posLimit = uint256S("0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nTargetTimespan = 16 * 60;
         consensus.nTargetSpacing = 60;
         consensus.fPowAllowMinDifficultyBlocks = false;
@@ -113,22 +112,27 @@ public:
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
          * a large 32-bit integer with any alignment.
          */
-        pchMessageStart[0] = 0xc0;
-        pchMessageStart[1] = 0x10;
-        pchMessageStart[2] = 0xba;
+        pchMessageStart[0] = 0xc6;
+        pchMessageStart[1] = 0xe4;
+        pchMessageStart[2] = 0x77;
         pchMessageStart[3] = 0xc6;
         nDefaultPort = 8566;
         nPruneAfterHeight = 100000;
 
-        genesis = CreateGenesisBlock(1521273366, 842002102, 0x1d00ffff, 0x20000000, 0);
+        genesis = CreateGenesisBlock(1521273366, 24668639, 0x1e00ffff, 0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
 
-        assert(consensus.hashGenesisBlock == uint256S("0x00000000bf832061efc15ed324d30494e031c1552f7b8ef8b270b973c4a1428b"));
-        assert(genesis.hashMerkleRoot == uint256S("0x1218f4c250d69dfbced8059702ce5f75914df56b11e6501c821fbd545f584548"));
+        assert(consensus.hashGenesisBlock == uint256S("0x0000003e8a7022bffe52f2dacf8fe1cb2f2d15c8e0f90243d395d2a6f9bd658f"));
+        assert(genesis.hashMerkleRoot == uint256S("0x7fbe39cc3b3b14ca949b747cdb8d65e3bde4efce8e9702bd5f8c3ab4bedaee4c"));
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,34);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,88);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,128);
+        vSeeds.push_back(CDNSSeedData("seed1.cnet", "seed1.dns.cnet"));
+        vSeeds.push_back(CDNSSeedData("seed2.cnet", "seed2.dns.cnet"));
+        vSeeds.push_back(CDNSSeedData("seed3.cnet", "seed3.dns.cnet"));
+        vSeeds.push_back(CDNSSeedData("seed4.cnet", "seed4.dns.cnet"));
+
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,45);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,108);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,96);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container<std::vector<unsigned char> >();
 
@@ -141,7 +145,7 @@ public:
 
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
-                ( 0, uint256S("0x00000000bf832061efc15ed324d30494e031c1552f7b8ef8b270b973c4a1428b")),
+                ( 0, uint256S("0x0000003e8a7022bffe52f2dacf8fe1cb2f2d15c8e0f90243d395d2a6f9bd658f")),
         };
 
         chainTxData = ChainTxData{
@@ -162,9 +166,8 @@ class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
         strNetworkID = "test";
-        consensus.nSubsidyHalvingInterval = 210000;
         consensus.BIP34Height = 0;
-        consensus.BIP34Hash = uint256S("0x0000006a4a57113eb76d2361f4fd37c0413d5cbabf7b040f76c46c065baf4cd4");
+        consensus.BIP34Hash = uint256S("0x000000cb9d3520a3dc580480b8cf852426aa0d41f81c06cdb58ab257b34fcc08");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
         consensus.powLimit = uint256S("0x000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -197,25 +200,27 @@ public:
 
         consensus.nLastPOWBlock = 1000;
 
-        pchMessageStart[0] = 0xc0;
-        pchMessageStart[1] = 0x10;
-        pchMessageStart[2] = 0xbc;
+        pchMessageStart[0] = 0xc6;
+        pchMessageStart[1] = 0xe4;
+        pchMessageStart[2] = 0x77;
         pchMessageStart[3] = 0xc7;
         nDefaultPort = 18566;
         nPruneAfterHeight = 1000;
 
-        genesis = CreateGenesisBlock(1296688602, 7722247, 0x1e00ffff,  0x20000000, 0);
+        genesis = CreateGenesisBlock(1540347880, 12626915, 0x1e00ffff,  0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
 
-        assert(consensus.hashGenesisBlock == uint256S("0x0000006a4a57113eb76d2361f4fd37c0413d5cbabf7b040f76c46c065baf4cd4"));
-        assert(genesis.hashMerkleRoot == uint256S("0xc7549a010d446262858511703fe43fbeb49215d89dd27597ff10777aa61ebcc1"));
+        assert(consensus.hashGenesisBlock == uint256S("0x000000cb9d3520a3dc580480b8cf852426aa0d41f81c06cdb58ab257b34fcc08"));
+        assert(genesis.hashMerkleRoot == uint256S("0x8f93442227254dd5fcb341e9e545e6b5d4f1797b1e81560ec60c5de1fe475182"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
+        vSeeds.push_back(CDNSSeedData("test1.cnet", "test1.dns.cnet"));
+        vSeeds.push_back(CDNSSeedData("test2.cnet", "test2.dns.cnet"));
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,45);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,108);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,78);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,140);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,192);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container<std::vector<unsigned char> >();
 
@@ -229,7 +234,7 @@ public:
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
-            ( 0, uint256S("0x0000006a4a57113eb76d2361f4fd37c0413d5cbabf7b040f76c46c065baf4cd4")),
+            ( 0, uint256S("0x000000cb9d3520a3dc580480b8cf852426aa0d41f81c06cdb58ab257b34fcc08")),
         };
 
         chainTxData = ChainTxData{
@@ -249,7 +254,6 @@ class CRegTestParams : public CChainParams {
 public:
     CRegTestParams() {
         strNetworkID = "regtest";
-        consensus.nSubsidyHalvingInterval = 150;
         consensus.BIP34Height = 100000000; // BIP34 has not activated on regtest (far in the future so block v1 are not rejected in tests)
         consensus.BIP34Hash = uint256();
 //        consensus.BIP65Height = 1351; // BIP65 activated on regtest (Used in rpc activation tests)
@@ -278,11 +282,11 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
 
-        consensus.nLastPOWBlock = 10000;
+        consensus.nLastPOWBlock = 1000;
 
-        pchMessageStart[0] = 0xc0;
-        pchMessageStart[1] = 0x10;
-        pchMessageStart[2] = 0xbc;
+        pchMessageStart[0] = 0xc6;
+        pchMessageStart[1] = 0xe4;
+        pchMessageStart[2] = 0x77;
         pchMessageStart[3] = 0x80;
         nDefaultPort = 18577;
         nPruneAfterHeight = 1000;
@@ -290,8 +294,8 @@ public:
         genesis = CreateGenesisBlock(1533660000, 0, 0x207fffff, 0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
 
-        assert(consensus.hashGenesisBlock == uint256S("0x5749b00048ce7eab2b68957b3af7f4e1f51da6cf11b20940d4ab216a88d41a6b"));
-        assert(genesis.hashMerkleRoot == uint256S("0xc71c8b181519535b3ac4c70c0f43346a4058f0c0f78654ead5ff498c3bbab339"));
+        assert(consensus.hashGenesisBlock == uint256S("0x1f8a507cbd298d621347aae07b71f1a2b6e60003e3658769795315a1b8ba450c"));
+        assert(genesis.hashMerkleRoot == uint256S("0x78ea7da551795b6c5ea6b634b07c08dbf6a9e322a3d4e93f1349b1e614b7e8b8"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
@@ -303,7 +307,7 @@ public:
 
         checkpointData = (CCheckpointData){
             boost::assign::map_list_of
-            ( 0, uint256S("0x5749b00048ce7eab2b68957b3af7f4e1f51da6cf11b20940d4ab216a88d41a6b"))
+            ( 0, uint256S("0x1f8a507cbd298d621347aae07b71f1a2b6e60003e3658769795315a1b8ba450c"))
         };
 
         chainTxData = ChainTxData{
@@ -312,9 +316,9 @@ public:
             0
         };
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,45);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,108);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,78);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,140);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,192);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container<std::vector<unsigned char> >();
     }
