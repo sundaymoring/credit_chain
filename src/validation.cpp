@@ -552,6 +552,21 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
             if (issueinfo.totalSupply != tx.vout[1].nTokenValue || issueinfo.totalSupply != nTokenValueOut) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issue-amount");
             }
+            if (issueinfo.type != 0) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issue-type");
+            }
+            if (issueinfo.symbol.length() > 20 ) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issue-symbol");
+            }
+            if (issueinfo.name.length() > 80 ) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issue-name");
+            }
+            if (issueinfo.url.length() > 80 ) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issue-url");
+            }
+            if (issueinfo.description.length() > 255 ) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-bad-issue-description");
+            }
         }
         if (scriptcode == TTC_SEND) {
             CScriptTokenSendInfo sendinfo;
@@ -3741,7 +3756,7 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev, int64_t nAdjustedTime)
 {
-    const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+//    const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     // Check difficulty pow and pos
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
