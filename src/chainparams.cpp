@@ -167,7 +167,7 @@ public:
     CTestNetParams() {
         strNetworkID = "test";
         consensus.BIP34Height = 0;
-        consensus.BIP34Hash = uint256S("0x000000cb9d3520a3dc580480b8cf852426aa0d41f81c06cdb58ab257b34fcc08");
+        consensus.BIP34Hash = uint256S("0x0000005ac4cb50e1de273d41076571586a7eb5e6de65c24fa0720d7b1b716acd");
         consensus.BIP65Height = 0;
         consensus.BIP66Height = 0;
         consensus.powLimit = uint256S("0x000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -207,11 +207,11 @@ public:
         nDefaultPort = 18566;
         nPruneAfterHeight = 1000;
 
-        genesis = CreateGenesisBlock(1540347880, 12626915, 0x1e00ffff,  0x20000000, 0);
+        genesis = CreateGenesisBlock(1540347888, 2340705, 0x1e00ffff,  0x20000000, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
 
-        assert(consensus.hashGenesisBlock == uint256S("0x000000cb9d3520a3dc580480b8cf852426aa0d41f81c06cdb58ab257b34fcc08"));
-        assert(genesis.hashMerkleRoot == uint256S("0x8f93442227254dd5fcb341e9e545e6b5d4f1797b1e81560ec60c5de1fe475182"));
+        assert(consensus.hashGenesisBlock == uint256S("0x0000005ac4cb50e1de273d41076571586a7eb5e6de65c24fa0720d7b1b716acd"));
+        assert(genesis.hashMerkleRoot == uint256S("0xa1ec4b3ffe69f523683b7e8d15b574e7c2e0b82615c933b8177ab774ead0bdb7"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
@@ -234,7 +234,7 @@ public:
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
-            ( 0, uint256S("0x000000cb9d3520a3dc580480b8cf852426aa0d41f81c06cdb58ab257b34fcc08")),
+            ( 0, uint256S("0x0000005ac4cb50e1de273d41076571586a7eb5e6de65c24fa0720d7b1b716acd")),
         };
 
         chainTxData = ChainTxData{

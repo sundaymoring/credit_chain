@@ -5,6 +5,9 @@
 #include "clientversion.h"
 #include "util.h"
 
+const CAmount TOKEN_DEFAULT_VALUE = 0.001 * COIN;
+const CAmount TOKEN_ISSUE_FEE = 5000000 * COIN;
+
 tokencode GetTokenCodeFromScript(const CScript& script, std::vector<unsigned char>* pTokenData)
 {
     txnouttype whichType;

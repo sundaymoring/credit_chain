@@ -10,8 +10,8 @@
 
 #include <vector>
 
-static const CAmount TOKEN_DEFAULT_VALUE = 0.001 * COIN;
-static const CAmount TOKEN_ISSUE_FEE = 1000000 * COIN;
+extern const CAmount TOKEN_DEFAULT_VALUE;
+extern const CAmount TOKEN_ISSUE_FEE;
 
 class CTransaction;
 

@@ -46,7 +46,7 @@ public:
     CBaseTestNetParams()
     {
         nRPCPort = 18565;
-        strDataDir = "testnet";
+        strDataDir = "testnet2";
     }
 };
 static CBaseTestNetParams testNetParams;
@@ -97,8 +97,8 @@ std::string ChainNameFromCommandLine()
 
     if (fTestNet && fRegTest)
         throw std::runtime_error("Invalid combination of -regtest and -testnet.");
-    if (!(fTestNet || fRegTest))
-        throw std::runtime_error("Mainnet not ready, use -regtest or -testnet.");
+//    if (!(fTestNet || fRegTest))
+//        throw std::runtime_error("Mainnet not ready, use -regtest or -testnet.");
     if (fRegTest)
         return CBaseChainParams::REGTEST;
     if (fTestNet)
