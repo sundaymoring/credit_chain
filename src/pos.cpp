@@ -1,3 +1,7 @@
+// Copyright (c) 2016-2018 The Currency Network developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
 #include "pos.h"
 #include "txdb.h"
 #include "script/interpreter.h"
