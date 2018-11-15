@@ -516,10 +516,10 @@ std::string HelpMessage(HelpMessageMode mode)
 
 std::string LicenseInfo()
 {
-    const std::string URL_SOURCE_CODE = "<https://github.com/bitcoin/bitcoin>";
-    const std::string URL_WEBSITE = "<https://bitcoincore.org>";
+    const std::string URL_SOURCE_CODE = "<https://github.com/currnet/currnet>";
+    const std::string URL_WEBSITE = "<https://currnet.global>";
 
-    return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) + " ") + "\n" +
+    return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2016, COPYRIGHT_YEAR) + " ") + "\n" +
            "\n" +
            strprintf(_("Please contribute if you find %s useful. "
                        "Visit %s for further information about the software."),
@@ -527,6 +527,10 @@ std::string LicenseInfo()
            "\n" +
            strprintf(_("The source code is available from %s."),
                URL_SOURCE_CODE) +
+	       "\n" +
+	       "\n" +
+	       _("This project is forked form the Bitcoin Core <https://bitcoincore.org>") +  "\n" +
+		   _("written by The Bitcoin Core developers") +
            "\n" +
            "\n" +
            _("This is experimental software.") + "\n" +
