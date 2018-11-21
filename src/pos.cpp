@@ -26,25 +26,6 @@ uint256 ComputeStakeModifier(const CBlockIndex* pindexPrev, const uint256& kerne
     return ss.GetHash();
 }
 
-// BlackCoin kernel protocol v3
-// coinstake must meet hash target according to the protocol:
-// kernel (input 0) must meet the formula
-//     hash(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime) < bnTarget * nWeight
-// this ensures that the chance of getting a coinstake is proportional to the
-// amount of coins one owns.
-// The reason this hash is chosen is the following:
-//   nStakeModifier: scrambles computation to make it very difficult to precompute
-//                   future proof-of-stake
-//   txPrev.nTime: slightly scrambles computation
-//   txPrev.vout.hash: hash of txPrev, to reduce the chance of nodes
-//                     generating coinstake at the same time
-//   txPrev.vout.n: output number of txPrev, to reduce the chance of nodes
-//                  generating coinstake at the same time
-//   nTime: current timestamp
-//   block/tx hash should not be used here as they can be generated in vast
-//   quantities so as to generate blocks faster, degrading the system back into
-//   a proof-of-work situation.
-//
 bool CheckStakeKernelHash( const CBlockIndex* pindexPrev, unsigned int nBits, const CCoins& txPrev, const COutPoint& prevout, unsigned int nTimeTx)
 {
     // Weight

@@ -1,10 +1,5 @@
 *.tar.gz
 
-black14-revert*
-blackcoin14*
-bitcoin14_pos*
-core
-
 *.exe
 src/bitcoin
 src/bitcoind
