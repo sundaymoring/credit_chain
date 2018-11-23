@@ -2,9 +2,9 @@
 
 *.exe
 src/bitcoin
-src/bitcoind
-src/bitcoin-cli
-src/bitcoin-tx
+src/currnetd
+src/currnet-cli
+src/currnet-tx
 src/test/test_bitcoin
 src/test/test_bitcoin_fuzzy
 src/qt/test/test_bitcoin-qt
