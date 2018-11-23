@@ -182,7 +182,7 @@ AC_ARG_WITH([protoc-bindir],[AS_HELP_STRING([--with-protoc-bindir=BIN_DIR],[spec
 AC_ARG_ENABLE(man,
     [AS_HELP_STRING([--disable-man],
                     [do not install man pages (default is to install)])],,
-    enable_man=yes)
+    enable_man=no)
 AM_CONDITIONAL(ENABLE_MAN, test "$enable_man" != no)
 
 # Enable debug
