@@ -22,6 +22,8 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
+#include "dpos/dpos.h"
+#include "wallet/wallet.h"
 
 #include <memory>
 #include <stdint.h>
@@ -950,6 +952,104 @@ UniValue estimatesmartpriority(const JSONRPCRequest& request)
     return result;
 }
 
+
+
+#include <pthread.h>
+#include <unistd.h>
+
+CCriticalSection cs_mining;
+bool fIsDelegating = false;
+CBitcoinAddress delegateaddress;
+CKey delegatekey;
+
+void* ThreadDelegating(void *arg)
+{
+    DPOS& dPos = DPOS::GetInstance();
+
+    CPubKey pubkey = delegatekey.GetPubKey();
+    vector<unsigned char> dd;
+    CScript scriptPubKey = CScript() << ToByteVector(pubkey) << OP_CHECKSIG;
+
+    std::vector<unsigned char> vctPublicKey;
+    opcodetype op;
+    CScript::const_iterator it = scriptPubKey.begin();
+    scriptPubKey.GetOp2(it, op, &vctPublicKey);
+
+    CKeyID keyID = pubkey.GetID();
+    auto addr = CBitcoinAddress(keyID).ToString();
+
+    while(!ShutdownRequested() && fIsDelegating){
+        do {
+            LOCK(cs_main);
+            time_t t = time(NULL);
+            DelegateInfo cDelegateInfo;
+
+            if(dPos.IsMining(cDelegateInfo, addr, t) == false){
+                break;
+            }
+
+            const CChainParams& chainparams = Params(CBaseChainParams::MAIN);
+
+            std::unique_ptr<CBlockTemplate> pblock = NULL;//= BlockAssembler(chainparams).CreateNewBlock(scriptPubKey, DPOS::DelegateInfoToScript(cDelegateInfo, delegatekey, t), t);
+            if(pblock) {
+                unsigned int extraNonce = 0;
+                IncrementExtraNonce(&pblock->block, chainActive.Tip(), extraNonce);
+
+                std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>(pblock->block);
+
+                if(ProcessNewBlock(Params(), blockptr, true, NULL) == false) {
+                    LogPrintf("ProcessNewBlock failed");
+                }
+
+                printf("mining addr:%s height:%u time:%lu starttime:%lu...\n", addr.c_str(), chainActive.Height(), t, DPOS::GetInstance().GetStartTime());
+            }
+        } while(0);
+        sleep(1);
+    }
+    return NULL;
+}
+
+UniValue startforging(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 2)
+        throw runtime_error(
+            "startforging delegateAddress"
+            "\nstart forging on the lbtc address which have been registered as delegate"
+            "\nand receivce enough votes and rank in the top 101.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"delegateAddress\"     (string, required) The delegate address.\n"
+            "\nResult:\n"
+            "\"result\"                 (bool) Forging sucess return \"true\", other return \"false\".\n"
+            "\nExamples:\n"
+            + HelpExampleCli("startforging", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\"")
+            + HelpExampleRpc("startforging", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\"")
+    );
+
+    delegateaddress.SetString(request.params[0].get_str());
+    CKeyID delegate;
+    delegateaddress.GetKeyID(delegate);
+
+    if (!pwalletMain->GetKey(delegate, delegatekey)) {
+        LogPrintf("startforging address:%s get private_key fail", request.params[0].get_str());
+        return "false";
+    }
+
+//    if(request.params[0].get_str() != DPOS::GetInstance().GetSeedDelegateAddress() && Vote::GetInstance().GetDelegate(delegate).empty()) {
+//        LogPrintf("startforging address:%s not registe", request.params[0].get_str());
+//        return "false";
+//    }
+
+    LOCK(cs_mining);
+    if(fIsDelegating == false) {
+        fIsDelegating = true;
+        pthread_t id;
+        pthread_create(&id, NULL, ThreadDelegating, NULL);
+    }
+
+    return "true";
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
@@ -958,6 +1058,7 @@ static const CRPCCommand commands[] =
     { "mining",             "prioritisetransaction",  &prioritisetransaction,  true,  {"txid","priority_delta","fee_delta"} },
     { "mining",             "getblocktemplate",       &getblocktemplate,       true,  {"template_request"} },
     { "mining",             "submitblock",            &submitblock,            true,  {"hexdata","parameters"} },
+    { "mining",             "startforging",           &startforging,           true,  {"address"} },
 
     { "generating",         "generate",               &generate,               true,  {"nblocks","maxtries"} },
     { "generating",         "generatetoaddress",      &generatetoaddress,      true,  {"nblocks","address","maxtries"} },

@@ -22,6 +22,8 @@
 #include "wallet.h"
 #include "walletdb.h"
 #include "token/db.h"
+#include "wallet/coincontrol.h"
+#include "dpos/vote.h"
 
 #include <stdint.h>
 
@@ -3554,6 +3556,117 @@ UniValue bumpfee(const JSONRPCRequest& request)
     return result;
 }
 
+static void SendRegister(const CBitcoinAddress &address, const std::string& name, CWalletTx& wtxNew){
+    CAmount curBalance = pwalletMain->GetBalance();
+    std::string strError;
+
+    CCoinControl coinControl;
+    coinControl.nMinimumTotalFee = 100000000; // HTODO fee set const variable
+    coinControl.fAllowOtherInputs = true;
+
+//    if (coinControl.nMinimumTotalFee > curBalance)
+//        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+
+    CScript scriptDposRegister = CreateDposRegisterScript(address, name);
+
+    // Create and send the transaction
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    int nChangePosRet = 1;
+    vector<CRecipient> vecSend;
+    CRecipient recipient0 = {scriptDposRegister, 0, TOKENID_ZERO, 0, false};
+    vecSend.push_back(recipient0);
+
+    if (!pwalletMain->CreateDposTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, &coinControl, true)) {
+        if (nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+
+    return;
+}
+
+UniValue regist(const JSONRPCRequest& request){
+    if (request.fHelp || (request.params.size() != 2) ) {
+        throw runtime_error(
+            "regist \"address\" \"name\"\n"
+
+            "\nIssue a new token. Return the txid if seccess\n"
+
+            "\nArguments:\n"
+            "1. address 	         (string, required) delegate register to\n"
+            "2. name                 (string, required) delegate name\n"
+
+            "\nResult:\n"
+            "\"txid\"                (string) the hex-encoded transaction hash\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("issuenewtoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" \"delegateA\"")
+            + HelpExampleRpc("issuenewtoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" \"delegateA\"")
+        );
+    }
+
+
+    CWalletTx wtx;
+
+    CBitcoinAddress address(request.params[0].get_str());
+    if (!address.IsValid()){
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid CurrNet address");
+    }
+    std::string name = request.params[1].get_str();
+    if (name.length() > 20) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "issue symbol too long");
+    }
+
+    EnsureWalletIsUnlocked();
+    SendRegister(address, name, wtx);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue listdelegates(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 0)
+        throw runtime_error(
+            "listdelegates\n"
+            "\nlist all delegates.\n"
+            + HelpRequiringPassphrase() +
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "      \"name\"           (string) The delegate name.\n"
+            "      \"address\"        (string) The delegate address.\n"
+            "  }\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listdelegates", "")
+            + HelpExampleRpc("listdelegates", "")
+        );
+    UniValue results(UniValue::VARR);
+
+    auto result = Vote::GetInstance().ListDelegates();
+    for(auto w : result){
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("name", std::string(w.first) ));
+        entry.push_back(Pair("address", CBitcoinAddress(w.second).ToString() ));
+        results.push_back(entry);
+    }
+
+    return results;
+}
+
 extern UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
 extern UniValue importprivkey(const JSONRPCRequest& request);
 extern UniValue importaddress(const JSONRPCRequest& request);
@@ -3621,6 +3734,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrasechange",   &walletpassphrasechange,   true,   {"oldpassphrase","newpassphrase"} },
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true,   {"passphrase","timeout"} },
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true,   {"txid"} },
+    { "dpos",               "regist",                   &regist,                   true,   {"address", "name"} },
+    { "dpos",               "listdelegates",            &listdelegates,            true,   {} },
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

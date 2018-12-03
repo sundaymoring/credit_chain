@@ -140,7 +140,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_NOP7                   : return "OP_NOP7";
     case OP_NOP8                   : return "OP_NOP8";
     case OP_TOKEN                  : return "OP_TOKEN";
-    case OP_NOP10                  : return "OP_NOP10";
+    case OP_NOP10                  : return "OP_DPOS";
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
@@ -249,6 +249,19 @@ bool CScript::IsTokenFlag() const
         return false;
 
     return this->IsPushOnly(this->begin()+4);
+}
+
+bool CScript::IsDposFlag() const
+{
+    if (this->size() < 3 || this->size() > MAX_SCRIPT_SIZE)
+        return false;
+
+    if ((*this)[0] != OP_DPOS ||
+            (*this)[1] != 0x01 ||
+            (*this)[2] > DPOS_PROTOCOL_VERSION )
+        return false;
+
+    return this->IsPushOnly(this->begin()+3);
 }
 
 bool CScript::IsPushOnly(const_iterator pc) const

@@ -55,6 +55,7 @@ enum txnouttype
     TX_WITNESS_V0_SCRIPTHASH,
     TX_WITNESS_V0_KEYHASH,
     TX_TOKEN,
+    TX_DPOS,
 };
 
 class CNoDestination {

@@ -35,6 +35,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_WITNESS_V0_KEYHASH: return "witness_v0_keyhash";
     case TX_WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
     case TX_TOKEN: return "token";
+    case TX_DPOS: return "dpos";
     }
     return NULL;
 }
@@ -98,6 +99,21 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         }
 
         typeRet = TX_TOKEN;
+        return true;
+    }
+
+    if (scriptPubKey.IsDposFlag()) {
+        CScript::const_iterator pc = scriptPubKey.begin() + 3;
+        while (pc < scriptPubKey.end()){
+            opcodetype opcode;
+            std::vector<unsigned char> t;
+            if (!scriptPubKey.GetOp(pc, opcode, t))
+                return false;
+            if (0x00 <= opcode && opcode <= OP_PUSHDATA4)
+                vSolutionsRet.push_back(t);
+        }
+
+        typeRet = TX_DPOS;
         return true;
     }
 

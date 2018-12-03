@@ -39,6 +39,8 @@
 #include "warnings.h"
 #include "pubkey.h"
 #include "token/db.h"
+#include "dpos/dpos.h"
+#include "dpos/vote.h"
 
 #include <atomic>
 #include <sstream>
@@ -84,6 +86,7 @@ bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
 bool fTimestampIndex = false;
 bool fSpentIndex = false;
 bool fAddressIndex = false;
+bool fUseIrreversibleBlock = true;
 
 uint256 hashAssumeValid;
 
@@ -98,6 +101,16 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 CScript COINBASE_FLAGS;
 
 const std::string strMessageMagic = "CurrNet Signed Message:\n";
+
+struct uint256_hash
+{
+    std::size_t operator()(uint256 const& k) const
+    {
+        std::size_t hash = 0 ;
+        boost::hash_range( hash, k.begin(), k.end() ) ;
+        return hash ;
+    }
+};
 
 // Internal stuff
 namespace {
@@ -876,10 +889,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             dFreeCount += nSize;
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee + (scriptTokenCode == TTC_ISSUE ? TOKEN_ISSUE_FEE : 0))
-            return state.Invalid(false,
-                REJECT_HIGHFEE, "absurdly-high-fee",
-                strprintf("%d > %d", nFees, nAbsurdFee));
+        // HTODO set dpos nAbsurdFee
+//        if (nAbsurdFee && nFees > nAbsurdFee + (scriptTokenCode == TTC_ISSUE ? TOKEN_ISSUE_FEE : 0))
+//            return state.Invalid(false,
+//                REJECT_HIGHFEE, "absurdly-high-fee",
+//                strprintf("%d > %d", nFees, nAbsurdFee));
 
         if (scriptTokenCode==TTC_ISSUE && nFees <= TOKEN_ISSUE_FEE )
             return state.Invalid(false, REJECT_INSUFFICIENTFEE, "issue-token-insufficien-tee", strprintf("%d < %d", nFees, TOKEN_ISSUE_FEE));
@@ -2228,6 +2242,369 @@ public:
     }
 };
 
+
+static int64_t set_vch(const std::vector<unsigned char>& vch)
+{
+  if (vch.empty())
+      return 0;
+
+  int64_t result = 0;
+  for (size_t i = 0; i != vch.size(); ++i)
+      result |= static_cast<int64_t>(vch[i]) << 8*i;
+
+  // If the input vector's most significant byte is 0x80, remove it from
+  // the result's msb and return a negative.
+  if (vch.back() & 0x80)
+      return -((int64_t)(result & ~(0x80ULL << (8 * (vch.size() - 1)))));
+
+  return result;
+}
+
+//OP_DPOS 0x01 DPOS_PROTOCOL_VERSION pubkey time sig data
+bool IsVotingTxout(const CTxOut& txout, CPubKey& pubkey, uint64_t& nTime, CScript& script)
+{
+    auto p = txout.scriptPubKey[0];
+    if (txout.nValue != 0 || txout.nTokenValue != 0 || p != OP_DPOS)
+        return false;
+    if (0x01 != txout.scriptPubKey[1] || DPOS_PROTOCOL_VERSION != txout.scriptPubKey[2]){
+        return false;
+    }
+    opcodetype opcode;
+    std::vector<unsigned char> vchRet;
+    auto iter = txout.scriptPubKey.begin();
+    iter += 3;
+
+
+    std::vector<unsigned char> vctPublicKey;
+    std::vector<unsigned char> vctTime;
+    std::vector<unsigned char> vctSig;
+    std::vector<unsigned char> vctData;
+    if(txout.scriptPubKey.GetOp2(iter, opcode, &vctPublicKey) == false
+        || txout.scriptPubKey.GetOp2(iter, opcode, &vctTime) == false
+        || txout.scriptPubKey.GetOp2(iter, opcode, &vctSig) == false
+        ) {
+        return false;
+    }
+
+    if ( txout.scriptPubKey.GetOp2(iter, opcode, &vctData) == false )
+        return false;
+
+
+    pubkey.Set(vctPublicKey.begin(), vctPublicKey.end());
+    if (!pubkey.IsValid())
+    {
+        LogPrint("DPoS", "get pubkey is invalid\n");
+        return false;
+    }
+
+    nTime = set_vch(vctTime);
+    auto hTimestamp = Hash(vctTime.begin(), vctTime.end());
+
+    if (!pubkey.Verify(hTimestamp, vctSig))
+    {
+        LogPrint("DPoS", "match sign failed\n");
+        return false;
+    }
+
+    script = CScript(vctData.begin(), vctData.end());
+
+    return true;
+}
+
+bool ProcessRegiste(uint32_t nHeight, uint256 hash, const CPubKey& pubkey, uint64_t nTime, const CScript& script, bool fUndo)
+{
+    if (script[0] != dpos_register)
+        return false;
+    auto iter = script.begin();
+    ++iter;
+    opcodetype opcode;
+    std::vector<unsigned char> vchRet;
+    if (!script.GetOp2(iter, opcode, &vchRet)) {
+        LogPrintf("DPoS Register: Height:%u fail\n", nHeight);
+        return false;
+    }
+
+    if (vchRet.size() != 32) {
+        return false;
+    }
+
+    CKeyID delegate = pubkey.GetID();
+    std::string name;
+    for(auto i : vchRet) {
+        if(i == '\0')
+            break;
+        name += i;
+    }
+
+    return Vote::GetInstance().ProcessRegister(delegate, name, hash, nHeight, fUndo);
+}
+
+bool ProcessCancelVote(uint32_t nHeight, uint256 hash, const CPubKey& pubkey, uint64_t nTime, const CScript& script, bool fUndo)
+{
+    auto iter = script.begin();
+    ++iter;
+    opcodetype opcode;
+    std::vector<unsigned char> vchRet;
+    if (!script.GetOp2(iter, opcode, &vchRet))
+        return false;
+    if (vchRet.size() % 20 != 0)
+    {
+        LogPrintf("invalid revoke data");
+        return false;
+    }
+    auto it = vchRet.begin();
+    auto key = pubkey.GetID();
+
+    std::set<CKeyID> setDelegate;
+
+    while(it != vchRet.end()) {
+        auto delegate = CKeyID(uint160(std::vector<unsigned char>(it, it + 20)));
+        auto r = setDelegate.insert(delegate);
+        if(r.second == false)
+            return false;
+
+        it += 20;
+    }
+
+    return Vote::GetInstance().ProcessCancelVote(key, setDelegate, hash, nHeight, fUndo);
+}
+
+bool ProcessVote(uint32_t nHeight, uint256 hash, const CPubKey& pubkey, uint64_t nTime, const CScript& script, bool fUndo)
+{
+    auto iter = script.begin();
+    ++iter;
+    opcodetype opcode;
+    std::vector<unsigned char> vchRet;
+    if (!script.GetOp2(iter, opcode, &vchRet)) {
+        LogPrintf("DPoS Vote: Height:%u Scripte Error", nHeight);
+        return false;
+    }
+
+    if (vchRet.size() % 20 != 0)
+    {
+        LogPrintf("DPoS Vote: Height:%u Data Error", nHeight);
+        return false;
+    }
+
+    auto it = vchRet.begin();
+    auto key = pubkey.GetID();
+
+    std::set<CKeyID> setDelegate;
+
+    while(it != vchRet.end()) {
+        auto delegate = CKeyID(uint160(std::vector<unsigned char>(it, it + 20)));
+        auto r = setDelegate.insert(delegate);
+        if(r.second == false) {
+            LogPrintf("DPoS Vote: Height:%u Data Duplicate Error\n", nHeight);
+            return false;
+        }
+
+        it += 20;
+    }
+
+    return Vote::GetInstance().ProcessVote(key, setDelegate, hash, nHeight, fUndo);
+}
+
+
+bool DoVoting(const CBlock& block, uint32_t nHeight, std::map<uint256, uint64_t>& mapTxFee, bool fUndo)
+{
+    if(fUndo) {
+        LogPrintf("DPoS UndoVoting height:%u hash:%s\n", nHeight, block.GetHash().ToString().c_str());
+    } else {
+        LogPrintf("DPoS DoVoting height:%u hash:%s\n", nHeight, block.GetHash().ToString().c_str());
+    }
+
+    CPubKey pubkey;
+    CScript script;
+
+    for(auto& t : block.vtx) {
+        uint64_t nTime = 0;
+        auto& to = t->vout[0];
+
+        if (IsVotingTxout(to, pubkey, nTime, script))
+        {
+            if (script.size() < 1)
+                return false;
+
+            switch (script[0]) {
+                case dpos_register:
+                    for (auto& m : mapTxFee){
+                        LogPrintf("mapTxFee[%s]=%llu\n", m.first.ToString(), m.second);
+                    }
+                    LogPrintf("t->GetHash()=%s\n", t->GetHash().ToString());
+                    if(mapTxFee[t->GetHash()] >= 100000000)
+                        ProcessRegiste(nHeight, (*t).GetHash(), pubkey, nTime, script, fUndo);
+                break;
+
+                case dpos_vote:
+                    if(mapTxFee[t->GetHash()] >= 1000000)
+                        ProcessVote(nHeight, (*t).GetHash(), pubkey, nTime, script, fUndo);
+                break;
+
+                case dpos_revoke:
+                    if(mapTxFee[t->GetHash()] >= 1000000)
+                        ProcessCancelVote(nHeight, (*t).GetHash(), pubkey, nTime, script, fUndo);
+                break;
+            }
+        }
+    }
+    return true;
+}
+
+//std::map<uint256, std::map<uint32_t, CTxOut>> mapHashTxout;
+std::unordered_map<uint256, std::map<uint32_t, CTxOut>, uint256_hash> mapHashTxout(500000);
+uint32_t countMapHashTxout = 0;
+std::list<std::pair<uint256, uint32_t>> listTxout;
+CCriticalSection cs_mapHashTxout;
+
+void PutTxoutCache(const CTxOut& txout, const uint256 &txid, uint32_t nTxoutIndex)
+{
+    LOCK(cs_mapHashTxout);
+
+    bool fSuccess = false;
+    auto it = mapHashTxout.find(txid);
+    if(it != mapHashTxout.end()) {
+        auto item = it->second.find(nTxoutIndex);
+        if(item != it->second.end()) {
+            it->second[nTxoutIndex] = txout;
+            fSuccess = true;
+        }
+    } else {
+        std::map<uint32_t, CTxOut> t;
+        t[nTxoutIndex] = txout;
+        mapHashTxout[txid] = t;
+        fSuccess = true;
+    }
+
+    if(fSuccess) {
+        ++countMapHashTxout;
+        listTxout.push_back(std::make_pair(txid, nTxoutIndex));
+
+        if (false){
+//        if(countMapHashTxout > (uint64_t)40000 * DPOS::instance().GetMaxMemory()) {
+        //if(countMapHashTxout > (uint64_t)2 * DPoS::GetInstance().GetMaxMemory()) {
+            uint32_t nLoop = countMapHashTxout >> 4;
+            for(uint32_t i = 0; i < nLoop; ++i) {
+                auto& item = listTxout.front();
+                auto& set = mapHashTxout[item.first];
+                if(set.size() == 1) {
+                    mapHashTxout.erase(item.first);
+                } else {
+                    set.erase(item.second);
+                }
+
+                listTxout.pop_front();
+                --countMapHashTxout;
+            }
+
+            LogPrintf("PutTxoutCache clear cache countMapHashTxout:%u mapHashTxout.size:%u nLoop:%u\n", countMapHashTxout, mapHashTxout.size(), nLoop);
+        }
+    }
+    return;
+}
+
+bool GetTxoutCache(CTxOut& txout, const uint256 &txid, uint32_t nTxoutIndex)
+{
+    bool ret = false;
+    LOCK(cs_mapHashTxout);
+
+    auto it = mapHashTxout.find(txid);
+    if(it != mapHashTxout.end()) {
+        auto& m = it->second;
+        auto out = m.find(nTxoutIndex);
+        if(out != m.end()) {
+            txout = out->second;
+            ret = true;
+        }
+    }
+
+#ifdef whh
+    if(mapHashTxout.size() > (uint64_t)5000 * DPoS::GetInstance().GetMaxMemory()) {
+        mapHashTxout.clear();
+    }
+#endif
+
+    return ret;
+}
+
+bool GetTxout(CTxOut& txout, const uint256 &txid, uint32_t nTxoutIndex)
+{
+    if(GetTxoutCache(txout, txid, nTxoutIndex)) {
+        return true;
+    }
+
+    bool ret = false;
+    CTransactionRef tx;
+    uint256 hashBlock;
+
+    if (GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true))
+    {
+        txout = tx->vout[nTxoutIndex];
+        ret = true;
+    }
+
+    return ret;
+}
+
+void CalculateBalance(const CBlock& block, bool fIsAdd, std::map<uint256, uint64_t>* mapTxFee)
+{
+    std::vector<std::pair<CKeyID, int64_t>> addressBalances;
+
+    for (auto t:block.vtx)
+    {
+        uint64_t fee = 0;
+        for(auto& i:t->vin)
+        {
+            CTransactionRef tx;
+            uint256 hashBlock;
+
+            CTxOut txout;
+            if(i.prevout.hash.IsNull() == false && GetTxout(txout, i.prevout.hash, i.prevout.n)) {
+                fee += txout.nValue;
+
+                CTxDestination address;
+                if (ExtractDestination(txout.scriptPubKey, address)) {
+                    int64_t value = static_cast<int64_t>(txout.nValue);
+                    if(address.type() == typeid(CKeyID)) {
+                        addressBalances.push_back(std::make_pair(boost::get<CKeyID>(address), fIsAdd ? 0 - value : value));
+                    }
+                }
+            }
+        }
+
+        for(auto& v:t->vout)
+        {
+            fee -= v.nValue;
+            CTxDestination address;
+            if ((!ExtractDestination(v.scriptPubKey, address)))
+                continue;
+
+            if(address.type() == typeid(CKeyID)) {
+                addressBalances.push_back(std::make_pair(boost::get<CKeyID>(address), fIsAdd ? v.nValue : 0 - v.nValue));
+            }
+        }
+
+        if(mapTxFee) {
+            mapTxFee->insert(std::make_pair(t->GetHash(), fee));
+        }
+
+    }
+    Vote::GetInstance().UpdateAddressBalance(addressBalances);
+}
+
+//HTODO  let CURRENT_VERSION = DPOS_VERSION2
+void ProcessDPoSConnectBlock(const CBlock& block, uint64_t nBlockHeight)
+{
+    LogPrint("DPoS", "ProcessDPoSConnectBlock %s %lu %u\n", block.GetHash().ToString().c_str(), nBlockHeight, block.nTime);
+
+//    if(CTransaction::CURRENT_VERSION < CTransaction::DPOS_VERSION2 && nBlockHeight >= 1250000)
+//        CTransaction::CURRENT_VERSION = CTransaction::DPOS_VERSION2;
+
+    std::map<uint256, uint64_t> mapTxFee;
+    CalculateBalance(block, true, &mapTxFee);
+    DoVoting(block, nBlockHeight, mapTxFee, false);
+}
+
 // Protected by cs_main
 static ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
 
@@ -2970,6 +3347,18 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
                 InvalidBlockFound(pindexNew, state);
             return error("ConnectTip(): ConnectBlock %s failed", pindexNew->GetBlockHash().ToString());
         }
+
+
+        if( !DPOS::GetInstance().CheckBlock(*pindexNew) ) {
+            state.DoS(50, false, REJECT_INVALID, "DPoS CheckBlock hash error");
+            InvalidBlockFound(pindexNew, state);
+            LogPrintf("ConnectTip(): DPoS CheckBlock hash: %s error\n", pindexNew->GetBlockHash().ToString().c_str());
+            return error("ConnectTip(): DPoS CheckBlock hash: %s error\n", pindexNew->GetBlockHash().ToString());
+        }
+
+        ProcessDPoSConnectBlock(blockConnecting, pindexNew->nHeight);
+
+
         nTime3 = GetTimeMicros(); nTimeConnectTotal += nTime3 - nTime2;
         LogPrint("bench", "  - Connect total: %.2fms [%.2fs]\n", (nTime3 - nTime2) * 0.001, nTimeConnectTotal * 0.000001);
         bool flushed = view.Flush();
@@ -5199,3 +5588,4 @@ bool GetAddressUnspent(uint160 addressHash, int type,
 
     return true;
 }
+

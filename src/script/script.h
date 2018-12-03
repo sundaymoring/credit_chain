@@ -51,6 +51,7 @@ enum tokencode
 };
 
 const uint8_t TOKEN_PROTOCOL_VERSION  = 0x01;
+const uint8_t DPOS_PROTOCOL_VERSION  = 0x01;
 
 /** Script opcodes */
 enum opcodetype
@@ -188,7 +189,8 @@ enum opcodetype
     OP_NOP8 = 0xb7,
 	OP_TOKEN = 0xb8,
     OP_NOP9 = OP_TOKEN,
-    OP_NOP10 = 0xb9,
+    OP_DPOS = 0xb9,
+    OP_NOP10 = OP_DPOS,
 
 
     // template matching params
@@ -636,6 +638,7 @@ public:
     bool IsPayToWitnessScriptHash() const;
     bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const;
     bool IsTokenFlag() const;
+    bool IsDposFlag() const;
 
     /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
     bool IsPushOnly(const_iterator pc) const;
@@ -648,7 +651,7 @@ public:
      */
     bool IsUnspendable() const
     {
-        return (size() > 0 && (*begin() == OP_RETURN || *begin() == OP_TOKEN)) || (size() > MAX_SCRIPT_SIZE);
+        return (size() > 0 && (*begin() == OP_RETURN || *begin() == OP_TOKEN || *begin() == OP_DPOS)) || (size() > MAX_SCRIPT_SIZE);
     }
 
     void clear()

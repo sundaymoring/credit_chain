@@ -165,7 +165,9 @@ BITCOIN_CORE_H = \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
-  token/db.h
+  token/db.h \
+  dpos/vote.h \
+  dpos/dpos.h
 
 
 obj/build.h: FORCE
@@ -215,6 +217,8 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   token/db.cpp \
+  dpos/vote.cpp \
+  dpos/dpos.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
@@ -298,7 +302,7 @@ libbitcoin_consensus_a_SOURCES = \
   uint256.h \
   utilstrencodings.cpp \
   utilstrencodings.h \
-  version.h 
+  version.h
 
 # common: shared between bitcoind, and bitcoin-qt and non-server tools
 libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
