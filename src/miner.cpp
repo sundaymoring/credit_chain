@@ -135,7 +135,8 @@ void BlockAssembler::resetBlock()
     blockFinished = false;
 }
 
-std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx)
+// dposScript dposTime only work when consensus=Miner_DPOS
+std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, MinerConsensus consensus, const CScript& dposScript, time_t dposTime, bool fMineWitnessTx)
 {
     int64_t nTimeStart = GetTimeMicros();
 
@@ -162,7 +163,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (chainparams.MineBlocksOnDemand())
         pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
 
-    pblock->nTime = GetAdjustedTime();
+    if (consensus == Miner_DPOS){
+        pblock->nTime = dposTime;
+    }else{
+        pblock->nTime = GetAdjustedTime();
+    }
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
     nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
@@ -196,12 +201,27 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
-    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = GetProofOfWorkSubsidy();
-    coinbaseTx.vout[0].nValue += nFees;
+    if (consensus == Miner_POW){
+        coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+        coinbaseTx.vout[0].nValue = GetProofOfWorkSubsidy();
+        coinbaseTx.vout[0].nValue += nFees;
+    } else if (consensus == Miner_POS){
+        coinbaseTx.vout[0].SetEmpty();
+    } else if (consensus == Miner_DPOS){
+        coinbaseTx.vout.resize(2);
+        coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+        coinbaseTx.vout[0].nValue = GetProofOfWorkSubsidy();
+        coinbaseTx.vout[0].nValue += nFees;
+        coinbaseTx.vout[1].nValue = 0;
+        coinbaseTx.vout[1].scriptPubKey = dposScript;
+    }
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+
+    // POS: GenerateCoinbaseCommitment after coinstake finish
+    if (consensus == Miner_POW || consensus == Miner_DPOS){
+        pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+    }
     pblocktemplate->vTxFees[0] = -nFees;
 
     uint64_t nSerializeSize = GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
@@ -209,14 +229,21 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-    UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
+    if (consensus == Miner_POW || consensus == Miner_POS){
+        UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
+    }
     pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
 
-    CValidationState state;
-    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
-        throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+    if (consensus == Miner_POW || consensus == Miner_DPOS){
+        CValidationState state;
+        if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
+            if (consensus == Miner_DPOS) {
+                return nullptr;
+            }
+            throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+        }
     }
     int64_t nTime2 = GetTimeMicros();
 
@@ -841,7 +868,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex* pindexPrev = chainActive.Tip();
 
-            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
+            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, Miner_POW));
             if (!pblocktemplate.get())
             {
                 LogPrintf("Error in CurrNetMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
@@ -1068,11 +1095,10 @@ void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
                 continue;
             }
 
-            CAmount nFees = 0;
             //
             // Create new block
             //
-            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlockPOS(coinbaseScript->reserveScript, nFees));
+            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, Miner_POS));
             if (!pblocktemplate.get())
             {
                 LogPrintf("Error in CurrNetMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
@@ -1080,6 +1106,7 @@ void static StakeMiner(CWallet *pwallet, const CChainParams& chainparams){
             }
 
             CBlock *pblock = &pblocktemplate->block;
+            CAmount nFees = pblocktemplate->vTxFees[0] * -1;
             if (SignBlock(*pblock, *pwallet, nFees)){
                 SetThreadPriority(THREAD_PRIORITY_NORMAL);
                 CheckStake(pblock, *pwallet, chainparams);

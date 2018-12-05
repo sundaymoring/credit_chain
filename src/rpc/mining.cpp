@@ -121,7 +121,7 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             break;
         }
 
-        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, Miner_POW));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -560,7 +560,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 //        CScript scriptDummy = CScript() << OP_TRUE;
         boost::shared_ptr<CReserveScript> coinbaseScript;
         GetMainSignals().ScriptForMining(coinbaseScript);
-        pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, fSupportsSegwit);
+        pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, Miner_POW, fSupportsSegwit);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -988,9 +988,7 @@ void* ThreadDelegating(void *arg)
                 break;
             }
 
-            const CChainParams& chainparams = Params(CBaseChainParams::MAIN);
-
-            std::unique_ptr<CBlockTemplate> pblock = NULL;//= BlockAssembler(chainparams).CreateNewBlock(scriptPubKey, DPOS::DelegateInfoToScript(cDelegateInfo, delegatekey, t), t);
+            std::unique_ptr<CBlockTemplate> pblock = BlockAssembler(Params()).CreateNewBlock(scriptPubKey, Miner_DPOS, DPOS::DelegateInfoToScript(cDelegateInfo, delegatekey, t), t);
             if(pblock) {
                 unsigned int extraNonce = 0;
                 IncrementExtraNonce(&pblock->block, chainActive.Tip(), extraNonce);

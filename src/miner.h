@@ -27,6 +27,12 @@ static const bool DEFAULT_POS_ENABLE = false;
 
 static const bool DEFAULT_PRINTPRIORITY = false;
 
+enum MinerConsensus{
+    Miner_POW,
+    Miner_POS,
+    Miner_DPOS,
+};
+
 struct CBlockTemplate
 {
     CBlock block;
@@ -168,7 +174,7 @@ private:
 public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
-    std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx=true);
+    std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn, MinerConsensus consensus, const CScript& dposScript=CScript(), time_t dposTime=0, bool fMineWitnessTx=true);
     std::unique_ptr<CBlockTemplate> CreateNewBlockPOS(const CScript& scriptPubKeyIn,  CAmount& nFeesIn, bool fMineWitnessTx=true);
 
 private:

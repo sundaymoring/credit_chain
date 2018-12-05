@@ -3556,6 +3556,11 @@ UniValue bumpfee(const JSONRPCRequest& request)
     return result;
 }
 
+
+/********************
+ * the following is dpos rpc
+ *******************/
+
 static void SendRegister(const CBitcoinAddress &address, const std::string& name, CWalletTx& wtxNew){
     CAmount curBalance = pwalletMain->GetBalance();
     std::string strError;
@@ -3667,6 +3672,284 @@ UniValue listdelegates(const JSONRPCRequest& request)
     return results;
 }
 
+
+static void SendVote(const CBitcoinAddress& fromAddr, const set<CBitcoinAddress>& setAddress, CWalletTx& wtxNew, bool isVote)
+{
+    CAmount curBalance = pwalletMain->GetBalance();
+    std::string strError;
+
+    CCoinControl coinControl;
+    coinControl.nMinimumTotalFee = 1000000;
+    coinControl.fAllowOtherInputs = true;
+
+
+    if (coinControl.nMinimumTotalFee > curBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    if (pwalletMain->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+
+    CScript scriptDposVote = CreateDposVoteScript(fromAddr, setAddress, isVote);
+
+    // Create and send the transaction
+    CReserveKey reservekey(pwalletMain);
+    CAmount nFeeRequired;
+    int nChangePosRet = 1;
+    vector<CRecipient> vecSend;
+    CRecipient recipient0 = {scriptDposVote, 0, TOKENID_ZERO, 0, false};
+    vecSend.push_back(recipient0);
+
+    if (!pwalletMain->CreateDposTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, &coinControl, true)) {
+        if (nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    CValidationState state;
+    if (!pwalletMain->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+
+}
+
+UniValue vote(const JSONRPCRequest& request) {
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 2)
+        throw runtime_error(
+            "vote address delegateName1 deleagetNamen\n"
+            "\nvote for delegates with this address，each voting will cost 0.01 currnet."
+            "\nA currnet address can only vote for 51 delegates and can not vote for those already voted with this address.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"address\"             (string, required) The currnet address which used for voting.\n"
+            "2. \"delegateName1\"       (string, required) The name of delegate 1.\n"
+            "3. \"delegateNamen\"       (string, required) The name of delegate N.\n"
+            "\nResult:\n"
+            "\"txid\"                   (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("vote", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" \"delegater1\"")
+            + HelpExampleCli("vote", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" \"delegater2\" \"delegater3\"")
+            + HelpExampleRpc("vote", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", \"delegater1\"")
+            + HelpExampleRpc("vote", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", \"delegater2\", \"delegater3\"")
+       );
+
+    CBitcoinAddress address(request.params[0].get_str());
+    CKeyID address_id;
+    address.GetKeyID(address_id);
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+    set<CBitcoinAddress> setAddress;
+    for (unsigned int idx = 1; idx < request.params.size(); idx++) {
+        auto name = request.params[idx].get_str();
+        auto keyID = Vote::GetInstance().GetDelegate(name);
+
+        if(keyID.IsNull())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("delegate name: ") + request.params[idx].get_str() + string(" not register"));
+
+        if(Vote::GetInstance().HaveVote(address_id, keyID))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("delegate name: ") + request.params[idx].get_str() + string(" is voted"));
+
+        CBitcoinAddress address(keyID);
+        if (setAddress.count(address))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated name: ")+ name);
+
+        setAddress.insert(address);
+    }
+
+    if((setAddress.size() + Vote::GetInstance().GetVotedDelegates(address_id).size()) > Vote::MaxNumberOfVotes)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("delegates number must not more than 51"));
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    CWalletTx wtx;
+
+    EnsureWalletIsUnlocked();
+
+    SendVote(address, setAddress, wtx, true);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue cancelvote(const JSONRPCRequest& request) {
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 2)
+        throw runtime_error(
+            "cancelvote address delegateName1 ... deleagetNamen\n"
+            "\ncancelvote delegates which voted by this address.This address can only cancelvote"
+            "\nthose delegates which voted by this address.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"address\"             (string, required) The cancelvote on this address.\n"
+            "2. \"delegateName1\"       (string, required) The delegate cancelvoted.\n"
+            "3. \"delegateNamen\"       (string, required) The delegate cancelvoted.\n"
+            "\nResult:\n"
+            "\"txid\"                   (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("cancelvote", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" \"delegater1\"")
+            + HelpExampleCli("cancelvote", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" \"delegater2\" \"delegater3\"")
+            + HelpExampleRpc("cancelvote", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", \"delegater1\"")
+            + HelpExampleRpc("cancelvote", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", \"delegater2\", \"delegater3\"")
+       );
+
+    CBitcoinAddress address(request.params[0].get_str());
+    CKeyID address_id;
+    address.GetKeyID(address_id);
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+    set<CBitcoinAddress> setAddress;
+    for (unsigned int idx = 1; idx < request.params.size(); idx++) {
+        auto name = request.params[idx].get_str();
+        CKeyID keyID = Vote::GetInstance().GetDelegate(name);
+
+        if(keyID.IsNull())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("delegate name: ") + request.params[idx].get_str() + string(" not register"));
+
+        if(Vote::GetInstance().HaveVote(address_id, keyID) == false) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("delegate name: ") + request.params[idx].get_str() + string(" is not voted"));
+        }
+
+        CBitcoinAddress address(keyID);
+        if (setAddress.count(address))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated name: ")+ request.params[idx].get_str());
+
+        if( setAddress.size() >= Vote::MaxNumberOfVotes)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("delegates number must not more than 51"));
+
+           setAddress.insert(address);
+    }
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    CWalletTx wtx;
+
+    EnsureWalletIsUnlocked();
+
+    SendVote(address, setAddress, wtx, false);
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue listvoteddelegates(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "listvoteddelegates address\n"
+            "\nlist all the delegates voted by this address.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"address\"             (string, required) The lbtc address.\n"
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "     \"name\"              (string) The voted delegate name.\n"
+            "     \"delegate\"          (string) The voted delegate address.\n"
+            "  }\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listvoteddelegates", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\"")
+            + HelpExampleRpc("listvoteddelegates", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\"")
+        );
+
+    CBitcoinAddress address(request.params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+    UniValue results(UniValue::VARR);
+    CKeyID keyID;
+    address.GetKeyID(keyID);
+
+    auto result = Vote::GetInstance().GetVotedDelegates(keyID);
+    for(auto& i : result)
+    {
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("name", Vote::GetInstance().GetDelegate(i)));
+        entry.push_back(Pair("delegate", CBitcoinAddress(i).ToString() ));
+        results.push_back(entry);
+    }
+
+    return results;
+}
+
+UniValue listreceivedvotes(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "listreceivedvotes delegateName\n"
+            "\nlist the all the addresses which vote the delegate.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"delegateName\"      (string, required) The delegate name.\n"
+            "\nResult:\n"
+            "[\n"
+            "   \"address\"           (string) The addresses which vote the delegate.\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listreceivedvotes", "\"test-delegate-name\"")
+            + HelpExampleRpc("listreceivedvotes", "\"test-delegate-name\"")
+        );
+    Vote& vote = Vote::GetInstance();
+    CKeyID keyID = vote.GetDelegate(request.params[0].get_str());
+    if(keyID.IsNull()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("delegate name: ") + request.params[0].get_str() + string(" not registe"));
+    }
+
+    CBitcoinAddress address(keyID);
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+    std::set<CKeyID> voters = vote.GetDelegateVoters(keyID);
+    UniValue results(UniValue::VARR);
+    for (auto& v:voters)
+    {
+        results.push_back(CBitcoinAddress(v).ToString());
+    }
+    return results;
+}
+
+UniValue getdelegatevotes(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 1)
+        throw runtime_error(
+            "getdelegatevotes delegateName\n"
+            "\nget the number of votes the delegate received.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"delegateName\"      (string, required) The delegate name.\n"
+            "\nResult:\n"
+            "\"number\"               (numeric) The number of votes the delegate received.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getdelegatevotes", "\"delegateName\"")
+            + HelpExampleRpc("getdelegatevotes", "\"delegateName\"")
+        );
+
+    Vote &vote = Vote::GetInstance();
+
+    if(!vote.HaveDelegate(request.params[0].get_str())) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("delegate name: ") + request.params[0].get_str() + string(" not registe"));
+    }
+
+    uint64_t nShare{0};
+    CKeyID key = vote.GetDelegate(request.params[0].get_str());
+    nShare = Vote::GetInstance().GetDelegateVotes(key);
+
+    UniValue entry(nShare);
+    return entry;
+}
+
 extern UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
 extern UniValue importprivkey(const JSONRPCRequest& request);
 extern UniValue importaddress(const JSONRPCRequest& request);
@@ -3734,8 +4017,14 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrasechange",   &walletpassphrasechange,   true,   {"oldpassphrase","newpassphrase"} },
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true,   {"passphrase","timeout"} },
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true,   {"txid"} },
+
     { "dpos",               "regist",                   &regist,                   true,   {"address", "name"} },
     { "dpos",               "listdelegates",            &listdelegates,            true,   {} },
+    { "dpos",               "vote",                     &vote,                     true,   {"vote", "fromaddress", "addresses"} },
+    { "dpos",               "cancelvote",               &cancelvote,               true,   {"cancelvote", "fromaddress", "delegatename"} },
+    { "dpos",               "listvoteddelegates",       &listvoteddelegates,       true,   {"listvoteddelegates", "address"} },
+    { "dpos",               "listreceivedvotes",        &listreceivedvotes,        true,   {"listreceivedvotes", "delegatename"} },
+    { "dpos",               "getdelegatevotes",         &getdelegatevotes,         true,   {"getdelegatevotes", "delegatename"} },
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

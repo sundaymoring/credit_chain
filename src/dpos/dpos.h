@@ -3,6 +3,7 @@
 
 #include "chain.h"
 #include "pubkey.h"
+#include "key.h"
 
 #include <boost/thread/shared_mutex.hpp>
 
@@ -36,37 +37,42 @@ struct DelegateInfo{
 class DPOS
 {
 public:
-    DPOS();
     static DPOS& GetInstance();
 
     bool CheckBlock(const CBlockIndex& blockindex);
     bool IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateAddress, time_t t);
 
+    static CScript DelegateInfoToScript(const DelegateInfo& cDelegateInfo, const CKey& delegatekey, time_t t);
     static bool ScriptToDelegateInfo(DelegateInfo& cDelegateInfo, time_t &t, std::vector<unsigned char>* pvctPublicKey, const CScript& script);
+
+    uint64_t GetStartTime() {return nDposStartTime;}
+    void SetStartTime(uint64_t t) {nDposStartTime = t;}
+
+private:
+    DPOS();
 
     static bool GetDelegateID(CKeyID& keyid, const std::string& address);
     static bool GetDelegateID(CKeyID& keyid, const CBlock& block);
     static std::string GetDelegateAddress(const CBlock& block);
     static bool GetBlockDelegate(DelegateInfo& cDelegateInfo, const CBlock& block);
 
-    uint64_t GetStartTime() {return nDposStartTime;}
-    void SetStartTime(uint64_t t) {nDposStartTime = t;}
-
-private:
-
+    bool CheckBlock(const CBlock &block);
     bool CheckCoinbase(const CTransaction& tx, time_t t, int64_t height);
     bool CheckTransactionVersion(const CBlock& block) {return true;}
-    bool CheckBlock(const CBlock &block);
+
     uint64_t GetLoopIndex(uint64_t time);
     uint32_t GetDelegateIndex(uint64_t time);
-    void ProcessIrreversibleBlock(int64_t height, uint256 hash);
+
     bool CheckBlockDelegate(const CBlock& block);
     bool GetBlockDelegates(DelegateInfo& cDelegateInfo, CBlockIndex* pBlockIndex);
     bool GetBlockDelegates(DelegateInfo& cDelegateInfo, const CBlock& block);
-    bool IsOnTheSameChain(const std::pair<int64_t, uint256>& first, const std::pair<int64_t, uint256>& second);
-    void AddIrreversibleBlock(int64_t height, uint256 hash);
+
     DelegateInfo GetNextDelegates(int64_t t);
     std::vector<Delegate> SortDelegate(const std::vector<Delegate>& delegates);
+
+    void ProcessIrreversibleBlock(int64_t height, uint256 hash);
+    bool IsOnTheSameChain(const std::pair<int64_t, uint256>& first, const std::pair<int64_t, uint256>& second);
+    void AddIrreversibleBlock(int64_t height, uint256 hash);
 
 private:
     int nMaxDelegateNumber;

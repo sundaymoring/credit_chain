@@ -4,6 +4,7 @@
 #include "util.h"
 
 #include <vector>
+#include <set>
 
 typedef boost::shared_lock<boost::shared_mutex> read_lock;
 typedef boost::unique_lock<boost::shared_mutex> write_lock;
@@ -26,14 +27,18 @@ static CScript CreateDposScript(CKeyID keyID, CScript data){
     script[0] = OP_DPOS;
     script[1] = 0x01;
     script[2] = DPOS_PROTOCOL_VERSION;
-    script << ToByteVector(pubkey) << num << vchSig << ToByteVector(data);
+    script << ToByteVector(pubkey)
+           << num
+           << vchSig
+           << ToByteVector(data);
 
     return script;
 }
 
 CScript CreateDposRegisterScript(CBitcoinAddress address, const std::string& name){
 
-    CScript registeScript(dpos_register);
+    CScript registeScript;
+    registeScript.push_back(dpos_register);
     auto vName = ToByteVector(name);
     vName.resize(32);
     registeScript << vName;
@@ -42,9 +47,31 @@ CScript CreateDposRegisterScript(CBitcoinAddress address, const std::string& nam
     address.GetKeyID(keyID);
 
     return CreateDposScript(keyID, registeScript);
-
 }
 
+CScript CreateDposVoteScript(CBitcoinAddress voter, std::set<CBitcoinAddress> setDeletate, bool isVote){
+
+    dposType op_code = dpos_vote;
+    if(isVote == false) {
+        op_code = dpos_revoke;
+    }
+    CScript voteScript;
+    voteScript.push_back(op_code);
+
+    unsigned char delegateKeys[Vote::MaxNumberOfVotes * 20];
+    unsigned char *p_delegateKeys = &delegateKeys[0];
+    for (auto& a: setDeletate) {
+        CKeyID id;
+        a.GetKeyID(id);
+        memcpy(p_delegateKeys, id.begin(), 20);
+        p_delegateKeys += 20;
+    }
+    voteScript << std::vector<unsigned char>(&delegateKeys[0], p_delegateKeys);
+
+    CKeyID voterKeyID;
+    voter.GetKeyID(voterKeyID);
+    return CreateDposScript(voterKeyID, voteScript);
+}
 
 Vote& Vote::GetInstance(){
     static Vote vote;

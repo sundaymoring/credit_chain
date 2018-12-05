@@ -17,6 +17,7 @@ enum dposType {
 };
 
 CScript CreateDposRegisterScript(CBitcoinAddress address, const std::string& name);
+CScript CreateDposVoteScript(CBitcoinAddress voter, std::set<CBitcoinAddress> setDeletate, bool isVote);
 
 struct key_hash
 {
