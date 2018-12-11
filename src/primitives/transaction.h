@@ -329,6 +329,11 @@ public:
         return (vin.size() == 1 && vin[0].prevout.IsNull());
     }
 
+    bool IsCoinDpos() const
+    {
+        return IsCoinBase() && (vout.size()>1 && vout[1].scriptPubKey.IsDposFlag());
+    }
+
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
         return a.hash == b.hash;

@@ -979,6 +979,10 @@ void* ThreadDelegating(void *arg)
     auto addr = CBitcoinAddress(keyID).ToString();
 
     while(!ShutdownRequested() && fIsDelegating){
+        if (chainActive.Tip()->nHeight < Params().GetConsensus().nLastPOWBlock){
+            MilliSleep(1000);
+            continue;
+        }
         do {
             LOCK(cs_main);
             time_t t = time(NULL);

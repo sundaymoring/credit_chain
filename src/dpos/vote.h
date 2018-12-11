@@ -32,6 +32,10 @@ class Vote
 {
 public:
     static Vote& GetInstance();
+    bool Init(int64_t nBlockHeight, const std::string& strBlockHash);
+
+    bool Store(int64_t height, const std::string& strBlockHash);
+    bool Load(int64_t height, const std::string& strBlockHash);
 
     std::vector<Delegate> GetTopDelegateInfo(uint64_t nMinHoldBalance, uint32_t nDelegateNum);
 
@@ -66,6 +70,14 @@ public:
 private:
     Vote() {}
 
+    bool RepairFile(int64_t nBlockHeight, const std::string& strBlockHash);
+    bool ReadControlFile(int64_t& nBlockHeight, std::string& strBlockHash, const std::string& strFileName);
+    bool WriteControlFile(int64_t nBlockHeight, const std::string& strBlockHash, const std::string& strFileName);
+
+    bool Read();
+    bool Write(const std::string& strBlockHash);
+    void Delete(const std::string& strBlockHash);
+
     uint64_t _GetAddressBalance(const CKeyID& address);
     uint64_t _GetDelegateVotes(const CKeyID& delegate);
     uint64_t _UpdateAddressBalance(const CKeyID& id, int64_t value);
@@ -84,7 +96,6 @@ private:
     bool ProcessRegister(CKeyID& delegate, const std::string& strDelegateName);
     bool ProcessUnregister(CKeyID& delegate, const std::string& strDelegateName);
 
-
 private:
     boost::shared_mutex lockVote;
 
@@ -98,6 +109,12 @@ private:
     //std::unordered_map<CKeyID, uint64_t, key_hash> mapAddressBalance;
     std::unordered_map<CKeyID, int64_t, key_hash> mapAddressBalance;
 
+    std::string strFilePath;
+    std::string strDelegateFileName;
+    std::string strVoteFileName;
+    std::string strBalanceFileName;
+    std::string strControlFileName;
+    std::string strInvalidVoteTxFileName;
     std::string strOldBlockHash;
     int64_t nOldBlockHeight;
 };

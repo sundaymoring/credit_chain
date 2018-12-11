@@ -15,7 +15,7 @@ DPOS::DPOS()
 {
     nMaxDelegateNumber = 5;
     nBlockIntervalTime = 10;
-    nDposStartHeight = 10;
+    nDposStartHeight = Params().LastPOWBlock()+1;
 
     nDposStartTime = 0;
     //HTODO strDelegateAddress not set before nDposStartHeight
@@ -29,8 +29,8 @@ DPOS& DPOS::GetInstance() {
 
 bool DPOS::CheckBlock(const CBlockIndex &blockindex)
 {
-    if(chainActive.Height() == nDposStartHeight - 1) {
-        SetStartTime(chainActive[nDposStartHeight -1]->nTime);
+    if(chainActive.Height() == nDposStartHeight - 2) {
+        SetStartTime(chainActive[nDposStartHeight -2]->nTime);
     }
 
     CBlock block;
@@ -69,6 +69,7 @@ bool DPOS::IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateA
     if(pBlockIndex->nHeight == nDposStartHeight - 1) {
         cDelegateInfo = DPOS::GetNextDelegates(t);
         if(cDelegateInfo.delegates[nCurrentDelegateIndex].keyid == keyid) {
+            LogPrintf("IsMining nCurrentDelegateIndex=%lu", nCurrentDelegateIndex);
             return true;
         } else {
             return false;
@@ -128,16 +129,18 @@ CScript DPOS::DelegateInfoToScript(const DelegateInfo& cDelegateInfo, const CKey
     auto pubkey = delegatekey.GetPubKey();
     std::string delegateName = Vote::GetInstance().GetDelegate(pubkey.GetID());
     CScript script;
+    script.resize(3);
+    script[0] = OP_DPOS;
+    script[1] = 0x01;
+    script[2] = DPOS_PROTOCOL_VERSION;
     if(cDelegateInfo.delegates.empty() == false) {
-        script << OP_DPOS
-               << std::vector<unsigned char>(delegateName.begin(), delegateName.end())
+        script << std::vector<unsigned char>(delegateName.begin(), delegateName.end())
                << ToByteVector(pubkey)
                << std::vector<unsigned char>(ts.begin(), ts.end())
                << vchSig
                << data;
     } else {
-        script << OP_DPOS
-               << std::vector<unsigned char>(delegateName.begin(), delegateName.end())
+        script << std::vector<unsigned char>(delegateName.begin(), delegateName.end())
                << ToByteVector(pubkey)
                << std::vector<unsigned char>(ts.begin(), ts.end())
                << vchSig;
@@ -151,8 +154,10 @@ bool DPOS::ScriptToDelegateInfo(DelegateInfo& cDelegateInfo, time_t &t, std::vec
     opcodetype op;
     std::vector<unsigned char> data;
     CScript::const_iterator it = script.begin();
-    script.GetOp(it, op);
-    if(op == OP_DPOS) {
+    if(*it == OP_DPOS) {
+        if (*++it != 0x01 || *++it != DPOS_PROTOCOL_VERSION)
+            return false;
+        ++it;
         std::vector<unsigned char> vctDelegateName;
         std::vector<unsigned char> vctPublicKey;
         std::vector<unsigned char> vctTime;

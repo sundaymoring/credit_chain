@@ -36,6 +36,9 @@
 #include <boost/unordered_map.hpp>
 #include <boost/filesystem/path.hpp>
 
+extern std::string strOldBlockHash;
+extern int64_t nOldBlockHeight;
+
 class CBlockIndex;
 class CBlockTreeDB;
 class CBloomFilter;
@@ -946,5 +949,7 @@ void DumpMempool();
 
 /** Load the mempool from disk. */
 bool LoadMempool();
+
+bool RepairDPoSData(int64_t nOldBlockHeight, const std::string& strOldBlockHash);
 
 #endif // BITCOIN_VALIDATION_H

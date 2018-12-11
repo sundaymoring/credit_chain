@@ -40,6 +40,7 @@
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #include "token/db.h"
+#include "dpos/vote.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -273,6 +274,8 @@ void Shutdown()
 #endif
     globalVerifyHandle.reset();
     ECC_Stop();
+
+    Vote::GetInstance().Store(nOldBlockHeight, strOldBlockHash);
     LogPrintf("%s: done\n", __func__);
 }
 
@@ -662,6 +665,20 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
             RenameOver(pathBootstrap, pathBootstrapOld);
         } else {
             LogPrintf("Warning: Could not open bootstrap file %s\n", pathBootstrap.string());
+        }
+    }
+
+    if(!chainActive.Tip()) {
+        if(Vote::GetInstance().Init(0, std::string()) == false) {
+            return;
+        }
+    } else {
+        if(Vote::GetInstance().Init(chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString()) == false) {
+            return;
+        }
+
+        if(RepairDPoSData(Vote::GetInstance().GetOldBlockHeight(), Vote::GetInstance().GetOldBlockHash()) == false) {
+            return;
         }
     }
 

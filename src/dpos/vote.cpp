@@ -73,9 +73,74 @@ CScript CreateDposVoteScript(CBitcoinAddress voter, std::set<CBitcoinAddress> se
     return CreateDposScript(voterKeyID, voteScript);
 }
 
+
+#define VOTE_FILE "vote.dat"
+#define DELEGATE_FILE "delegate.dat"
+#define BALANCE_FILE "balance.dat"
+#define CONTROL_FILE "control.dat"
+#define INVALIDVOTETX_FILE "invalidvotetx.dat"
+
+bool Vote::Init(int64_t nBlockHeight, const std::string& strBlockHash)
+{
+    //write_lock w(lockVote);
+
+    strFilePath = (GetDataDir() / "dpos").string();
+    strDelegateFileName = strFilePath + "/" + DELEGATE_FILE;
+    strVoteFileName = strFilePath + "/" + VOTE_FILE;
+    strBalanceFileName = strFilePath + "/" + BALANCE_FILE;
+    strControlFileName = strFilePath + "/" + CONTROL_FILE;
+    strInvalidVoteTxFileName = strFilePath + "/" + INVALIDVOTETX_FILE;
+
+    if(nBlockHeight == 0) {
+        if(!boost::filesystem::is_directory(strFilePath)) {
+            boost::filesystem::create_directories(strFilePath);
+        }
+        return true;
+    } else {
+        return Load(nBlockHeight, strBlockHash);
+    }
+}
+
 Vote& Vote::GetInstance(){
     static Vote vote;
     return vote;
+}
+
+
+bool Vote::Store(int64_t nBlockHeight, const std::string& strBlockHash)
+{
+    if(nBlockHeight == 0) {
+        return true;
+    }
+
+    if(Write(strBlockHash) == false) {
+        return false;
+    }
+
+    if(WriteControlFile(nBlockHeight, strBlockHash, strControlFileName + "-temp") == false) {
+        Delete(strBlockHash);
+        return false;
+    }
+
+    int64_t nBlockHeightTemp = 0;
+    std::string strBlockHashTemp;
+    if(ReadControlFile(nBlockHeightTemp, strBlockHashTemp, strControlFileName) == true) {
+        Delete(strBlockHashTemp);
+    }
+
+    rename(strControlFileName.c_str(), (strControlFileName + "-old").c_str());
+    rename((strControlFileName + "-temp").c_str(), strControlFileName.c_str());
+    remove((strControlFileName + "-old").c_str());
+
+    return true;
+}
+
+bool Vote::Load(int64_t height, const std::string& strBlockHash)
+{
+    if(RepairFile(height, strBlockHash) == false)
+        return false;
+
+    return Read();
 }
 
 bool Vote::ProcessVote(CKeyID& voter, const std::set<CKeyID>& delegates, uint256 hash, uint64_t height, bool fUndo)
@@ -504,6 +569,259 @@ uint64_t Vote::GetAddressBalance(const CKeyID& address)
 {
     read_lock r(lockVote);
     return _GetAddressBalance(address);
+}
+
+
+bool Vote::RepairFile(int64_t nBlockHeight, const std::string& strBlockHash)
+{
+    if(!boost::filesystem::is_directory(strFilePath)) {
+        boost::filesystem::create_directories(strFilePath);
+        if(boost::filesystem::exists(GetDataDir() / BALANCE_FILE)) {
+            boost::filesystem::copy_file(GetDataDir() / BALANCE_FILE, strBalanceFileName + "-" + strBlockHash);
+        }
+
+        if(boost::filesystem::exists(GetDataDir() / VOTE_FILE)) {
+            boost::filesystem::copy_file(GetDataDir() / VOTE_FILE, strVoteFileName + "-" + strBlockHash);
+        }
+
+        if(boost::filesystem::exists(GetDataDir() / DELEGATE_FILE)) {
+            boost::filesystem::copy_file(GetDataDir() / DELEGATE_FILE, strDelegateFileName + "-" + strBlockHash);
+        }
+
+        return WriteControlFile(nBlockHeight, strBlockHash, strControlFileName);
+    }
+
+    int64_t nBlockHeightTemp = 0;
+    std::string strBlockHashTemp;
+    std::string strFileName;
+
+    strFileName = strControlFileName + "-temp";
+    if(boost::filesystem::exists(strFileName)) {
+        if(ReadControlFile(nBlockHeightTemp, strBlockHashTemp, strFileName)) {
+            if(boost::filesystem::exists(strVoteFileName + "-" + strBlockHashTemp)
+                && boost::filesystem::exists(strDelegateFileName + "-" + strBlockHashTemp)
+                && boost::filesystem::exists(strBalanceFileName + "-" + strBlockHashTemp))
+            {
+                rename(strFileName.c_str(), strControlFileName.c_str());
+                return true;
+            }
+            remove(strFileName.c_str());
+        }
+    }
+
+    strFileName = strControlFileName + "-old";
+    if(boost::filesystem::exists(strFileName)) {
+        if(ReadControlFile(nBlockHeightTemp, strBlockHashTemp, strFileName)) {
+            if(boost::filesystem::exists(strVoteFileName + "-" + strBlockHashTemp)
+                && boost::filesystem::exists(strDelegateFileName + "-" + strBlockHashTemp)
+                && boost::filesystem::exists(strBalanceFileName + "-" + strBlockHashTemp))
+            {
+                rename(strFileName.c_str(), strControlFileName.c_str());
+                return true;
+            }
+            remove(strFileName.c_str());
+        }
+    }
+
+    strFileName = strControlFileName;
+    if(boost::filesystem::exists(strFileName)) {
+        if(ReadControlFile(nBlockHeightTemp, strBlockHashTemp, strFileName)) {
+            if(boost::filesystem::exists(strVoteFileName + "-" + strBlockHashTemp)
+                || boost::filesystem::exists(strDelegateFileName + "-" + strBlockHashTemp)
+                || boost::filesystem::exists(strBalanceFileName + "-" + strBlockHashTemp))
+            {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool Vote::ReadControlFile(int64_t& nBlockHeight, std::string& strBlockHash, const std::string& strFileName)
+{
+    bool ret = false;
+    FILE *file = fopen(strFileName.c_str(), "r");
+    if(file) {
+        fscanf(file, "%ld\n", &nBlockHeight);
+        char buff[128];
+        fscanf(file, "%s\n", buff);
+        strBlockHash = buff;
+
+        fclose(file);
+        ret = true;
+    }
+
+    return ret;
+}
+
+bool Vote::WriteControlFile(int64_t nBlockHeight, const std::string& strBlockHash, const std::string& strFileName)
+{
+    bool ret = false;
+    FILE *file = fopen(strFileName.c_str(), "w");
+    if(file) {
+        fprintf(file, "%ld\n", nBlockHeight);
+        fprintf(file, "%s\n", strBlockHash.c_str());
+        fclose(file);
+        ret = true;
+    }
+
+    return ret;
+}
+
+bool Vote::Read()
+{
+    FILE* file = NULL;
+    unsigned char buff[20];
+    uint32_t count = 0;
+    uint64_t balance = 0;
+
+    write_lock w(lockVote);
+
+    if(ReadControlFile(nOldBlockHeight, strOldBlockHash, strControlFileName) == false)
+        return false;
+
+    file = fopen((strDelegateFileName + "-" + strOldBlockHash).c_str(), "rb");
+    if(file) {
+    while(1)
+    {
+        if(fread(&buff[0], sizeof(buff), 1, file) <= 0) {
+            break;
+        }
+
+        CKeyID delegate(uint160(std::vector<unsigned char>(&buff[0], &buff[0] + sizeof(buff))));
+        fread(&count, sizeof(count), 1, file);
+
+        unsigned char name[128];
+        memset(name, 0, sizeof(name));
+        fread(&name[0], count, 1, file);
+
+        std::string sname((const char*)&name[0], count);
+        mapDelegateName[delegate] = sname;
+        mapNameDelegate[sname] = delegate;
+    }
+    fclose(file);
+    }
+
+    file = fopen((strVoteFileName + "-" + strOldBlockHash).c_str(), "rb");
+    if(file) {
+    while(1)
+    {
+        if(fread(&buff[0], sizeof(buff), 1, file) <= 0) {
+            break;
+        }
+
+        CKeyID delegate(uint160(std::vector<unsigned char>(&buff[0], &buff[0] + sizeof(buff))));
+
+        fread(&count, sizeof(count), 1, file);
+        for(unsigned int i =0; i < count; ++i) {
+            fread(&buff[0], sizeof(buff), 1, file);
+            CKeyID voter(uint160(std::vector<unsigned char>(&buff[0], &buff[0] + sizeof(buff))));
+
+            mapDelegateVoters[delegate].insert(voter);
+            mapVoterDelegates[voter].insert(delegate);
+        }
+    }
+    fclose(file);
+    }
+
+    file = fopen((strInvalidVoteTxFileName + "-" + strOldBlockHash).c_str(), "rb");
+    if(file) {
+    while(1)
+    {
+        if(fread(&buff[0], 64, 1, file) <= 0) {
+            break;
+        }
+        uint256 hash;
+        hash.SetHex((const char*)&buff[0]);
+
+        uint64_t height;
+        fread(&height, sizeof(height), 1, file);
+        AddInvalidVote(hash, height);
+    }
+    fclose(file);
+    }
+
+    file = fopen((strBalanceFileName + "-" + strOldBlockHash).c_str(), "rb");
+    if(file) {
+    while(1)
+    {
+        if(fread(&buff[0], sizeof(buff), 1, file) <= 0) {
+            break;
+        }
+
+        CKeyID address(uint160(std::vector<unsigned char>(&buff[0], &buff[0] + sizeof(buff))));
+        fread(&balance, sizeof(balance), 1, file);
+
+        mapAddressBalance[address] = balance;
+    }
+    fclose(file);
+    }
+
+    return true;
+}
+
+
+bool Vote::Write(const std::string& strBlockHash)
+{
+    FILE* file = NULL;
+    uint32_t count = 0;
+    uint64_t balance = 0;
+
+    write_lock w(lockVote);
+
+    file = fopen((strDelegateFileName + "-" + strBlockHash) .c_str(), "wb");
+    for(auto item : mapDelegateName)
+    {
+        fwrite(item.first.begin(), sizeof(item.first), 1, file);
+        count = item.second.length();
+        fwrite(&count, sizeof(count), 1, file);
+        fwrite(item.second.c_str(), item.second.length(), 1, file);
+    }
+    fclose(file);
+
+    file = fopen((strVoteFileName + "-" + strBlockHash).c_str(), "wb");
+    for(auto item : mapDelegateVoters)
+    {
+        fwrite(item.first.begin(), sizeof(item.first), 1, file);
+        count = item.second.size();
+        fwrite(&count, sizeof(count), 1, file);
+        for(auto i : item.second) {
+            fwrite(i.begin(), sizeof(i), 1, file);
+        }
+    }
+    fclose(file);
+
+    file = fopen((strInvalidVoteTxFileName + "-" + strBlockHash).c_str(), "wb");
+    for(auto item : mapHashHeightInvalidVote)
+    {
+        auto strHash = item.first.GetHex();
+        fwrite(strHash.c_str(), strHash.length(), 1, file);
+        fwrite(&item.second, sizeof(item.second), 1, file);
+    }
+    fclose(file);
+
+    file = fopen((strBalanceFileName + "-" + strBlockHash).c_str(), "wb");
+    for(auto item : mapAddressBalance)
+    {
+        balance = item.second;
+        if(balance == 0)
+            continue;
+        fwrite(item.first.begin(), sizeof(item.first), 1, file);
+        fwrite(&balance, sizeof(balance), 1, file);
+    }
+    fclose(file);
+
+    return true;
+}
+
+void Vote::Delete(const std::string& strBlockHash)
+{
+    remove((strDelegateFileName + "-" + strBlockHash).c_str());
+    remove((strVoteFileName + "-" + strBlockHash) .c_str());
+    remove((strBalanceFileName + "-" + strBlockHash) .c_str());
 }
 
 uint64_t Vote::_GetAddressBalance(const CKeyID& address)

@@ -2605,6 +2605,49 @@ void ProcessDPoSConnectBlock(const CBlock& block, uint64_t nBlockHeight)
     DoVoting(block, nBlockHeight, mapTxFee, false);
 }
 
+
+void ProcessDPoSDisconnectBlock(const CBlock& block, uint64_t nBlockHeight)
+{
+    LogPrint("DPoS", "ProcessDPoSDisconnectBlock %s %lu %u\n", block.GetHash().ToString().c_str(), nBlockHeight, block.nTime);
+
+//    if(nBlockHeight < 1250000 && CTransaction::CURRENT_VERSION >= CTransaction::DPOS_VERSION2)
+//        CTransaction::CURRENT_VERSION = CTransaction::DPOS_VERSION;
+
+    std::map<uint256, uint64_t> mapTxFee;
+    CalculateBalance(block, false, &mapTxFee);
+    DoVoting(block, nBlockHeight, mapTxFee, true);
+}
+
+bool RepairDPoSData(int64_t nOldBlockHeight, const std::string& strOldBlockHash)
+{
+    LOCK(cs_main);
+    CBlockIndex* pblockindex = mapBlockIndex[uint256S(strOldBlockHash)];
+    if(pblockindex == false || pblockindex->nHeight != nOldBlockHeight) {
+        return false;
+    }
+
+    while(chainActive.Contains(pblockindex) == false) {
+        CBlock block;
+        if(ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()) == false) {
+            return false;
+        }
+
+        ProcessDPoSDisconnectBlock(block, pblockindex->nHeight);
+        pblockindex = pblockindex->pprev;
+    }
+
+    for(auto i = pblockindex->nHeight + 1; i <= chainActive.Height(); ++i) {
+        CBlock block;
+        if(ReadBlockFromDisk(block, chainActive[i], Params().GetConsensus()) == false) {
+            return false;
+        }
+
+        ProcessDPoSConnectBlock(block, chainActive[i]->nHeight);
+    }
+
+    return true;
+}
+
 // Protected by cs_main
 static ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
 
@@ -3181,6 +3224,9 @@ void PruneAndFlush() {
     FlushStateToDisk(state, FLUSH_STATE_NONE);
 }
 
+std::string strOldBlockHash;
+int64_t nOldBlockHeight = 0;
+
 /** Update chainActive and related internal data structures. */
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
     chainActive.SetTip(pindexNew);
@@ -3233,6 +3279,10 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
             }
         }
     }
+
+    nOldBlockHeight = chainActive.Height();
+    strOldBlockHash = chainActive.Tip()->GetBlockHash().ToString();
+
     LogPrintf("%s: new best=%s height=%d version=0x%08x log2_work=%.8g tx=%lu date='%s' progress=%f cache=%.1fMiB(%utx)", __func__,
       chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(), chainActive.Tip()->nVersion,
       log(chainActive.Tip()->nChainWork.getdouble())/log(2.0), (unsigned long)chainActive.Tip()->nChainTx,
@@ -3491,6 +3541,7 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
         BOOST_REVERSE_FOREACH(CBlockIndex *pindexConnect, vpindexToConnect) {
             if (!ConnectTip(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace)) {
                 if (state.IsInvalid()) {
+                    LogPrintf("%s: reject reason: %s, debug info: %s", __func__, state.GetRejectReason(), state.GetDebugMessage());
                     // The block violates a consensus rule.
                     if (!state.CorruptionPossible())
                         InvalidChainFound(vpindexToConnect.back());
@@ -4249,9 +4300,9 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     }
 
 
-    if ((block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock) ||
-            (block.IsProofOfStake() && nHeight <= consensusParams.nLastPOWBlock))
-        return state.DoS(100, error("%s : reject proof-of-work or proof-of-stake at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");
+//    if ((block.IsProofOfWork() && nHeight > consensusParams.nLastPOWBlock) ||
+//            (block.IsProofOfStake() && nHeight <= consensusParams.nLastPOWBlock))
+//        return state.DoS(100, error("%s : reject proof-of-work or proof-of-stake at height %d", __func__, nHeight), REJECT_INVALID, "bad-pow-height");
 
     return true;
 }

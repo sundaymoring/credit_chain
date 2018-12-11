@@ -118,9 +118,14 @@ public:
         return (vtx.size() > 1 && vtx[1]->IsCoinStake());
     }
 
+    bool IsProofOfDpos() const
+    {
+        return vtx.size() > 0 && vtx[0]->IsCoinDpos();
+    }
+
     bool IsProofOfWork() const
     {
-        return !IsProofOfStake();
+        return !IsProofOfStake() && !IsProofOfDpos();
     }
 
     CBlockHeader GetBlockHeader() const
