@@ -507,7 +507,8 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
     return nSigOps;
 }
 
-
+// HTODO should check dpos tx, avoid invalid tx add to block ???
+//       eg: DPoS fee at least 1 coin
 bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
 {
     // Basic checks that don't depend on any context
@@ -790,6 +791,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         view.GetBestBlock();
 
         nValueIn = view.GetValueIn(tx);
+
+        if (! DPOS::CheckTransaction(view, tx, state)){
+            return false;
+        }
 
         // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
         view.SetBackend(dummy);
@@ -3309,6 +3314,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
         CCoinsViewCache view(pcoinsTip);
         if (!DisconnectBlock(block, state, pindexDelete, view))
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
+
+        ProcessDPoSDisconnectBlock(block, pindexDelete->nHeight);
         bool flushed = view.Flush();
         assert(flushed);
     }
@@ -3399,11 +3406,10 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         }
 
 
-        if( !DPOS::GetInstance().CheckBlock(*pindexNew) ) {
-            state.DoS(50, false, REJECT_INVALID, "DPoS CheckBlock hash error");
+        if( !DPOS::GetInstance().CheckBlock(view, *pindexNew, state) ) {
+//            state.DoS(50, false, REJECT_INVALID, "DPoS CheckBlock hash error");
             InvalidBlockFound(pindexNew, state);
-            LogPrintf("ConnectTip(): DPoS CheckBlock hash: %s error\n", pindexNew->GetBlockHash().ToString().c_str());
-            return error("ConnectTip(): DPoS CheckBlock hash: %s error\n", pindexNew->GetBlockHash().ToString());
+            return error("ConnectTip(): DPoS CheckBlock hash: %s failed\n", pindexNew->GetBlockHash().ToString());
         }
 
         ProcessDPoSConnectBlock(blockConnecting, pindexNew->nHeight);

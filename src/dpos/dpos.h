@@ -4,11 +4,15 @@
 #include "chain.h"
 #include "pubkey.h"
 #include "key.h"
+#include "consensus/validation.h"
+#include "coins.h"
 
 #include <boost/thread/shared_mutex.hpp>
 
+
 // HTODO what difference of dposStartHeight and forkHeight in lbtc ?
 
+const CAmount nMinDPoSFee = 1 * COIN;
 const int nMaxConfirmBlockCount = 2;
 struct IrreversibleBlockInfo{
     int64_t heights[nMaxConfirmBlockCount];
@@ -39,7 +43,8 @@ class DPOS
 public:
     static DPOS& GetInstance();
 
-    bool CheckBlock(const CBlockIndex& blockindex);
+    static bool CheckTransaction(const CCoinsViewCache& view, const CTransaction& tx, CValidationState &state);
+    bool CheckBlock(const CCoinsViewCache& view, const CBlockIndex& blockindex, CValidationState &state);
     bool IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateAddress, time_t t);
 
     static CScript DelegateInfoToScript(const DelegateInfo& cDelegateInfo, const CKey& delegatekey, time_t t);
@@ -56,9 +61,9 @@ private:
     static std::string GetDelegateAddress(const CBlock& block);
     static bool GetBlockDelegate(DelegateInfo& cDelegateInfo, const CBlock& block);
 
-    bool CheckBlock(const CBlock &block);
-    bool CheckCoinbase(const CTransaction& tx, time_t t, int64_t height);
-    bool CheckTransactionVersion(const CBlock& block) {return true;}
+    bool CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidationState &state);
+    static bool CheckCoinbase(const CTransaction& tx);
+//    bool CheckTransactionVersion(const CBlock& block) {return true;}
 
     uint64_t GetLoopIndex(uint64_t time);
     uint32_t GetDelegateIndex(uint64_t time);

@@ -1003,7 +1003,7 @@ void* ThreadDelegating(void *arg)
                     LogPrintf("ProcessNewBlock failed");
                 }
 
-                printf("mining addr:%s height:%u time:%lu starttime:%lu...\n", addr.c_str(), chainActive.Height(), t, DPOS::GetInstance().GetStartTime());
+                LogPrint("IsMining", "mining addr:%s height:%u time:%lu starttime:%lu...\n", addr.c_str(), chainActive.Height(), t, DPOS::GetInstance().GetStartTime());
             }
         } while(0);
         sleep(1);

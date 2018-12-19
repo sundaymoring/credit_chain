@@ -27,20 +27,32 @@ DPOS& DPOS::GetInstance() {
     return dpos;
 }
 
-bool DPOS::CheckBlock(const CBlockIndex &blockindex)
-{
-    if(chainActive.Height() == nDposStartHeight - 2) {
-        SetStartTime(chainActive[nDposStartHeight -2]->nTime);
+bool DPOS::CheckTransaction(const CCoinsViewCache& view, const CTransaction &tx, CValidationState &state){
+    // coinbase dpos
+    if (tx.IsCoinBaseDPoS()){
+        return DPOS::CheckCoinbase(tx);
+    } else if (tx.IsTxHaveDPoS()){
+        CAmount valueIn = view.GetValueIn(tx);
+        CAmount valueOut = tx.GetValueOut();
+        if (valueIn-valueOut < nMinDPoSFee){
+            return state.Invalid(false, REJECT_INSUFFICIENTFEE, "insufficient DPoS fee", strprintf("valueIn:%d  valueOut:%d", valueIn, valueOut));
+        }
     }
+    return true;
+}
 
+bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlockIndex &blockindex, CValidationState &state)
+{
     CBlock block;
     if(ReadBlockFromDisk(block, &blockindex, Params().GetConsensus()) == false) {
-        return false;
+        return error("DPoS CheckBlock(): *** ReadBlockFromDisk failed at %d, hash=%s", blockindex.nHeight, blockindex.GetBlockHash().ToString());
     }
 
-//    if (chainActive.Height() >= nDposStartHeight)
-        return CheckBlock(block);
-    return true;
+    bool ret = CheckBlock(view, block, state);
+    if(ret && chainActive.Height() == nDposStartHeight - 2) {
+        SetStartTime(chainActive[nDposStartHeight -2]->nTime);
+    }
+    return ret;
 }
 
 bool DPOS::IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateAddress, time_t t)
@@ -62,7 +74,7 @@ bool DPOS::IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateA
     //cDelegateInfo = DPoS::GetNextDelegates();
     CKeyID keyid;
     if(GetDelegateID(keyid, strDelegateAddress) == false) {
-        LogPrint("IsMining: GetDelegateID(%s) failed", strDelegateAddress.c_str());
+        LogPrint("IsMining", "GetDelegateID(%s) failed", strDelegateAddress.c_str());
         return false;
     }
 
@@ -209,7 +221,7 @@ bool DPOS::GetDelegateID(CKeyID& keyid, const std::string& address)
     if(addr.GetKeyID(keyid)) {
         ret = true;
     } else {
-        LogPrintf("GetDelegateID address:%s error\n", address.c_str());
+        LogPrint("DPos", "%s : address:%s get keyid error\n", __func__, address.c_str());
     }
     return ret;
 }
@@ -257,15 +269,14 @@ bool DPOS::GetBlockDelegate(DelegateInfo& cDelegateInfo, const CBlock& block)
     return ret;
 }
 
-bool DPOS::CheckBlock(const CBlock &block){
+bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidationState &state){
     if(block.hashPrevBlock.IsNull()) {
         return true;
     }
 
     BlockMap::iterator miSelf = mapBlockIndex.find(block.hashPrevBlock);
     if(miSelf == mapBlockIndex.end()) {
-        LogPrintf("CheckBlock find blockindex(%s) error\n", block.hashPrevBlock.ToString().c_str());
-        return false;
+        return state.DoS(100, error("%s: prev block not found, hash: ", __func__, block.hashPrevBlock.ToString().c_str()), 0, "bad-prevblk");
     }
 
     CBlockIndex* pPrevBlockIndex = miSelf->second;
@@ -274,12 +285,13 @@ bool DPOS::CheckBlock(const CBlock &block){
     if (nBlockHeight < nDposStartHeight)
         return true;
 
-    if(CheckTransactionVersion(block) == false)
-        return false;
+//    if(CheckTransactionVersion(block) == false)
+//        return false;
 
-    if(CheckCoinbase(*block.vtx[0], block.nTime, nBlockHeight) == false) {
-        LogPrintf("CheckBlock CheckCoinbase error\n");
-        return false;
+    // HTODO let state return back
+    for (const auto& tx : block.vtx ){
+        if (!DPOS::CheckTransaction(view, *tx, state))
+            return false;
     }
 
     if(nDposStartTime == 0 && chainActive.Height() >= nDposStartHeight - 1) {
@@ -291,8 +303,7 @@ bool DPOS::CheckBlock(const CBlock &block){
         if(GetDelegateAddress(block) == strDelegateAddress) {
             return true;
         } else {
-            LogPrintf("CheckBlock nBlockHeight < nDposStartHeight strDelegateAddress error\n");
-            return false;
+            return state.Invalid(false, REJECT_INVALID, strprintf("%s nBlockHeight < nDposStartHeight", __func__));
         }
     }
 
@@ -314,8 +325,7 @@ bool DPOS::CheckBlock(const CBlock &block){
 
         GetBlockDelegate(cDelegateInfo, block);
     } else if(nCurrentLoopIndex < nPrevLoopIndex) {
-        LogPrintf("CheckBlock nCurrentLoopIndex < nPrevLoopIndex error\n");
-        return ret;
+        return state.Invalid(false, REJECT_INVALID, strprintf("%s nCurrentLoopIndex < nCurrentLoopIndex", __func__));
     } else if(nCurrentLoopIndex > nPrevLoopIndex) {
         if(CheckBlockDelegate(block) == false) {
             return ret;
@@ -325,8 +335,7 @@ bool DPOS::CheckBlock(const CBlock &block){
         GetBlockDelegate(cDelegateInfo, block);
     } else if(nCurrentLoopIndex == nPrevLoopIndex) {
         if(nCurrentDelegateIndex <= nPrevDelegateIndex) {
-            LogPrintf("CheckBlock nCurrentDelegateIndex <= nPrevDelegateIndex error pretime:%u\n", pPrevBlockIndex->nTime);
-            return ret;
+            return state.Invalid(false, REJECT_INVALID, strprintf("%s nCurrentDelegateIndex <= nPrevDelegateIndex, pretime:%u", __func__, pPrevBlockIndex->nTime));
         }
 
         GetBlockDelegates(cDelegateInfo, pPrevBlockIndex);
@@ -339,41 +348,39 @@ bool DPOS::CheckBlock(const CBlock &block){
         && cDelegateInfo.delegates[nCurrentDelegateIndex].keyid == delegate) {
         ret = true;
     } else {
-        LogPrintf("CheckBlock GetDelegateID blockhash:%s error\n", block.ToString().c_str());
-        return ret;
+        return state.Invalid(false, REJECT_INVALID, strprintf("%s GetDelegateID blockhash:%s", __func__, block.ToString().c_str()));
     }
 
     return ret;
 }
 
-bool DPOS::CheckCoinbase(const CTransaction& tx, time_t t, int64_t height){
+bool DPOS::CheckCoinbase(const CTransaction& tx){
     bool ret = false;
     if(tx.vout.size() == 3) {
         DelegateInfo cDelegateInfo;
         time_t tDelegateInfo;
         std::vector<unsigned char> vctPublicKey;
         if(ScriptToDelegateInfo(cDelegateInfo, tDelegateInfo, &vctPublicKey, tx.vout[1].scriptPubKey)) {
-            if(t == tDelegateInfo) {
-                if(height > 2400000) {
-                    CPubKey pubkey(vctPublicKey);
-                    CTxDestination address;
-                    ExtractDestination(tx.vout[0].scriptPubKey, address);
+            if(tx.nTime == tDelegateInfo) {
+                CPubKey pubkey(vctPublicKey);
+                CTxDestination address;
+                ExtractDestination(tx.vout[0].scriptPubKey, address);
 
-                    if(address.type() == typeid(CKeyID)
-                        && boost::get<CKeyID>(address) == pubkey.GetID()) {
-                        ret = true;
-                    } else {
-                        ret = false;
-                    }
-                } else {
+                if(address.type() == typeid(CKeyID)
+                    && boost::get<CKeyID>(address) == pubkey.GetID()) {
                     ret = true;
+                } else {
+                    ret = false;
                 }
+            } else {
+                // HTODO reason ???
+                ret = false;
             }
         }
     }
 
     if(ret == false) {
-        LogPrintf("CheckCoinbase failed!");
+        LogPrintf("Check dpos Coinbase failed!");
     }
     return ret;
 }
