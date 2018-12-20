@@ -2422,7 +2422,7 @@ bool DoVoting(const CBlock& block, uint32_t nHeight, std::map<uint256, uint64_t>
     CPubKey pubkey;
     CScript script;
 
-    for(auto& t : block.vtx) {
+    for(const auto& t : block.vtx) {
         uint64_t nTime = 0;
         auto& to = t->vout[0];
 
@@ -2449,6 +2449,9 @@ bool DoVoting(const CBlock& block, uint32_t nHeight, std::map<uint256, uint64_t>
                 case dpos_revoke:
                     if(mapTxFee[t->GetHash()] >= 1000000)
                         ProcessCancelVote(nHeight, (*t).GetHash(), pubkey, nTime, script, fUndo);
+                break;
+
+                case dpos_list:
                 break;
             }
         }
@@ -2555,7 +2558,7 @@ void CalculateBalance(const CBlock& block, bool fIsAdd, std::map<uint256, uint64
 {
     std::vector<std::pair<CKeyID, int64_t>> addressBalances;
 
-    for (auto t:block.vtx)
+    for (const auto& t:block.vtx)
     {
         uint64_t fee = 0;
         for(auto& i:t->vin)
@@ -3971,7 +3974,7 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 }
 
 
-static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
+bool CheckBlockSignature(const CBlock& block, const uint256& hash)
 {
     if (block.IsProofOfWork())
         return block.vchBlockSig.empty();
@@ -3982,7 +3985,17 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
     std::vector<std::vector<unsigned char> > vSolutions;
     txnouttype whichType;
 
-    const CTxOut& txout = block.vtx[1]->vout[1];
+    size_t index = -1;
+    if (block.IsProofOfStake()) {
+        index = 1;
+    } else if (block.IsProofOfDPoS()) {
+        index = 0;
+    }
+
+    if (index == -1){
+        return false;
+    }
+    const CTxOut& txout = block.vtx[index]->vout[1];
 
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;

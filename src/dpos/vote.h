@@ -14,6 +14,7 @@ enum dposType {
     dpos_register,
     dpos_vote,
     dpos_revoke,
+    dpos_list,
 };
 
 CScript CreateDposRegisterScript(CBitcoinAddress address, const std::string& name);

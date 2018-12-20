@@ -999,6 +999,10 @@ void* ThreadDelegating(void *arg)
 
                 std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>(pblock->block);
 
+                if (!delegatekey.Sign(blockptr->GetHash(), blockptr->vchBlockSig)){
+                    LogPrintf(strprintf("%s address:%s sign block failed", __func__, addr.c_str()));
+                    break;
+                }
                 if(ProcessNewBlock(Params(), blockptr, true, NULL) == false) {
                     LogPrintf("ProcessNewBlock failed");
                 }

@@ -209,11 +209,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         coinbaseTx.vout[0].SetEmpty();
     } else if (consensus == Miner_DPOS){
         coinbaseTx.vout.resize(2);
-        coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-        coinbaseTx.vout[0].nValue = GetProofOfWorkSubsidy();
-        coinbaseTx.vout[0].nValue += nFees;
-        coinbaseTx.vout[1].nValue = 0;
-        coinbaseTx.vout[1].scriptPubKey = dposScript;
+        coinbaseTx.vout[0].nValue = 0;
+        coinbaseTx.vout[0].scriptPubKey = dposScript;
+
+        coinbaseTx.vout[1].scriptPubKey = scriptPubKeyIn;
+        coinbaseTx.vout[1].nValue = GetProofOfWorkSubsidy();
+        coinbaseTx.vout[1].nValue += nFees;
         coinbaseTx.nTime = pblock->nTime;
     }
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;

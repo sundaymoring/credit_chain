@@ -786,6 +786,11 @@ bool SequenceLocks(const CTransaction &tx, int flags, std::vector<int>* prevHeig
 bool CheckSequenceLocks(const CTransaction &tx, int flags, LockPoints* lp = NULL, bool useExistingLockPoints = false);
 
 /**
+  * check block sign
+  */
+bool CheckBlockSignature(const CBlock& block, const uint256& hash);
+
+/**
  * Closure representing one script verification
  * Note that this stores references to the spending transaction 
  */

@@ -125,7 +125,8 @@ CScript DPOS::DelegateInfoToScript(const DelegateInfo& cDelegateInfo, const CKey
 
     if(delegates.empty() == false) {
         data.resize(nDataLen);
-        data[0] = 0x7;
+//        data[0] = 0x7;
+        data[0] = dpos_list;
 
         unsigned char* pData = &data[1];
         for(unsigned int i =0; i < delegates.size(); ++i) {
@@ -198,6 +199,9 @@ bool DPOS::ScriptToDelegateInfo(DelegateInfo& cDelegateInfo, time_t &t, std::vec
 
         if(script.GetOp2(it, op, &data)) {
             if((data.size() - (1)) % (20) == 0) {
+                if (data[0] != dpos_list){
+                    return false;
+                }
                 unsigned char* pData = &data[1];
                 uint32_t nDelegateNum = (data.size() - (1)) / (20);
                 for(unsigned int i =0; i < nDelegateNum; ++i) {
@@ -244,7 +248,7 @@ std::string DPOS::GetDelegateAddress(const CBlock& block)
     if(tx->IsCoinBase() && tx->vout.size() == 3) {
         opcodetype op;
         std::vector<unsigned char> vch;
-        auto script = tx->vout[0].scriptPubKey;
+        auto script = tx->vout[1].scriptPubKey;
         CScript::const_iterator it = script.begin();
         script.GetOp2(it, op, &vch);
         CPubKey pubkey(vch.begin(), vch.end());
@@ -261,7 +265,7 @@ bool DPOS::GetBlockDelegate(DelegateInfo& cDelegateInfo, const CBlock& block)
 
     auto tx = block.vtx[0];
     if(tx->IsCoinBase() && tx->vout.size() == 3) {
-        auto script = tx->vout[1].scriptPubKey;
+        auto script = tx->vout[0].scriptPubKey;
         time_t t;
         ret = ScriptToDelegateInfo(cDelegateInfo, t, NULL, script);
     }
@@ -284,6 +288,11 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidat
     int64_t nBlockHeight = pPrevBlockIndex->nHeight + 1;
     if (nBlockHeight < nDposStartHeight)
         return true;
+
+    // check sign
+    if (! CheckBlockSignature(block, block.GetHash())){
+        return state.Invalid(false, REJECT_INVALID, "bad DPoS block signature");
+    }
 
 //    if(CheckTransactionVersion(block) == false)
 //        return false;
@@ -360,11 +369,11 @@ bool DPOS::CheckCoinbase(const CTransaction& tx){
         DelegateInfo cDelegateInfo;
         time_t tDelegateInfo;
         std::vector<unsigned char> vctPublicKey;
-        if(ScriptToDelegateInfo(cDelegateInfo, tDelegateInfo, &vctPublicKey, tx.vout[1].scriptPubKey)) {
+        if(ScriptToDelegateInfo(cDelegateInfo, tDelegateInfo, &vctPublicKey, tx.vout[0].scriptPubKey)) {
             if(tx.nTime == tDelegateInfo) {
                 CPubKey pubkey(vctPublicKey);
                 CTxDestination address;
-                ExtractDestination(tx.vout[0].scriptPubKey, address);
+                ExtractDestination(tx.vout[1].scriptPubKey, address);
 
                 if(address.type() == typeid(CKeyID)
                     && boost::get<CKeyID>(address) == pubkey.GetID()) {
