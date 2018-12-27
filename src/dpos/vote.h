@@ -4,6 +4,7 @@
 #include "dpos/dpos.h"
 #include "script/script.h"
 #include "base58.h"
+#include "dpos/db.h"
 
 #include <string>
 #include <unordered_map>
@@ -35,10 +36,7 @@ public:
     static Vote& GetInstance();
     bool Init(int64_t nBlockHeight, const std::string& strBlockHash);
 
-    bool Store(int64_t height, const std::string& strBlockHash);
-    bool Load(int64_t height, const std::string& strBlockHash);
-
-    std::vector<Delegate> GetTopDelegateInfo(uint64_t nMinHoldBalance, uint32_t nDelegateNum);
+    std::vector<Delegate> GetTopDelegateInfo(CAmount nMinHoldBalance, uint32_t nDelegateNum);
 
     bool ProcessVote(CKeyID& voter, const std::set<CKeyID>& delegates, uint256 hash, uint64_t height, bool fUndo);
     bool ProcessCancelVote(CKeyID& voter, const std::set<CKeyID>& delegates, uint256 hash, uint64_t height, bool fUndo);
@@ -46,7 +44,7 @@ public:
 
     uint64_t GetDelegateVotes(const CKeyID& delegate);
     std::set<CKeyID> GetDelegateVoters(CKeyID& delegate);
-    std::set<CKeyID> GetVotedDelegates(CKeyID& delegate);
+    std::set<CKeyID> GetVotedDelegates(CKeyID& voter);
     std::map<std::string, CKeyID> ListDelegates();
 
     uint64_t GetAddressBalance(const CKeyID& id);
@@ -55,7 +53,6 @@ public:
     CKeyID GetDelegate(const std::string& name);
     std::string GetDelegate(CKeyID keyid);
     bool HaveDelegate(const std::string& name, CKeyID keyid);
-    bool HaveDelegate_Unlock(const std::string& name, CKeyID keyid);
     bool HaveVote(CKeyID voter, CKeyID delegate);
 
     bool HaveDelegate(std::string name);
@@ -70,14 +67,6 @@ public:
     static const int MaxNumberOfVotes = 51;
 private:
     Vote() {}
-
-    bool RepairFile(int64_t nBlockHeight, const std::string& strBlockHash);
-    bool ReadControlFile(int64_t& nBlockHeight, std::string& strBlockHash, const std::string& strFileName);
-    bool WriteControlFile(int64_t nBlockHeight, const std::string& strBlockHash, const std::string& strFileName);
-
-    bool Read();
-    bool Write(const std::string& strBlockHash);
-    void Delete(const std::string& strBlockHash);
 
     uint64_t _GetAddressBalance(const CKeyID& address);
     uint64_t _GetDelegateVotes(const CKeyID& delegate);
@@ -100,22 +89,10 @@ private:
 private:
     boost::shared_mutex lockVote;
 
-    std::map<CKeyID, std::set<CKeyID>> mapDelegateVoters;
-    std::map<CKeyID, std::set<CKeyID>> mapVoterDelegates;
-    std::map<CKeyID, std::string> mapDelegateName;
-    std::map<std::string, CKeyID> mapNameDelegate;
     std::map<uint256, uint64_t>  mapHashHeightInvalidVote;
     boost::shared_mutex lockMapHashHeightInvalidVote;
 
-    //std::unordered_map<CKeyID, uint64_t, key_hash> mapAddressBalance;
-    std::unordered_map<CKeyID, int64_t, key_hash> mapAddressBalance;
 
-    std::string strFilePath;
-    std::string strDelegateFileName;
-    std::string strVoteFileName;
-    std::string strBalanceFileName;
-    std::string strControlFileName;
-    std::string strInvalidVoteTxFileName;
     std::string strOldBlockHash;
     int64_t nOldBlockHeight;
 };

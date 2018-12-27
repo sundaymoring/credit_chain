@@ -54,6 +54,7 @@ static const int64_t nMaxBlockDBAndTxIndexCache = 1024;
 static const int64_t nMaxCoinsDBCache = 8;
 static const int64_t nMaxTokenDBCache = 16;
 static const int64_t nMaxSymbolDBCache = 16;
+static const int64_t nMaxDPoSDBCache = 100;
 
 struct CDiskTxPos : public CDiskBlockPos
 {

@@ -74,73 +74,15 @@ CScript CreateDposVoteScript(CBitcoinAddress voter, std::set<CBitcoinAddress> se
 }
 
 
-#define VOTE_FILE "vote.dat"
-#define DELEGATE_FILE "delegate.dat"
-#define BALANCE_FILE "balance.dat"
-#define CONTROL_FILE "control.dat"
-#define INVALIDVOTETX_FILE "invalidvotetx.dat"
-
 bool Vote::Init(int64_t nBlockHeight, const std::string& strBlockHash)
 {
     //write_lock w(lockVote);
-
-    strFilePath = (GetDataDir() / "dpos").string();
-    strDelegateFileName = strFilePath + "/" + DELEGATE_FILE;
-    strVoteFileName = strFilePath + "/" + VOTE_FILE;
-    strBalanceFileName = strFilePath + "/" + BALANCE_FILE;
-    strControlFileName = strFilePath + "/" + CONTROL_FILE;
-    strInvalidVoteTxFileName = strFilePath + "/" + INVALIDVOTETX_FILE;
-
-    if(nBlockHeight == 0) {
-        if(!boost::filesystem::is_directory(strFilePath)) {
-            boost::filesystem::create_directories(strFilePath);
-        }
-        return true;
-    } else {
-        return Load(nBlockHeight, strBlockHash);
-    }
+    return true;
 }
 
 Vote& Vote::GetInstance(){
     static Vote vote;
     return vote;
-}
-
-
-bool Vote::Store(int64_t nBlockHeight, const std::string& strBlockHash)
-{
-    if(nBlockHeight == 0) {
-        return true;
-    }
-
-    if(Write(strBlockHash) == false) {
-        return false;
-    }
-
-    if(WriteControlFile(nBlockHeight, strBlockHash, strControlFileName + "-temp") == false) {
-        Delete(strBlockHash);
-        return false;
-    }
-
-    int64_t nBlockHeightTemp = 0;
-    std::string strBlockHashTemp;
-    if(ReadControlFile(nBlockHeightTemp, strBlockHashTemp, strControlFileName) == true) {
-        Delete(strBlockHashTemp);
-    }
-
-    rename(strControlFileName.c_str(), (strControlFileName + "-old").c_str());
-    rename((strControlFileName + "-temp").c_str(), strControlFileName.c_str());
-    remove((strControlFileName + "-old").c_str());
-
-    return true;
-}
-
-bool Vote::Load(int64_t height, const std::string& strBlockHash)
-{
-    if(RepairFile(height, strBlockHash) == false)
-        return false;
-
-    return Read();
 }
 
 bool Vote::ProcessVote(CKeyID& voter, const std::set<CKeyID>& delegates, uint256 hash, uint64_t height, bool fUndo)
@@ -198,44 +140,40 @@ bool Vote::ProcessUndoVote(CKeyID& voter, const std::set<CKeyID>& delegates, uin
 bool Vote::ProcessVote(CKeyID& voter, const std::set<CKeyID>& delegates)
 {
     write_lock w(lockVote);
-    uint64_t votes = 0;
 
     {
-        auto it = mapVoterDelegates.find(voter);
-        if(it != mapVoterDelegates.end()) {
-            votes = it->second.size();
+        std::set<CKeyID> d;
+        pDPoSDb->GetVoterDelegates(voter, d);
+        // check limit of MaxNumberOfVotes
+        if (d.size() + delegates.size() > Vote::MaxNumberOfVotes) {
+            return false;
         }
     }
 
-    if((votes + delegates.size()) > Vote::MaxNumberOfVotes) {
-        return false;
-    }
 
-    for(auto item : delegates)
-    {
-        if(mapDelegateName.find(item) == mapDelegateName.end())
+    // check duplicate vote
+    for(const auto& item : delegates){
+        std::string n;
+        if (!pDPoSDb->GetDelegateName(item, n)){
             return false;
-
-        auto it = mapDelegateVoters.find(item);
-        if(it != mapDelegateVoters.end()) {
-            if(it->second.find(voter) != it->second.end()) {
+        }
+        std::set<CKeyID> v;
+        if (pDPoSDb->GetDelegateVoters(item, v)){
+            if ( v.find(voter) != v.end() ){
                 return false;
             }
         }
     }
 
+    // update delegate -> voter
+    // update voter -> delegate
     for(auto item : delegates)
     {
-        mapDelegateVoters[item].insert(voter);
+        pDPoSDb->InsertDelegateVoter(item, voter);
+        pDPoSDb->InsertVoterDelegate(voter, item);
     }
-
-    auto& setVotedDelegates = mapVoterDelegates[voter];
-    for(auto item : delegates)
-    {
-        setVotedDelegates.insert(item);
-    }
-
     return true;
+
 }
 
 bool Vote::ProcessCancelVote(CKeyID& voter, const std::set<CKeyID>& delegates, uint256 hash, uint64_t height, bool fUndo)
@@ -296,11 +234,12 @@ bool Vote::ProcessCancelVote(CKeyID& voter, const std::set<CKeyID>& delegates)
         return false;
     }
 
+    // confirm is or not vote to delegate
     for(auto item : delegates)
     {
-        auto it = mapDelegateVoters.find(item);
-        if(it != mapDelegateVoters.end()) {
-            if(it->second.find(voter) == it->second.end()) {
+        std::set<CKeyID> v;
+        if (pDPoSDb->GetDelegateVoters(item, v)){
+            if (v.find(voter) == v.end()){
                 return false;
             }
         } else {
@@ -308,25 +247,13 @@ bool Vote::ProcessCancelVote(CKeyID& voter, const std::set<CKeyID>& delegates)
         }
     }
 
+    // erase from delegateVoter
     for(auto item : delegates)
     {
-        auto& it = mapDelegateVoters[item];
-        if(it.size() != 1) {
-            mapDelegateVoters[item].erase(voter);
-        } else {
-            mapDelegateVoters.erase(item);
-        }
+        pDPoSDb->EraseDelegateVoter(item, voter);
     }
 
-    auto& setVotedDelegates = mapVoterDelegates[voter];
-    if(setVotedDelegates.size() == delegates.size()) {
-        mapVoterDelegates.erase(voter);
-    } else {
-        for(auto item : delegates)
-        {
-            setVotedDelegates.erase(item);
-        }
-    }
+    pDPoSDb->EraseVoterDelegates(voter, delegates);
 
     return true;
 }
@@ -378,29 +305,53 @@ bool Vote::ProcessUndoRegister(CKeyID& delegate, const std::string& strDelegateN
 bool Vote::ProcessRegister(CKeyID& delegate, const std::string& strDelegateName)
 {
     write_lock w(lockVote);
-    if(mapDelegateName.find(delegate) != mapDelegateName.end())
-        return false;
 
-    if(mapNameDelegate.find(strDelegateName) != mapNameDelegate.end())
+    std::string n;
+    if (pDPoSDb->GetDelegateName(delegate, n) && !n.empty()){
         return false;
+    }
 
-    mapDelegateName.insert(std::make_pair(delegate, strDelegateName));
-    mapNameDelegate.insert(std::make_pair(strDelegateName, delegate));
+    CKeyID d;
+    if (pDPoSDb->GetNameDelegate(strDelegateName, d) && !d.IsNull() ){
+        return false;
+    }
+
+    pDPoSDb->WriteDelegateName(delegate, strDelegateName);
+    pDPoSDb->WriteNameDelegate(strDelegateName, delegate);
+
     return true;
 }
 
 bool Vote::ProcessUnregister(CKeyID& delegate, const std::string& strDelegateName)
 {
     write_lock w(lockVote);
-    if(mapDelegateName.find(delegate) == mapDelegateName.end())
+    std::string n;
+    if (!pDPoSDb->GetDelegateName(delegate, n)){
         return false;
+    }
 
-    if(mapNameDelegate.find(strDelegateName) == mapNameDelegate.end())
+    CKeyID d;
+    if (!pDPoSDb->GetNameDelegate(strDelegateName, d)){
         return false;
+    }
 
-    mapDelegateName.erase(delegate);
-    mapNameDelegate.erase(strDelegateName);
+    pDPoSDb->EraseDelegateName(delegate);
+    pDPoSDb->EraseNameDelegate(strDelegateName);
     return true;
+
+
+
+
+//    write_lock w(lockVote);
+//    if(mapDelegateName.find(delegate) == mapDelegateName.end())
+//        return false;
+
+//    if(mapNameDelegate.find(strDelegateName) == mapNameDelegate.end())
+//        return false;
+
+//    mapDelegateName.erase(delegate);
+//    mapNameDelegate.erase(strDelegateName);
+//    return true;
 }
 
 uint64_t Vote::GetDelegateVotes(const CKeyID& delegate)
@@ -411,25 +362,20 @@ uint64_t Vote::GetDelegateVotes(const CKeyID& delegate)
 
 uint64_t Vote::_GetDelegateVotes(const CKeyID& delegate)
 {
-    uint64_t votes = 0;
-    auto it = mapDelegateVoters.find(delegate);
-    if(it != mapDelegateVoters.end()) {
-        for(auto item : it->second) {
-            votes += _GetAddressBalance(item);
-        }
+    std::set<CKeyID> voters;
+    pDPoSDb->GetDelegateVoters(delegate, voters);
+    uint64_t voteNum = 0;
+    for (const auto& item : voters){
+        voteNum += pDPoSDb->GetAddressVoteNum(item);
     }
-
-    return votes;
+    return voteNum;
 }
 
 std::set<CKeyID> Vote::GetDelegateVoters(CKeyID& delegate)
 {
     read_lock r(lockVote);
     std::set<CKeyID> s;
-    auto it = mapDelegateVoters.find(delegate);
-    if(it != mapDelegateVoters.end()) {
-        s = it->second;
-    }
+    pDPoSDb->GetDelegateVoters(delegate, s);
 
     return s;
 }
@@ -437,104 +383,98 @@ std::set<CKeyID> Vote::GetDelegateVoters(CKeyID& delegate)
 CKeyID Vote::GetDelegate(const std::string& name)
 {
     read_lock r(lockVote);
-    auto it = mapNameDelegate.find(name);
-    if(it != mapNameDelegate.end())
-        return it->second;
+    CKeyID delegate;
+    if (pDPoSDb->GetNameDelegate(name, delegate)){
+        return delegate;
+    }
     return CKeyID();
 }
 
 std::string Vote::GetDelegate(CKeyID keyid)
 {
     read_lock r(lockVote);
-    auto it = mapDelegateName.find(keyid);
-    if(it != mapDelegateName.end())
-        return it->second;
+    std::string name;
+    if (pDPoSDb->GetDelegateName(keyid, name)){
+        return name;
+    }
     return std::string();
 }
 
 bool Vote::HaveVote(CKeyID voter, CKeyID delegate)
 {
-    bool ret = false;
     read_lock r(lockVote);
-    auto it = mapDelegateVoters.find(delegate);
-    if(it != mapDelegateVoters.end()) {
-        if(it->second.find(voter) != it->second.end()) {
-            ret = true;
-        }
+    std::set<CKeyID> vs;
+    if (pDPoSDb->GetDelegateVoters(delegate, vs)){
+        return vs.find(voter) != vs.end();
     }
-
-    return ret;
-}
-
-bool Vote::HaveDelegate_Unlock(const std::string& name, CKeyID keyid)
-{
-    read_lock r(lockVote);
-    if(mapNameDelegate.find(name) != mapNameDelegate.end()) {
-        return false;
-    }
-
-    if(mapDelegateName.find(keyid) != mapDelegateName.end()) {
-        return false;
-    }
-
-    return true;
+    return false;
 }
 
 bool Vote::HaveDelegate(const std::string& name, CKeyID keyid)
 {
     read_lock r(lockVote);
-
-    bool ret = false;
-    auto it = mapDelegateName.find(keyid);
-    if(it != mapDelegateName.end() ) {
-        if(it->second == name) {
-            ret = true;
-        }
+    std::string n;
+    if (pDPoSDb->GetDelegateName(keyid, n)){
+        return n == name;
     }
-
-    return ret;
+    return false;
 }
 
 bool Vote::HaveDelegate(std::string name)
 {
     read_lock r(lockVote);
-    return mapNameDelegate.find(name) != mapNameDelegate.end();
+    CKeyID keyid;
+    if (pDPoSDb->GetNameDelegate(name, keyid)){
+        return !keyid.IsNull();
+    }
+    return false;
 }
 
 bool Vote::HaveDelegate(CKeyID keyID)
 {
     read_lock r(lockVote);
-    return mapDelegateName.find(keyID) != mapDelegateName.end();
+    std::string name;
+    if (pDPoSDb->GetDelegateName(keyID, name)){
+        return !name.empty();
+    }
+    return false;
 }
 
-std::set<CKeyID> Vote::GetVotedDelegates(CKeyID& delegate)
+std::set<CKeyID> Vote::GetVotedDelegates(CKeyID& voter)
 {
     read_lock r(lockVote);
     std::set<CKeyID> s;
-    auto it = mapVoterDelegates.find(delegate);
-    if(it != mapVoterDelegates.end()) {
-        s = it->second;
-    }
+    pDPoSDb->GetVoterDelegates(voter, s);
 
     return s;
 }
 
-std::vector<Delegate> Vote::GetTopDelegateInfo(uint64_t nMinHoldBalance, uint32_t nDelegateNum)
+std::vector<Delegate> Vote::GetTopDelegateInfo(CAmount nMinHoldBalance, uint32_t nDelegateNum)
 {
     read_lock r(lockVote);
     std::set<std::pair<uint64_t, CKeyID>> delegates;
 
-    for(auto item : mapDelegateVoters)
+    pDPoSDb->ListDelegateName();
+
+    // traversal all delegateVote
+    std::map<CKeyID, std::set<CKeyID>> mDelegateVoters = pDPoSDb->ListDelegateVoters();
+    for(const auto& item : mDelegateVoters)
     {
-        uint64_t votes = _GetDelegateVotes(item.first);
-        if(_GetAddressBalance(item.first) >= nMinHoldBalance) {
-            delegates.insert(std::make_pair(votes, item.first));
+        // if delegate amount > nMinHoldBalance, then valid
+        if (pDPoSDb->GetAddressVoteNum(item.first) >= nMinHoldBalance){
+            CAmount vote = 0;
+            for (const auto& item2 : item.second){
+                vote += pDPoSDb->GetAddressVoteNum(item2);
+                delegates.insert(std::make_pair(vote, item.first));
+            }
         }
     }
 
-    for(auto it = mapDelegateName.rbegin(); it != mapDelegateName.rend(); ++it)
+    // traversal all delegateName that get 0 vote
+    std::map<CKeyID, std::string> mDelegateName = pDPoSDb->ListDelegateName();
+    for(auto it = mDelegateName.rbegin(); it != mDelegateName.rend(); ++it)
     {
-        if(_GetAddressBalance(it->first) < nMinHoldBalance) {
+        if (pDPoSDb->GetAddressVoteNum(it->first) < nMinHoldBalance){
             continue;
         }
 
@@ -542,10 +482,11 @@ std::vector<Delegate> Vote::GetTopDelegateInfo(uint64_t nMinHoldBalance, uint32_
             break;
         }
 
-        if(mapDelegateVoters.find(it->first) == mapDelegateVoters.end())
+        if(mDelegateVoters.find(it->first) == mDelegateVoters.end())
             delegates.insert(std::make_pair(0, it->first));
     }
 
+    // get top nDelegateNum
     std::vector<Delegate> result;
     for(auto it = delegates.rbegin(); it != delegates.rend(); ++it)
     {
@@ -559,10 +500,11 @@ std::vector<Delegate> Vote::GetTopDelegateInfo(uint64_t nMinHoldBalance, uint32_
     return result;
 }
 
+
 std::map<std::string, CKeyID> Vote::ListDelegates()
 {
     read_lock r(lockVote);
-    return mapNameDelegate;
+    return pDPoSDb->ListNameDelegate();
 }
 
 uint64_t Vote::GetAddressBalance(const CKeyID& address)
@@ -571,267 +513,9 @@ uint64_t Vote::GetAddressBalance(const CKeyID& address)
     return _GetAddressBalance(address);
 }
 
-
-bool Vote::RepairFile(int64_t nBlockHeight, const std::string& strBlockHash)
-{
-    if(!boost::filesystem::is_directory(strFilePath)) {
-        boost::filesystem::create_directories(strFilePath);
-        if(boost::filesystem::exists(GetDataDir() / BALANCE_FILE)) {
-            boost::filesystem::copy_file(GetDataDir() / BALANCE_FILE, strBalanceFileName + "-" + strBlockHash);
-        }
-
-        if(boost::filesystem::exists(GetDataDir() / VOTE_FILE)) {
-            boost::filesystem::copy_file(GetDataDir() / VOTE_FILE, strVoteFileName + "-" + strBlockHash);
-        }
-
-        if(boost::filesystem::exists(GetDataDir() / DELEGATE_FILE)) {
-            boost::filesystem::copy_file(GetDataDir() / DELEGATE_FILE, strDelegateFileName + "-" + strBlockHash);
-        }
-
-        return WriteControlFile(nBlockHeight, strBlockHash, strControlFileName);
-    }
-
-    int64_t nBlockHeightTemp = 0;
-    std::string strBlockHashTemp;
-    std::string strFileName;
-
-    strFileName = strControlFileName + "-temp";
-    if(boost::filesystem::exists(strFileName)) {
-        if(ReadControlFile(nBlockHeightTemp, strBlockHashTemp, strFileName)) {
-            if(boost::filesystem::exists(strVoteFileName + "-" + strBlockHashTemp)
-                && boost::filesystem::exists(strDelegateFileName + "-" + strBlockHashTemp)
-                && boost::filesystem::exists(strBalanceFileName + "-" + strBlockHashTemp))
-            {
-                rename(strFileName.c_str(), strControlFileName.c_str());
-                return true;
-            }
-            remove(strFileName.c_str());
-        }
-    }
-
-    strFileName = strControlFileName + "-old";
-    if(boost::filesystem::exists(strFileName)) {
-        if(ReadControlFile(nBlockHeightTemp, strBlockHashTemp, strFileName)) {
-            if(boost::filesystem::exists(strVoteFileName + "-" + strBlockHashTemp)
-                && boost::filesystem::exists(strDelegateFileName + "-" + strBlockHashTemp)
-                && boost::filesystem::exists(strBalanceFileName + "-" + strBlockHashTemp))
-            {
-                rename(strFileName.c_str(), strControlFileName.c_str());
-                return true;
-            }
-            remove(strFileName.c_str());
-        }
-    }
-
-    strFileName = strControlFileName;
-    if(boost::filesystem::exists(strFileName)) {
-        if(ReadControlFile(nBlockHeightTemp, strBlockHashTemp, strFileName)) {
-            if(boost::filesystem::exists(strVoteFileName + "-" + strBlockHashTemp)
-                || boost::filesystem::exists(strDelegateFileName + "-" + strBlockHashTemp)
-                || boost::filesystem::exists(strBalanceFileName + "-" + strBlockHashTemp))
-            {
-                return true;
-            } else {
-                return false;
-            }
-        }
-    }
-
-    return false;
-}
-
-bool Vote::ReadControlFile(int64_t& nBlockHeight, std::string& strBlockHash, const std::string& strFileName)
-{
-    bool ret = false;
-    FILE *file = fopen(strFileName.c_str(), "r");
-    if(file) {
-        fscanf(file, "%ld\n", &nBlockHeight);
-        char buff[128];
-        fscanf(file, "%s\n", buff);
-        strBlockHash = buff;
-
-        fclose(file);
-        ret = true;
-    }
-
-    return ret;
-}
-
-bool Vote::WriteControlFile(int64_t nBlockHeight, const std::string& strBlockHash, const std::string& strFileName)
-{
-    bool ret = false;
-    FILE *file = fopen(strFileName.c_str(), "w");
-    if(file) {
-        fprintf(file, "%ld\n", nBlockHeight);
-        fprintf(file, "%s\n", strBlockHash.c_str());
-        fclose(file);
-        ret = true;
-    }
-
-    return ret;
-}
-
-bool Vote::Read()
-{
-    FILE* file = NULL;
-    unsigned char buff[20];
-    uint32_t count = 0;
-    uint64_t balance = 0;
-
-    write_lock w(lockVote);
-
-    if(ReadControlFile(nOldBlockHeight, strOldBlockHash, strControlFileName) == false)
-        return false;
-
-    file = fopen((strDelegateFileName + "-" + strOldBlockHash).c_str(), "rb");
-    if(file) {
-    while(1)
-    {
-        if(fread(&buff[0], sizeof(buff), 1, file) <= 0) {
-            break;
-        }
-
-        CKeyID delegate(uint160(std::vector<unsigned char>(&buff[0], &buff[0] + sizeof(buff))));
-        fread(&count, sizeof(count), 1, file);
-
-        unsigned char name[128];
-        memset(name, 0, sizeof(name));
-        fread(&name[0], count, 1, file);
-
-        std::string sname((const char*)&name[0], count);
-        mapDelegateName[delegate] = sname;
-        mapNameDelegate[sname] = delegate;
-    }
-    fclose(file);
-    }
-
-    file = fopen((strVoteFileName + "-" + strOldBlockHash).c_str(), "rb");
-    if(file) {
-    while(1)
-    {
-        if(fread(&buff[0], sizeof(buff), 1, file) <= 0) {
-            break;
-        }
-
-        CKeyID delegate(uint160(std::vector<unsigned char>(&buff[0], &buff[0] + sizeof(buff))));
-
-        fread(&count, sizeof(count), 1, file);
-        for(unsigned int i =0; i < count; ++i) {
-            fread(&buff[0], sizeof(buff), 1, file);
-            CKeyID voter(uint160(std::vector<unsigned char>(&buff[0], &buff[0] + sizeof(buff))));
-
-            mapDelegateVoters[delegate].insert(voter);
-            mapVoterDelegates[voter].insert(delegate);
-        }
-    }
-    fclose(file);
-    }
-
-    file = fopen((strInvalidVoteTxFileName + "-" + strOldBlockHash).c_str(), "rb");
-    if(file) {
-    while(1)
-    {
-        if(fread(&buff[0], 64, 1, file) <= 0) {
-            break;
-        }
-        uint256 hash;
-        hash.SetHex((const char*)&buff[0]);
-
-        uint64_t height;
-        fread(&height, sizeof(height), 1, file);
-        AddInvalidVote(hash, height);
-    }
-    fclose(file);
-    }
-
-    file = fopen((strBalanceFileName + "-" + strOldBlockHash).c_str(), "rb");
-    if(file) {
-    while(1)
-    {
-        if(fread(&buff[0], sizeof(buff), 1, file) <= 0) {
-            break;
-        }
-
-        CKeyID address(uint160(std::vector<unsigned char>(&buff[0], &buff[0] + sizeof(buff))));
-        fread(&balance, sizeof(balance), 1, file);
-
-        mapAddressBalance[address] = balance;
-    }
-    fclose(file);
-    }
-
-    return true;
-}
-
-
-bool Vote::Write(const std::string& strBlockHash)
-{
-    FILE* file = NULL;
-    uint32_t count = 0;
-    uint64_t balance = 0;
-
-    write_lock w(lockVote);
-
-    file = fopen((strDelegateFileName + "-" + strBlockHash) .c_str(), "wb");
-    for(auto item : mapDelegateName)
-    {
-        fwrite(item.first.begin(), sizeof(item.first), 1, file);
-        count = item.second.length();
-        fwrite(&count, sizeof(count), 1, file);
-        fwrite(item.second.c_str(), item.second.length(), 1, file);
-    }
-    fclose(file);
-
-    file = fopen((strVoteFileName + "-" + strBlockHash).c_str(), "wb");
-    for(auto item : mapDelegateVoters)
-    {
-        fwrite(item.first.begin(), sizeof(item.first), 1, file);
-        count = item.second.size();
-        fwrite(&count, sizeof(count), 1, file);
-        for(auto i : item.second) {
-            fwrite(i.begin(), sizeof(i), 1, file);
-        }
-    }
-    fclose(file);
-
-    file = fopen((strInvalidVoteTxFileName + "-" + strBlockHash).c_str(), "wb");
-    for(auto item : mapHashHeightInvalidVote)
-    {
-        auto strHash = item.first.GetHex();
-        fwrite(strHash.c_str(), strHash.length(), 1, file);
-        fwrite(&item.second, sizeof(item.second), 1, file);
-    }
-    fclose(file);
-
-    file = fopen((strBalanceFileName + "-" + strBlockHash).c_str(), "wb");
-    for(auto item : mapAddressBalance)
-    {
-        balance = item.second;
-        if(balance == 0)
-            continue;
-        fwrite(item.first.begin(), sizeof(item.first), 1, file);
-        fwrite(&balance, sizeof(balance), 1, file);
-    }
-    fclose(file);
-
-    return true;
-}
-
-void Vote::Delete(const std::string& strBlockHash)
-{
-    remove((strDelegateFileName + "-" + strBlockHash).c_str());
-    remove((strVoteFileName + "-" + strBlockHash) .c_str());
-    remove((strBalanceFileName + "-" + strBlockHash) .c_str());
-}
-
 uint64_t Vote::_GetAddressBalance(const CKeyID& address)
 {
-    auto it = mapAddressBalance.find(address);
-    if(it != mapAddressBalance.end()) {
-        return it->second;
-    } else {
-        return 0;
-    }
+    return pDPoSDb->GetAddressVoteNum(address);
 }
 
 void Vote::UpdateAddressBalance(const std::vector<std::pair<CKeyID, int64_t>>& vAddressBalance)
@@ -857,32 +541,33 @@ uint64_t Vote::_UpdateAddressBalance(const CKeyID& address, int64_t value)
 {
     int64_t balance = 0;
 
-    auto it = mapAddressBalance.find(address);
-    if(it != mapAddressBalance.end()) {
-        balance = it->second + value;
-        if(balance < 0) {
+    CAmount voteNum = pDPoSDb->GetAddressVoteNum(address);
+    if (voteNum > 0){
+        balance = voteNum + value;
+        if (balance < 0 ){
             abort();
         }
 
-        if(balance == 0) {
-            mapAddressBalance.erase(it);
-        } else {
-            it->second = balance;
+        if (balance == 0){
+            pDPoSDb->EraseAddressVoteNum(address);
+            return balance;
         }
+        pDPoSDb->WriteAddressVoteNum(address, balance);
         return balance;
     } else {
-        if(value < 0) {
+        if (value < 0){
             abort();
         }
 
         if(value == 0) {
             return 0;
         } else {
-            mapAddressBalance[address] = value;
+            pDPoSDb->WriteAddressVoteNum(address, value);
         }
 
         return value;
     }
+
 }
 
 void Vote::DeleteInvalidVote(uint64_t height)

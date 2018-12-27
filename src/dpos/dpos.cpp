@@ -13,13 +13,18 @@ typedef boost::unique_lock<boost::shared_mutex> write_lock;
 
 DPOS::DPOS()
 {
-    nMaxDelegateNumber = 5;
-    nBlockIntervalTime = 10;
+    nMaxDelegateNumber = 3;
+    nBlockIntervalTime = 2;
     nDposStartHeight = Params().LastPOWBlock()+1;
 
-    nDposStartTime = 0;
+    if(chainActive.Height() >= nDposStartHeight - 1) {
+        SetStartTime(chainActive[nDposStartHeight -1]->nTime);
+    } else {
+        nDposStartTime = 0;
+    }
+
     //HTODO strDelegateAddress not set before nDposStartHeight
-    strDelegateAddress = "YUpKtdBcCWbRzurhUGtWWxGFv7MEmsFgwb";
+    strDelegateAddress = "KUvYTrDtRK866C5bTohzga3J2nX7tonDhz";
 }
 
 DPOS& DPOS::GetInstance() {
@@ -48,10 +53,10 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlockIndex &blockindex
         return error("DPoS CheckBlock(): *** ReadBlockFromDisk failed at %d, hash=%s", blockindex.nHeight, blockindex.GetBlockHash().ToString());
     }
 
-    bool ret = CheckBlock(view, block, state);
-    if(ret && chainActive.Height() == nDposStartHeight - 2) {
-        SetStartTime(chainActive[nDposStartHeight -2]->nTime);
+    if(chainActive.Height() == nDposStartHeight - 1) {
+        SetStartTime(chainActive[nDposStartHeight -1]->nTime);
     }
+    bool ret = CheckBlock(view, block, state);
     return ret;
 }
 
@@ -294,27 +299,18 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidat
         return state.Invalid(false, REJECT_INVALID, "bad DPoS block signature");
     }
 
-//    if(CheckTransactionVersion(block) == false)
-//        return false;
-
     // HTODO let state return back
     for (const auto& tx : block.vtx ){
         if (!DPOS::CheckTransaction(view, *tx, state))
             return false;
     }
 
+    // HTODO considor starttime ???
     if(nDposStartTime == 0 && chainActive.Height() >= nDposStartHeight - 1) {
         SetStartTime(chainActive[nDposStartHeight -1]->nTime);
     }
 
     // HTODO height < nDposStartHeight, only strDelegateAddress can be coinbase address, unreasonable ??
-    if(nBlockHeight < nDposStartHeight) {
-        if(GetDelegateAddress(block) == strDelegateAddress) {
-            return true;
-        } else {
-            return state.Invalid(false, REJECT_INVALID, strprintf("%s nBlockHeight < nDposStartHeight", __func__));
-        }
-    }
 
     uint64_t nCurrentLoopIndex = GetLoopIndex(block.nTime);
     uint32_t nCurrentDelegateIndex = GetDelegateIndex(block.nTime);
@@ -328,6 +324,8 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidat
     DelegateInfo cDelegateInfo;
 
     if(nBlockHeight == nDposStartHeight) {
+        LogPrint("HZY", strprintf("1---height=%lld nCurrentLoopIndex=%llu nPrevLoopIndex=%llu nCurrentDelegateIndex=%llu nPrevDelegateIndex=%llu\n",
+                                  nBlockHeight, nCurrentLoopIndex, nPrevLoopIndex, nCurrentDelegateIndex, nPrevDelegateIndex));
         if(CheckBlockDelegate(block) == false) {
             return ret;
         }
@@ -336,13 +334,17 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidat
     } else if(nCurrentLoopIndex < nPrevLoopIndex) {
         return state.Invalid(false, REJECT_INVALID, strprintf("%s nCurrentLoopIndex < nCurrentLoopIndex", __func__));
     } else if(nCurrentLoopIndex > nPrevLoopIndex) {
+        LogPrint("HZY", strprintf("2---height=%lld nCurrentLoopIndex=%llu nPrevLoopIndex=%llu nCurrentDelegateIndex=%llu nPrevDelegateIndex=%llu\n",
+                                  nBlockHeight, nCurrentLoopIndex, nPrevLoopIndex, nCurrentDelegateIndex, nPrevDelegateIndex));
         if(CheckBlockDelegate(block) == false) {
             return ret;
         }
-        ProcessIrreversibleBlock(nBlockHeight, block.GetHash());
+//        ProcessIrreversibleBlock(nBlockHeight, block.GetHash());
 
         GetBlockDelegate(cDelegateInfo, block);
     } else if(nCurrentLoopIndex == nPrevLoopIndex) {
+        LogPrint("HZY", strprintf("3---height=%lld nCurrentLoopIndex=%llu nPrevLoopIndex=%llu nCurrentDelegateIndex=%llu nPrevDelegateIndex=%llu\n",
+                                  nBlockHeight, nCurrentLoopIndex, nPrevLoopIndex, nCurrentDelegateIndex, nPrevDelegateIndex));
         if(nCurrentDelegateIndex <= nPrevDelegateIndex) {
             return state.Invalid(false, REJECT_INVALID, strprintf("%s nCurrentDelegateIndex <= nPrevDelegateIndex, pretime:%u", __func__, pPrevBlockIndex->nTime));
         }
@@ -416,7 +418,7 @@ bool DPOS::CheckBlockDelegate(const CBlock& block)
 {
     DelegateInfo cDelegateInfo;
     if(GetBlockDelegate(cDelegateInfo, block) == false) {
-        LogPrint("CheckBlockDelegate GetBlockDelegate hash:%s error\n", block.GetHash().ToString().c_str());
+        LogPrintf("CheckBlockDelegate GetBlockDelegate hash:%s error\n", block.GetHash().ToString().c_str());
         return false;
     }
 
@@ -547,99 +549,4 @@ std::vector<Delegate> DPOS::SortDelegate(const std::vector<Delegate>& delegates)
 
     return result;
 }
-
-void DPOS::ProcessIrreversibleBlock(int64_t height, uint256 hash)
-{
-    if(fUseIrreversibleBlock == false) {
-        return;
-    }
-
-    write_lock l(lockIrreversibleBlockInfo);
-
-    int i = 0;
-    for(i = nMaxConfirmBlockCount - 1; i >= 0; --i) {
-        if(cIrreversibleBlockInfo.heights[i] < 0 || height <= cIrreversibleBlockInfo.heights[i]) {
-            cIrreversibleBlockInfo.heights[i] = -1;
-        } else {
-            if(IsOnTheSameChain(std::make_pair(cIrreversibleBlockInfo.heights[i], cIrreversibleBlockInfo.hashs[i]), std::make_pair(height, hash))) {
-                assert(height > cIrreversibleBlockInfo.heights[i]);
-                if((height - cIrreversibleBlockInfo.heights[i]) * 100 >= nMaxDelegateNumber * nFirstIrreversibleThreshold) {
-                    AddIrreversibleBlock(cIrreversibleBlockInfo.heights[i], cIrreversibleBlockInfo.hashs[i]);
-                    LogPrintf("First NewIrreversibleBlock height:%ld hash:%s\n", cIrreversibleBlockInfo.heights[i], cIrreversibleBlockInfo.hashs[i].ToString().c_str());
-
-                    for(auto k = 0; k < nMaxConfirmBlockCount; ++k) {
-                        cIrreversibleBlockInfo.heights[k] = -1;
-                    }
-                    cIrreversibleBlockInfo.heights[0] = height;
-                    cIrreversibleBlockInfo.hashs[0] = hash;
-                    return;
-                } else if((height - cIrreversibleBlockInfo.heights[i]) * 100 >= nMaxDelegateNumber * nSecondIrreversibleThreshold) {
-                    if(i == nMaxConfirmBlockCount - 1) {
-                        AddIrreversibleBlock(cIrreversibleBlockInfo.heights[i], cIrreversibleBlockInfo.hashs[i]);
-                        LogPrintf("Second NewIrreversibleBlock height:%ld hash:%s\n", cIrreversibleBlockInfo.heights[i], cIrreversibleBlockInfo.hashs[i].ToString().c_str());
-
-                        for(int j = 0; j < nMaxConfirmBlockCount -1; ++j) {
-                            cIrreversibleBlockInfo.heights[j] = cIrreversibleBlockInfo.heights[j+1];
-                            cIrreversibleBlockInfo.hashs[j] = cIrreversibleBlockInfo.hashs[j+1];
-                        }
-
-                        cIrreversibleBlockInfo.heights[nMaxConfirmBlockCount - 1] = height;
-                        cIrreversibleBlockInfo.hashs[nMaxConfirmBlockCount - 1] = hash;
-                        return;
-                    } else {
-                        cIrreversibleBlockInfo.heights[i+1] = height;
-                        cIrreversibleBlockInfo.hashs[i+1] = hash;
-                        return;
-                    }
-                } else {
-                    for(auto k = 0; k < nMaxConfirmBlockCount; ++k) {
-                        cIrreversibleBlockInfo.heights[k] = -1;
-                    }
-                    cIrreversibleBlockInfo.heights[0] = height;
-                    cIrreversibleBlockInfo.hashs[0] = hash;
-                    return;
-                }
-            } else {
-                cIrreversibleBlockInfo.heights[i] = -1;
-            }
-        }
-    }
-
-    if(i < 0) {
-        cIrreversibleBlockInfo.heights[0] = height;
-        cIrreversibleBlockInfo.hashs[0] = hash;
-        return;
-    }
-}
-
-bool DPOS::IsOnTheSameChain(const std::pair<int64_t, uint256>& first, const std::pair<int64_t, uint256>& second)
-{
-    bool ret = false;
-
-    BlockMap::iterator it = mapBlockIndex.find(second.second);
-    if(it != mapBlockIndex.end()) {
-        CBlockIndex *pindex = it->second;
-        while(pindex->nHeight != first.first) {
-            pindex = pindex->pprev;
-        }
-
-        if(*pindex->phashBlock == first.second) {
-            ret = true;
-        }
-    }
-
-    return ret;
-}
-
-void DPOS::AddIrreversibleBlock(int64_t height, uint256 hash)
-{
-    while((int64_t)cIrreversibleBlockInfo.mapHeightHash.size() >= nMaxIrreversibleCount) {
-        cIrreversibleBlockInfo.mapHeightHash.erase(cIrreversibleBlockInfo.mapHeightHash.begin());
-    }
-
-    cIrreversibleBlockInfo.mapHeightHash.insert(std::make_pair(height, hash));
-
-//    Vote::GetInstance().DeleteInvalidVote(height);
-}
-
 

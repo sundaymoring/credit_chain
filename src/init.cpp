@@ -246,6 +246,8 @@ void Shutdown()
         ptokendbview = NULL;
         delete psymboldbview;
         psymboldbview = NULL;
+        delete pDPoSDb;
+        pDPoSDb = NULL;
     }
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -275,7 +277,7 @@ void Shutdown()
     globalVerifyHandle.reset();
     ECC_Stop();
 
-    Vote::GetInstance().Store(nOldBlockHeight, strOldBlockHash);
+//    Vote::GetInstance().Store(nOldBlockHeight, strOldBlockHash);
     LogPrintf("%s: done\n", __func__);
 }
 
@@ -668,15 +670,9 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         }
     }
 
-    if(!chainActive.Tip()) {
-        if(Vote::GetInstance().Init(0, std::string()) == false) {
-            return;
-        }
-    } else {
-        if(Vote::GetInstance().Init(chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString()) == false) {
-            return;
-        }
-
+    // HTODO think new chain tip to dpos
+    // HTODO old blockHeight and blockhash save to leveldb
+    if(chainActive.Tip()) {
         if(RepairDPoSData(Vote::GetInstance().GetOldBlockHeight(), Vote::GetInstance().GetOldBlockHash()) == false) {
             return;
         }
@@ -1443,6 +1439,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     int64_t nSymbolDBCache = nTotalCache / 25;
     nSymbolDBCache = std::min(nSymbolDBCache, nMaxSymbolDBCache << 20);
     nTotalCache -= nSymbolDBCache;
+    int64_t nDPoSDBCache = nTokenDBCache / 10;
+    nDPoSDBCache = std::min(nDPoSDBCache, nMaxDPoSDBCache << 20);
+    nTokenDBCache -= nDPoSDBCache;
     int64_t nCoinDBCache = std::min(nTotalCache / 2, (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
     nCoinDBCache = std::min(nCoinDBCache, nMaxCoinsDBCache << 20); // cap total coins db cache
     nTotalCache -= nCoinDBCache;
@@ -1471,7 +1470,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 delete pblocktree;
                 delete ptokendbview;
                 delete psymboldbview;
+                delete pDPoSDb;
 
+                pDPoSDb = new CDPoSDb(nDPoSDBCache, false, fReindex || fReindexChainState);
                 ptokendbview = new CTokenDB(nTokenDBCache, false,  fReindex || fReindexChainState);
                 psymboldbview = new CSymbolDB(nSymbolDBCache, false,  fReindex || fReindexChainState);
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);

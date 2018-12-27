@@ -2410,7 +2410,6 @@ bool ProcessVote(uint32_t nHeight, uint256 hash, const CPubKey& pubkey, uint64_t
     return Vote::GetInstance().ProcessVote(key, setDelegate, hash, nHeight, fUndo);
 }
 
-
 bool DoVoting(const CBlock& block, uint32_t nHeight, std::map<uint256, uint64_t>& mapTxFee, bool fUndo)
 {
     if(fUndo) {
@@ -3290,6 +3289,9 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
 
     nOldBlockHeight = chainActive.Height();
     strOldBlockHash = chainActive.Tip()->GetBlockHash().ToString();
+    if (chainActive.Height() == DPOS::GetInstance().GetStartHeight()-1){
+        DPOS::GetInstance().SetStartTime(chainActive.Tip()->nTime);
+    }
 
     LogPrintf("%s: new best=%s height=%d version=0x%08x log2_work=%.8g tx=%lu date='%s' progress=%f cache=%.1fMiB(%utx)", __func__,
       chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(), chainActive.Tip()->nVersion,
@@ -3400,19 +3402,19 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     LogPrint("bench", "  - Load block from disk: %.2fms [%.2fs]\n", (nTime2 - nTime1) * 0.001, nTimeReadFromDisk * 0.000001);
     {
         CCoinsViewCache view(pcoinsTip);
+
+        if( !DPOS::GetInstance().CheckBlock(view, *pindexNew, state) ) {
+//            state.DoS(50, false, REJECT_INVALID, "DPoS CheckBlock hash error");
+            InvalidBlockFound(pindexNew, state);
+            return error("ConnectTip(): DPoS CheckBlock hash: %s failed\n", pindexNew->GetBlockHash().ToString());
+        }
+
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams);
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
             return error("ConnectTip(): ConnectBlock %s failed", pindexNew->GetBlockHash().ToString());
-        }
-
-
-        if( !DPOS::GetInstance().CheckBlock(view, *pindexNew, state) ) {
-//            state.DoS(50, false, REJECT_INVALID, "DPoS CheckBlock hash error");
-            InvalidBlockFound(pindexNew, state);
-            return error("ConnectTip(): DPoS CheckBlock hash: %s failed\n", pindexNew->GetBlockHash().ToString());
         }
 
         ProcessDPoSConnectBlock(blockConnecting, pindexNew->nHeight);
@@ -3985,7 +3987,7 @@ bool CheckBlockSignature(const CBlock& block, const uint256& hash)
     std::vector<std::vector<unsigned char> > vSolutions;
     txnouttype whichType;
 
-    size_t index = -1;
+    int index = -1;
     if (block.IsProofOfStake()) {
         index = 1;
     } else if (block.IsProofOfDPoS()) {

@@ -5,6 +5,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "chain.h"
+#include "dpos/dpos.h"
 
 /**
  * CChain implementation
@@ -120,6 +121,10 @@ void CBlockIndex::BuildSkip()
 
 arith_uint256 GetBlockProof(const CBlockIndex& block)
 {
+    if(block.nHeight >= DPOS::GetInstance().GetStartHeight()) {
+        return 1;
+    }
+
     arith_uint256 bnTarget;
     bool fNegative;
     bool fOverflow;

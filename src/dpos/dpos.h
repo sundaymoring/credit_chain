@@ -53,6 +53,8 @@ public:
     uint64_t GetStartTime() {return nDposStartTime;}
     void SetStartTime(uint64_t t) {nDposStartTime = t;}
 
+    uint32_t GetStartHeight() {return nDposStartHeight;}
+
 private:
     DPOS();
 
@@ -75,22 +77,16 @@ private:
     DelegateInfo GetNextDelegates(int64_t t);
     std::vector<Delegate> SortDelegate(const std::vector<Delegate>& delegates);
 
-    void ProcessIrreversibleBlock(int64_t height, uint256 hash);
-    bool IsOnTheSameChain(const std::pair<int64_t, uint256>& first, const std::pair<int64_t, uint256>& second);
-    void AddIrreversibleBlock(int64_t height, uint256 hash);
+    // HTODO add func `void ProcessIrreversibleBlock(int64_t height, uint256 hash);`
 
 private:
     int nMaxDelegateNumber;
     int nBlockIntervalTime;            //seconds
     int nDposStartHeight;
-    uint32_t nDposStartTime;
+    uint32_t nDposStartTime;  // start time is mapblockindex[nDposStartHeight-1] time
     std::string strDelegateAddress;
     IrreversibleBlockInfo cIrreversibleBlockInfo;
     boost::shared_mutex lockIrreversibleBlockInfo;
-
-    const int nFirstIrreversibleThreshold = 90;
-    const int nSecondIrreversibleThreshold = 67;
-    const int nMaxIrreversibleCount = 1000;
 };
 
 #endif // DPOS_H
