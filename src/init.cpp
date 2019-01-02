@@ -671,7 +671,6 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
     }
 
     // HTODO think new chain tip to dpos
-    // HTODO old blockHeight and blockhash save to leveldb
     if(chainActive.Tip()) {
         if(RepairDPoSData(Vote::GetInstance().GetOldBlockHeight(), Vote::GetInstance().GetOldBlockHash()) == false) {
             return;

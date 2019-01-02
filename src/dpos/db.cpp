@@ -1,4 +1,5 @@
 #include "dpos/db.h"
+#include "dpos/dpos.h"
 
 
 CDPoSDb* pDPoSDb;
@@ -8,6 +9,7 @@ static const std::string DB_VOTER_DELEGATE = "V_D";
 static const std::string DB_DELEGATE_NAME = "D_N";
 static const std::string DB_NAME_DELEGATE = "N_D";
 static const std::string DB_ADDRESS_NUM = "A_N";
+static const std::string DB_CURRENT_DELEGATE = "C_D";
 
 //CVoteDb::CVoteDb(size_t nCacheSize, bool fMemory, bool fWipe) : CDBWrapper(GetDataDir() / "dpos", nCacheSize, fMemory, fWipe) {
 //}
@@ -192,4 +194,13 @@ CAmount CDPoSDb::GetAddressVoteNum(const CKeyID &address)
 bool CDPoSDb::EraseAddressVoteNum(const CKeyID &address)
 {
     return Erase(std::make_pair(DB_ADDRESS_NUM, address));
+}
+
+// current delegates
+bool CDPoSDb::WriteCurrentDelegates(const int height, const DelegateInfo& delegates){
+    return Write(std::make_pair(DB_CURRENT_DELEGATE, height), delegates);
+}
+
+bool CDPoSDb::GetCurrentDelegates(const int height, DelegateInfo& delegates){
+    return Read(std::make_pair(DB_CURRENT_DELEGATE, height), delegates);
 }

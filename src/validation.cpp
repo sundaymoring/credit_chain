@@ -2599,7 +2599,6 @@ void CalculateBalance(const CBlock& block, bool fIsAdd, std::map<uint256, uint64
     Vote::GetInstance().UpdateAddressBalance(addressBalances);
 }
 
-//HTODO  let CURRENT_VERSION = DPOS_VERSION2
 void ProcessDPoSConnectBlock(const CBlock& block, uint64_t nBlockHeight)
 {
     LogPrint("DPoS", "ProcessDPoSConnectBlock %s %lu %u\n", block.GetHash().ToString().c_str(), nBlockHeight, block.nTime);
@@ -3287,10 +3286,17 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
         }
     }
 
+    // update dpos info
     nOldBlockHeight = chainActive.Height();
     strOldBlockHash = chainActive.Tip()->GetBlockHash().ToString();
-    if (chainActive.Height() == DPOS::GetInstance().GetStartHeight()-1){
-        DPOS::GetInstance().SetStartTime(chainActive.Tip()->nTime);
+    int nTipHeight = chainActive.Height();
+    int nDposPreHeight = DPOS::GetInstance().GetStartHeight()-1;
+
+    if (nTipHeight == nDposPreHeight) {
+        DPOS::GetInstance().SetStartTime(chainActive[nDposPreHeight]->nTime);
+    }
+    if (nTipHeight >= nDposPreHeight) {
+        DPOS::GetInstance().UpdateDelegates(nTipHeight);
     }
 
     LogPrintf("%s: new best=%s height=%d version=0x%08x log2_work=%.8g tx=%lu date='%s' progress=%f cache=%.1fMiB(%utx)", __func__,

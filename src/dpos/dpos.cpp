@@ -60,7 +60,7 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlockIndex &blockindex
     return ret;
 }
 
-bool DPOS::IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateAddress, time_t t)
+bool DPOS::IsMining(uint160& delegatesHash, const std::string& strDelegateAddress, time_t t)
 {
     CBlockIndex* pBlockIndex = chainActive.Tip();
     if(pBlockIndex->nHeight < nDposStartHeight - 1) {
@@ -83,34 +83,34 @@ bool DPOS::IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateA
         return false;
     }
 
+    DelegateInfo cDelegateInfo;
+    if (GetDelegates(pBlockIndex->nHeight, cDelegateInfo) == false){
+        LogPrint("IsMining", "GetCurrentDelegates failed");
+        return false;
+    }
+
     if(pBlockIndex->nHeight == nDposStartHeight - 1) {
-        cDelegateInfo = DPOS::GetNextDelegates(t);
         if(cDelegateInfo.delegates[nCurrentDelegateIndex].keyid == keyid) {
             LogPrintf("IsMining nCurrentDelegateIndex=%lu", nCurrentDelegateIndex);
-            return true;
+            delegatesHash = DelegatesToHash(cDelegateInfo);
         } else {
             return false;
         }
+        return true;
     }
 
     if(nCurrentLoopIndex > nPrevLoopIndex) {
-        cDelegateInfo = DPOS::GetNextDelegates(t);
         if(cDelegateInfo.delegates[nCurrentDelegateIndex].keyid == keyid) {
-            return true;
+            delegatesHash = DelegatesToHash(cDelegateInfo);
         } else {
             return false;
         }
+        return true;
     } else if(nCurrentLoopIndex == nPrevLoopIndex && nCurrentDelegateIndex > nPrevDelegateIndex) {
-        DelegateInfo cCurrentDelegateInfo;
-        if(GetBlockDelegates(cCurrentDelegateInfo, pBlockIndex)) {
-            if(nCurrentDelegateIndex + 1 > cCurrentDelegateInfo.delegates.size()) {
-                return false;
-            } else if(cCurrentDelegateInfo.delegates[nCurrentDelegateIndex].keyid == keyid) {
-                //cDelegateInfo.delegates.clear();
-                return true;
-            } else {
-                return false;
-            }
+        uint160 blockDelegatesHash;
+        if (GetBlockDelegates(blockDelegatesHash, pBlockIndex)){
+            delegatesHash = DelegatesToHash(cDelegateInfo);
+            return blockDelegatesHash == delegatesHash;
         } else {
             return false;
         }
@@ -121,24 +121,13 @@ bool DPOS::IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateA
     return false;
 }
 
-//OP_DPOS delegateName PUBLICK_KEY HASH(time) SIG OP_CODE DELEGATE_IDS
-CScript DPOS::DelegateInfoToScript(const DelegateInfo& cDelegateInfo, const CKey& delegatekey, time_t t){
+//OP_DPOS delegateName PUBLICK_KEY HASH(time) SIG OP_CODE DELEGATE_IDS_HASH
+CScript DPOS::DelegateInfoToScript(const uint160& delegatesHash, const CKey& delegatekey, time_t t){
 
-    const std::vector<Delegate>& delegates = cDelegateInfo.delegates;
-    int nDataLen = 1 + delegates.size() * 20;
     std::vector<unsigned char> data;
-
-    if(delegates.empty() == false) {
-        data.resize(nDataLen);
-//        data[0] = 0x7;
-        data[0] = dpos_list;
-
-        unsigned char* pData = &data[1];
-        for(unsigned int i =0; i < delegates.size(); ++i) {
-            memcpy(pData, delegates[i].keyid.begin(), 20);
-            pData += 20;
-        }
-    }
+    data.resize(delegatesHash.size() + 1);
+    data[0] = dpos_list;
+    memcpy(&data[1], delegatesHash.begin(), delegatesHash.size());
 
     std::vector<unsigned char> vchSig;
     std::string ts = std::to_string(t);
@@ -151,26 +140,20 @@ CScript DPOS::DelegateInfoToScript(const DelegateInfo& cDelegateInfo, const CKey
     script[0] = OP_DPOS;
     script[1] = 0x01;
     script[2] = DPOS_PROTOCOL_VERSION;
-    if(cDelegateInfo.delegates.empty() == false) {
-        script << std::vector<unsigned char>(delegateName.begin(), delegateName.end())
-               << ToByteVector(pubkey)
-               << std::vector<unsigned char>(ts.begin(), ts.end())
-               << vchSig
-               << data;
-    } else {
-        script << std::vector<unsigned char>(delegateName.begin(), delegateName.end())
-               << ToByteVector(pubkey)
-               << std::vector<unsigned char>(ts.begin(), ts.end())
-               << vchSig;
-    }
+
+    script << std::vector<unsigned char>(delegateName.begin(), delegateName.end())
+           << ToByteVector(pubkey)
+           << std::vector<unsigned char>(ts.begin(), ts.end())
+           << vchSig
+           << data;
+
     return script;
 }
 
 //OP_DPOS delegateName PUBLICK_KEY HASH(time) SIG OP_CODE DELEGATE_IDS
-bool DPOS::ScriptToDelegateInfo(DelegateInfo& cDelegateInfo, time_t &t, std::vector<unsigned char>* pvctPublicKey, const CScript& script)
+bool DPOS::ScriptToDelegateInfo(uint160& delegatesHash, time_t &t, std::vector<unsigned char>* pvctPublicKey, const CScript& script)
 {
     opcodetype op;
-    std::vector<unsigned char> data;
     CScript::const_iterator it = script.begin();
     if(*it == OP_DPOS) {
         if (*++it != 0x01 || *++it != DPOS_PROTOCOL_VERSION)
@@ -180,7 +163,6 @@ bool DPOS::ScriptToDelegateInfo(DelegateInfo& cDelegateInfo, time_t &t, std::vec
         std::vector<unsigned char> vctPublicKey;
         std::vector<unsigned char> vctTime;
         std::vector<unsigned char> vctSig;
-        data.clear();
         if( script.GetOp2(it, op, &vctDelegateName) == false
             || script.GetOp2(it, op, &vctPublicKey) == false
             || script.GetOp2(it, op, &vctTime) == false
@@ -202,24 +184,64 @@ bool DPOS::ScriptToDelegateInfo(DelegateInfo& cDelegateInfo, time_t &t, std::vec
             *pvctPublicKey = vctPublicKey;
         }
 
+        std::vector<unsigned char> data;
         if(script.GetOp2(it, op, &data)) {
             if((data.size() - (1)) % (20) == 0) {
                 if (data[0] != dpos_list){
                     return false;
                 }
                 unsigned char* pData = &data[1];
-                uint32_t nDelegateNum = (data.size() - (1)) / (20);
-                for(unsigned int i =0; i < nDelegateNum; ++i) {
-                    std::vector<unsigned char> vct(pData, pData + 20);
-                    cDelegateInfo.delegates.push_back(Delegate(CKeyID(base_blob<160>(vct)), 0));
-                    pData += 20;
-                }
-
+                std::vector<unsigned char> vct(pData, pData + 20);
+                delegatesHash = uint160(vct);
                 return true;
+            } else {
+                return false;
             }
+        } else {
+            return false;
         }
     }
     return true;
+}
+
+uint160 DPOS::DelegatesToHash(const DelegateInfo& cDelegateInfo){
+    std::string strDelegates;
+    for (const auto& d : cDelegateInfo.delegates){
+        strDelegates += d.keyid.ToString();
+    }
+
+    return Hash160(strDelegates.begin(), strDelegates.end());
+}
+
+// save delegates at height {nDposStartHeight-1 + n * nMaxDelegateNumber} n(0...n)
+bool DPOS::UpdateDelegates(const int height) {
+    int nStartUpdateHeight = nDposStartHeight-1;
+    if (0 != (height-nStartUpdateHeight) % nMaxDelegateNumber ){
+        return true;
+    }
+
+    uint64_t nMinHoldBalance = 0;
+    std::vector<Delegate> delegates = Vote::GetInstance().GetTopDelegateInfo(nMinHoldBalance, nMaxDelegateNumber-1);
+
+    // insert default delegate address
+    Delegate delegate;
+    GetDelegateID(delegate.keyid, strDelegateAddress);
+    delegate.votes = 7;
+    delegates.insert(delegates.begin(), delegate);
+
+    delegates.resize(nMaxDelegateNumber);
+
+    DelegateInfo cDelegateInfo;
+    cDelegateInfo.delegates = SortDelegate(delegates);
+
+    return pDPoSDb->WriteCurrentDelegates(height, cDelegateInfo);
+}
+
+bool DPOS::GetDelegates(const int height, DelegateInfo& cDelegateInfo){
+    int nStartUpdateHeight = nDposStartHeight-1;
+    int nSaveHeight = (height -nDposStartHeight) / nMaxDelegateNumber * nMaxDelegateNumber + nStartUpdateHeight;
+
+    return pDPoSDb->GetCurrentDelegates(nSaveHeight, cDelegateInfo);
 }
 
 bool DPOS::GetDelegateID(CKeyID& keyid, const std::string& address)
@@ -264,7 +286,7 @@ std::string DPOS::GetDelegateAddress(const CBlock& block)
     return address;
 }
 
-bool DPOS::GetBlockDelegate(DelegateInfo& cDelegateInfo, const CBlock& block)
+bool DPOS::GetBlockDelegate(uint160& delegateHash, const CBlock& block)
 {
     bool ret = false;
 
@@ -272,7 +294,7 @@ bool DPOS::GetBlockDelegate(DelegateInfo& cDelegateInfo, const CBlock& block)
     if(tx->IsCoinBase() && tx->vout.size() == 3) {
         auto script = tx->vout[0].scriptPubKey;
         time_t t;
-        ret = ScriptToDelegateInfo(cDelegateInfo, t, NULL, script);
+        ret = ScriptToDelegateInfo(delegateHash, t, NULL, script);
     }
 
     return ret;
@@ -299,7 +321,6 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidat
         return state.Invalid(false, REJECT_INVALID, "bad DPoS block signature");
     }
 
-    // HTODO let state return back
     for (const auto& tx : block.vtx ){
         if (!DPOS::CheckTransaction(view, *tx, state))
             return false;
@@ -321,40 +342,39 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidat
     nPrevDelegateIndex = GetDelegateIndex(pPrevBlockIndex->nTime);
 
     bool ret = false;
-    DelegateInfo cDelegateInfo;
+    uint160 delegateHash;
 
     if(nBlockHeight == nDposStartHeight) {
-        LogPrint("HZY", strprintf("1---height=%lld nCurrentLoopIndex=%llu nPrevLoopIndex=%llu nCurrentDelegateIndex=%llu nPrevDelegateIndex=%llu\n",
-                                  nBlockHeight, nCurrentLoopIndex, nPrevLoopIndex, nCurrentDelegateIndex, nPrevDelegateIndex));
-        if(CheckBlockDelegate(block) == false) {
+        if(CheckBlockDelegateHash(nBlockHeight, block) == false) {
             return ret;
         }
 
-        GetBlockDelegate(cDelegateInfo, block);
+        GetBlockDelegate(delegateHash, block);
     } else if(nCurrentLoopIndex < nPrevLoopIndex) {
         return state.Invalid(false, REJECT_INVALID, strprintf("%s nCurrentLoopIndex < nCurrentLoopIndex", __func__));
     } else if(nCurrentLoopIndex > nPrevLoopIndex) {
-        LogPrint("HZY", strprintf("2---height=%lld nCurrentLoopIndex=%llu nPrevLoopIndex=%llu nCurrentDelegateIndex=%llu nPrevDelegateIndex=%llu\n",
-                                  nBlockHeight, nCurrentLoopIndex, nPrevLoopIndex, nCurrentDelegateIndex, nPrevDelegateIndex));
-        if(CheckBlockDelegate(block) == false) {
+        if(CheckBlockDelegateHash(nBlockHeight, block) == false) {
             return ret;
         }
 //        ProcessIrreversibleBlock(nBlockHeight, block.GetHash());
 
-        GetBlockDelegate(cDelegateInfo, block);
+        GetBlockDelegate(delegateHash, block);
     } else if(nCurrentLoopIndex == nPrevLoopIndex) {
-        LogPrint("HZY", strprintf("3---height=%lld nCurrentLoopIndex=%llu nPrevLoopIndex=%llu nCurrentDelegateIndex=%llu nPrevDelegateIndex=%llu\n",
-                                  nBlockHeight, nCurrentLoopIndex, nPrevLoopIndex, nCurrentDelegateIndex, nPrevDelegateIndex));
         if(nCurrentDelegateIndex <= nPrevDelegateIndex) {
             return state.Invalid(false, REJECT_INVALID, strprintf("%s nCurrentDelegateIndex <= nPrevDelegateIndex, pretime:%u", __func__, pPrevBlockIndex->nTime));
         }
 
-        GetBlockDelegates(cDelegateInfo, pPrevBlockIndex);
+        GetBlockDelegates(delegateHash, pPrevBlockIndex);
     }
 
+    // check delegate index is right
     CKeyID delegate;
     if (!GetDelegateID(delegate, block))
         return ret;
+    DelegateInfo cDelegateInfo;
+    if (GetDelegates(nBlockHeight, cDelegateInfo) == false){
+        return state.DoS(100, error("%s: delegateInfo not found at height:%d", __func__, nBlockHeight), 0, "bad-delegateinfo");
+    }
     if(nCurrentDelegateIndex < cDelegateInfo.delegates.size()
         && cDelegateInfo.delegates[nCurrentDelegateIndex].keyid == delegate) {
         ret = true;
@@ -368,10 +388,10 @@ bool DPOS::CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidat
 bool DPOS::CheckCoinbase(const CTransaction& tx){
     bool ret = false;
     if(tx.vout.size() == 3) {
-        DelegateInfo cDelegateInfo;
+        uint160 delegateHash;
         time_t tDelegateInfo;
         std::vector<unsigned char> vctPublicKey;
-        if(ScriptToDelegateInfo(cDelegateInfo, tDelegateInfo, &vctPublicKey, tx.vout[0].scriptPubKey)) {
+        if(ScriptToDelegateInfo(delegateHash, tDelegateInfo, &vctPublicKey, tx.vout[0].scriptPubKey)) {
             if(tx.nTime == tDelegateInfo) {
                 CPubKey pubkey(vctPublicKey);
                 CTxDestination address;
@@ -414,39 +434,24 @@ uint32_t DPOS::GetDelegateIndex(uint64_t time)
     }
 }
 
-bool DPOS::CheckBlockDelegate(const CBlock& block)
+bool DPOS::CheckBlockDelegateHash(const int blockHeight, const CBlock &block)
 {
-    DelegateInfo cDelegateInfo;
-    if(GetBlockDelegate(cDelegateInfo, block) == false) {
+    uint160 delegateHash;
+    if(GetBlockDelegate(delegateHash, block) == false) {
         LogPrintf("CheckBlockDelegate GetBlockDelegate hash:%s error\n", block.GetHash().ToString().c_str());
         return false;
     }
 
-    bool ret = true;
-    DelegateInfo cNextDelegateInfo = GetNextDelegates(block.nTime);
-    if(cDelegateInfo.delegates.size() == cNextDelegateInfo.delegates.size()) {
-        for(unsigned int i =0; i < cDelegateInfo.delegates.size(); ++i) {
-            if(cDelegateInfo.delegates[i].keyid != cNextDelegateInfo.delegates[i].keyid) {
-                ret = false;
-                break;
-            }
-        }
+    DelegateInfo cNextDelegateInfo;
+    if (GetDelegates(blockHeight, cNextDelegateInfo) == false){
+        LogPrintf("%s GetDelegates failed", __func__);
+        return false;
     }
 
-    if(ret == false) {
-        for(unsigned int i =0; i < cDelegateInfo.delegates.size(); ++i) {
-            LogPrintf("CheckBlockDelegate BlockDelegate[%u]: %s\n", i, CBitcoinAddress(cDelegateInfo.delegates[i].keyid).ToString().c_str());
-        }
-
-        for(unsigned int i =0; i < cNextDelegateInfo.delegates.size(); ++i) {
-            LogPrintf("CheckBlockDelegate NextBlockDelegate[%u]: %s %llu\n", i, CBitcoinAddress(cNextDelegateInfo.delegates[i].keyid).ToString().c_str(), cNextDelegateInfo.delegates[i].votes);
-        }
-    }
-
-      return ret;
+    return delegateHash == DelegatesToHash(cNextDelegateInfo);
 }
 
-bool DPOS::GetBlockDelegates(DelegateInfo& cDelegateInfo, CBlockIndex* pBlockIndex)
+bool DPOS::GetBlockDelegates(uint160& delegateHash, CBlockIndex* pBlockIndex)
 {
     bool ret = false;
     uint64_t nLoopIndex = GetLoopIndex(pBlockIndex->nTime);
@@ -454,7 +459,7 @@ bool DPOS::GetBlockDelegates(DelegateInfo& cDelegateInfo, CBlockIndex* pBlockInd
         if(pBlockIndex->nHeight == nDposStartHeight || GetLoopIndex(pBlockIndex->pprev->nTime) < nLoopIndex) {
             CBlock block;
             if(ReadBlockFromDisk(block, pBlockIndex, Params().GetConsensus())) {
-                ret = GetBlockDelegate(cDelegateInfo, block);
+                ret = GetBlockDelegate(delegateHash, block);
             }
             break;
         }
@@ -465,7 +470,7 @@ bool DPOS::GetBlockDelegates(DelegateInfo& cDelegateInfo, CBlockIndex* pBlockInd
     return ret;
 }
 
-bool DPOS::GetBlockDelegates(DelegateInfo& cDelegateInfo, const CBlock& block)
+bool DPOS::GetBlockDelegates(uint160& delegateHash, const CBlock& block)
 {
     CBlockIndex blockindex;
     blockindex.nTime = block.nTime;
@@ -475,22 +480,13 @@ bool DPOS::GetBlockDelegates(DelegateInfo& cDelegateInfo, const CBlock& block)
         return false;
     }
     blockindex.pprev = miSelf->second;
-    return GetBlockDelegates(cDelegateInfo, &blockindex);
+    return GetBlockDelegates(delegateHash, &blockindex);
 }
 
 DelegateInfo DPOS::GetNextDelegates(int64_t t)
 {
     uint64_t nLoopIndex = GetLoopIndex(t);
     uint64_t nMinHoldBalance = 0;
-//    if(Params().NetworkIDString() == "main") {
-//        if(nLoopIndex >= 47169) {
-//            nMinHoldBalance = 500000000000;
-//        }
-//    } else {
-//        if(nLoopIndex >= 277019) {
-//            nMinHoldBalance = 1000000000000;
-//        }
-//    }
 
     std::vector<Delegate> delegates = Vote::GetInstance().GetTopDelegateInfo(nMinHoldBalance, nMaxDelegateNumber - 1);
 

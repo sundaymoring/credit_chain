@@ -986,13 +986,13 @@ void* ThreadDelegating(void *arg)
         do {
             LOCK(cs_main);
             time_t t = time(NULL);
-            DelegateInfo cDelegateInfo;
+            uint160 delegatesHash;
 
-            if(dPos.IsMining(cDelegateInfo, addr, t) == false){
+            if(dPos.IsMining(delegatesHash, addr, t) == false){
                 break;
             }
 
-            std::unique_ptr<CBlockTemplate> pblock = BlockAssembler(Params()).CreateNewBlock(scriptPubKey, Miner_DPOS, DPOS::DelegateInfoToScript(cDelegateInfo, delegatekey, t), t);
+            std::unique_ptr<CBlockTemplate> pblock = BlockAssembler(Params()).CreateNewBlock(scriptPubKey, Miner_DPOS, DPOS::DelegateInfoToScript(delegatesHash, delegatekey, t), t);
             if(pblock) {
                 unsigned int extraNonce = 0;
                 IncrementExtraNonce(&pblock->block, chainActive.Tip(), extraNonce);

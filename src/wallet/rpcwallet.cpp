@@ -3566,7 +3566,7 @@ static void SendRegister(const CBitcoinAddress &address, const std::string& name
     std::string strError;
 
     CCoinControl coinControl;
-    coinControl.nMinimumTotalFee = 1*COIN; // HTODO fee set const variable
+    coinControl.nMinimumTotalFee = 1*COIN;
     coinControl.fAllowOtherInputs = true;
 
 //    if (coinControl.nMinimumTotalFee > curBalance)

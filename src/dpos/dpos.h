@@ -9,9 +9,6 @@
 
 #include <boost/thread/shared_mutex.hpp>
 
-
-// HTODO what difference of dposStartHeight and forkHeight in lbtc ?
-
 const CAmount nMinDPoSFee = 1 * COIN;
 const int nMaxConfirmBlockCount = 2;
 struct IrreversibleBlockInfo{
@@ -32,12 +29,27 @@ struct Delegate{
     uint64_t votes;
     Delegate(){votes = 0;}
     Delegate(const CKeyID& keyid, uint64_t votes) {this->keyid = keyid; this->votes = votes;}
+
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(keyid);
+        READWRITE(votes);
+    }
 };
 
 struct DelegateInfo{
     std::vector<Delegate> delegates;
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(delegates);
+    }
 };
 
+// HTODO consider minHoldBalance of delegate address
 class DPOS
 {
 public:
@@ -45,15 +57,20 @@ public:
 
     static bool CheckTransaction(const CCoinsViewCache& view, const CTransaction& tx, CValidationState &state);
     bool CheckBlock(const CCoinsViewCache& view, const CBlockIndex& blockindex, CValidationState &state);
-    bool IsMining(DelegateInfo& cDelegateInfo, const std::string& strDelegateAddress, time_t t);
+    bool IsMining(uint160& delegatesHash, const std::string& strDelegateAddress, time_t t);
 
-    static CScript DelegateInfoToScript(const DelegateInfo& cDelegateInfo, const CKey& delegatekey, time_t t);
-    static bool ScriptToDelegateInfo(DelegateInfo& cDelegateInfo, time_t &t, std::vector<unsigned char>* pvctPublicKey, const CScript& script);
+    static CScript DelegateInfoToScript(const uint160& delegatesHash, const CKey& delegatekey, time_t t);
+    static bool ScriptToDelegateInfo(uint160& delegatesHash, time_t &t, std::vector<unsigned char>* pvctPublicKey, const CScript& script);
 
     uint64_t GetStartTime() {return nDposStartTime;}
     void SetStartTime(uint64_t t) {nDposStartTime = t;}
 
     uint32_t GetStartHeight() {return nDposStartHeight;}
+
+    uint160 DelegatesToHash(const DelegateInfo& cDelegateInfo);
+
+    bool UpdateDelegates(const int height);
+    bool GetDelegates(const int height, DelegateInfo& cDelegateInfo);
 
 private:
     DPOS();
@@ -61,7 +78,7 @@ private:
     static bool GetDelegateID(CKeyID& keyid, const std::string& address);
     static bool GetDelegateID(CKeyID& keyid, const CBlock& block);
     static std::string GetDelegateAddress(const CBlock& block);
-    static bool GetBlockDelegate(DelegateInfo& cDelegateInfo, const CBlock& block);
+    static bool GetBlockDelegate(uint160& delegateHash, const CBlock& block);
 
     bool CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidationState &state);
     static bool CheckCoinbase(const CTransaction& tx);
@@ -70,9 +87,9 @@ private:
     uint64_t GetLoopIndex(uint64_t time);
     uint32_t GetDelegateIndex(uint64_t time);
 
-    bool CheckBlockDelegate(const CBlock& block);
-    bool GetBlockDelegates(DelegateInfo& cDelegateInfo, CBlockIndex* pBlockIndex);
-    bool GetBlockDelegates(DelegateInfo& cDelegateInfo, const CBlock& block);
+    bool CheckBlockDelegateHash(const int blockHeight, const CBlock &block);
+    bool GetBlockDelegates(uint160& delegateHash, CBlockIndex* pBlockIndex);
+    bool GetBlockDelegates(uint160& delegateHash, const CBlock& block);
 
     DelegateInfo GetNextDelegates(int64_t t);
     std::vector<Delegate> SortDelegate(const std::vector<Delegate>& delegates);
