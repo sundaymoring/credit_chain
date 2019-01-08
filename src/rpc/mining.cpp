@@ -560,7 +560,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 //        CScript scriptDummy = CScript() << OP_TRUE;
         boost::shared_ptr<CReserveScript> coinbaseScript;
         GetMainSignals().ScriptForMining(coinbaseScript);
-        pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, Miner_POW, fSupportsSegwit);
+        pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, Miner_POW, NULL, fSupportsSegwit);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -953,9 +953,12 @@ UniValue estimatesmartpriority(const JSONRPCRequest& request)
 }
 
 
-
+#ifdef WIN32
+#else
 #include <pthread.h>
 #include <unistd.h>
+#endif
+
 
 CCriticalSection cs_mining;
 bool fIsDelegating = false;
@@ -967,16 +970,10 @@ void* ThreadDelegating(void *arg)
     DPOS& dPos = DPOS::GetInstance();
 
     CPubKey pubkey = delegatekey.GetPubKey();
-    vector<unsigned char> dd;
+    // not must output address be delegate
     CScript scriptPubKey = CScript() << ToByteVector(pubkey) << OP_CHECKSIG;
 
-    std::vector<unsigned char> vctPublicKey;
-    opcodetype op;
-    CScript::const_iterator it = scriptPubKey.begin();
-    scriptPubKey.GetOp2(it, op, &vctPublicKey);
-
     CKeyID keyID = pubkey.GetID();
-    auto addr = CBitcoinAddress(keyID).ToString();
 
     while(!ShutdownRequested() && fIsDelegating){
         if (chainActive.Tip()->nHeight < Params().GetConsensus().nLastPOWBlock){
@@ -986,21 +983,23 @@ void* ThreadDelegating(void *arg)
         do {
             LOCK(cs_main);
             time_t t = time(NULL);
-            uint160 delegatesHash;
 
-            if(dPos.IsMining(delegatesHash, addr, t) == false){
+            CDPoSBlockInfo dposInfo;
+            if(dPos.IsMining(dposInfo, keyID, t) == false){
                 break;
             }
+            dposInfo.delegatePubKey = pubkey;
 
-            std::unique_ptr<CBlockTemplate> pblock = BlockAssembler(Params()).CreateNewBlock(scriptPubKey, Miner_DPOS, DPOS::DelegateInfoToScript(delegatesHash, delegatekey, t), t);
+            std::unique_ptr<CBlockTemplate> pblock = BlockAssembler(Params()).CreateNewBlock(scriptPubKey, Miner_DPOS, &dposInfo);
             if(pblock) {
                 unsigned int extraNonce = 0;
                 IncrementExtraNonce(&pblock->block, chainActive.Tip(), extraNonce);
 
                 std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>(pblock->block);
 
+                auto addr = CBitcoinAddress(keyID).ToString();
                 if (!delegatekey.Sign(blockptr->GetHash(), blockptr->vchBlockSig)){
-                    LogPrintf(strprintf("%s address:%s sign block failed", __func__, addr.c_str()));
+                    LogPrintf(strprintf("%s delegate:%s sign block failed", __func__, addr.c_str()));
                     break;
                 }
                 if(ProcessNewBlock(Params(), blockptr, true, NULL) == false) {

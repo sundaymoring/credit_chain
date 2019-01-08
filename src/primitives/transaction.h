@@ -329,12 +329,6 @@ public:
         return (vin.size() == 1 && vin[0].prevout.IsNull());
     }
 
-    // DPoS coinbase vout[0] income, vout[1] DPoS info, vout[2] maybe witness info
-    bool IsCoinBaseDPoS() const
-    {
-        return IsCoinBase() && (vout.size()>1 && vout[0].scriptPubKey.IsDposFlag());
-    }
-
     // DPoS common tx, vout[0] DPoS operation, vout[1] change
     bool IsTxHaveDPoS() const
     {

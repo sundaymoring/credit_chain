@@ -205,6 +205,9 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+    // block header for dpos
+    CPubKey delegatorPubKey;
+    uint256 delegatorListHash;
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     int32_t nSequenceId;
@@ -233,6 +236,8 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
+        delegatorPubKey = CPubKey();
+        delegatorListHash.SetNull();
     }
 
     CBlockIndex()
@@ -249,6 +254,8 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
+        delegatorPubKey= block.delegatorPubKey;
+        delegatorListHash= block.delegatorListHash;
     }
 
     CDiskBlockPos GetBlockPos() const {
@@ -279,6 +286,8 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        block.delegatorPubKey= delegatorPubKey;
+        block.delegatorListHash= delegatorListHash;
         return block;
     }
 
@@ -416,6 +425,8 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
         READWRITE(nStakeModifier);
+        READWRITE(delegatorPubKey);
+        READWRITE(delegatorListHash);
     }
 
     uint256 GetBlockHash() const
@@ -427,6 +438,8 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
+        block.delegatorPubKey = delegatorPubKey;
+        block.delegatorListHash = delegatorListHash;
         return block.GetHash();
     }
 

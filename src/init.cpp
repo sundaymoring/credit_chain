@@ -670,13 +670,6 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         }
     }
 
-    // HTODO think new chain tip to dpos
-    if(chainActive.Tip()) {
-        if(RepairDPoSData(Vote::GetInstance().GetOldBlockHeight(), Vote::GetInstance().GetOldBlockHash()) == false) {
-            return;
-        }
-    }
-
     // -loadblock=
     BOOST_FOREACH(const boost::filesystem::path& path, vImportFiles) {
         FILE *file = fopen(path.string().c_str(), "rb");

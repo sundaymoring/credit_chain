@@ -197,10 +197,10 @@ bool CDPoSDb::EraseAddressVoteNum(const CKeyID &address)
 }
 
 // current delegates
-bool CDPoSDb::WriteCurrentDelegates(const int height, const DelegateInfo& delegates){
-    return Write(std::make_pair(DB_CURRENT_DELEGATE, height), delegates);
+bool CDPoSDb::WriteCurrentDelegates(const int height, const DelegateList& delegateList){
+    return Write(std::make_pair(DB_CURRENT_DELEGATE, height), delegateList);
 }
 
-bool CDPoSDb::GetCurrentDelegates(const int height, DelegateInfo& delegates){
-    return Read(std::make_pair(DB_CURRENT_DELEGATE, height), delegates);
+bool CDPoSDb::GetCurrentDelegates(const int height, DelegateList& delegateList){
+    return Read(std::make_pair(DB_CURRENT_DELEGATE, height), delegateList);
 }

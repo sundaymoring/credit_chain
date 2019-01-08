@@ -449,7 +449,7 @@ std::set<CKeyID> Vote::GetVotedDelegates(CKeyID& voter)
     return s;
 }
 
-std::vector<Delegate> Vote::GetTopDelegateInfo(CAmount nMinHoldBalance, uint32_t nDelegateNum)
+std::vector<Delegate> Vote::GetTopDelegateList(CAmount nMinHoldBalance, uint32_t nDelegateNum)
 {
     read_lock r(lockVote);
     std::set<std::pair<uint64_t, CKeyID>> delegates;

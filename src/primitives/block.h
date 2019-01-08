@@ -10,6 +10,7 @@
 #include "primitives/transaction.h"
 #include "serialize.h"
 #include "uint256.h"
+#include "pubkey.h"
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -29,6 +30,10 @@ public:
     uint32_t nBits;
     uint32_t nNonce;
 
+    // for DPoS
+    CPubKey delegatorPubKey;
+    uint256 delegatorListHash;
+
     CBlockHeader()
     {
         SetNull();
@@ -44,6 +49,8 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+        READWRITE(delegatorPubKey);
+        READWRITE(delegatorListHash);
     }
 
     void SetNull()
@@ -54,6 +61,7 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+        delegatorListHash.SetNull();
     }
 
     bool IsNull() const
@@ -120,7 +128,7 @@ public:
 
     bool IsProofOfDPoS() const
     {
-        return vtx.size() > 0 && vtx[0]->IsCoinBaseDPoS();
+        return (delegatorListHash.IsNull() == false) && delegatorPubKey.IsFullyValid();
     }
 
     bool IsProofOfWork() const
@@ -137,6 +145,8 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        block.delegatorPubKey = delegatorPubKey;
+        block.delegatorListHash = delegatorListHash;
         return block;
     }
 

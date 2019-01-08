@@ -5,7 +5,7 @@
 #include "pubkey.h"
 #include "amount.h"
 
-class DelegateInfo;
+class DelegateList;
 class CDPoSDb : public CDBWrapper{
 public:
     CDPoSDb(size_t nCacheSize, bool fMemory = false, bool fWipe = false): CDBWrapper(GetDataDir() / "dpos", nCacheSize, fMemory, fWipe){}
@@ -45,8 +45,8 @@ public:
     bool EraseAddressVoteNum(const CKeyID& address);
 
     // current delegates
-    bool WriteCurrentDelegates(const int height, const DelegateInfo& delegates);
-    bool GetCurrentDelegates(const int height, DelegateInfo& delegates);
+    bool WriteCurrentDelegates(const int height, const DelegateList& delegateList);
+    bool GetCurrentDelegates(const int height, DelegateList& delegateList);
 };
 
 extern CDPoSDb* pDPoSDb;

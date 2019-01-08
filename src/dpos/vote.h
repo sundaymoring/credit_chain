@@ -36,7 +36,7 @@ public:
     static Vote& GetInstance();
     bool Init(int64_t nBlockHeight, const std::string& strBlockHash);
 
-    std::vector<Delegate> GetTopDelegateInfo(CAmount nMinHoldBalance, uint32_t nDelegateNum);
+    std::vector<Delegate> GetTopDelegateList(CAmount nMinHoldBalance, uint32_t nDelegateNum);
 
     bool ProcessVote(CKeyID& voter, const std::set<CKeyID>& delegates, uint256 hash, uint64_t height, bool fUndo);
     bool ProcessCancelVote(CKeyID& voter, const std::set<CKeyID>& delegates, uint256 hash, uint64_t height, bool fUndo);

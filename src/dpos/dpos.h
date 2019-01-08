@@ -24,6 +24,18 @@ struct IrreversibleBlockInfo{
     }
 };
 
+class CDPoSBlockInfo{
+public:
+    CDPoSBlockInfo(){
+        delegateListHash.SetNull();
+        t = 0;
+    }
+
+    CPubKey delegatePubKey;
+    uint256 delegateListHash;
+    time_t t;
+};
+
 struct Delegate{
     CKeyID keyid;
     uint64_t votes;
@@ -39,7 +51,7 @@ struct Delegate{
     }
 };
 
-struct DelegateInfo{
+struct DelegateList{
     std::vector<Delegate> delegates;
 
     ADD_SERIALIZE_METHODS;
@@ -55,43 +67,31 @@ class DPOS
 public:
     static DPOS& GetInstance();
 
-    static bool CheckTransaction(const CCoinsViewCache& view, const CTransaction& tx, CValidationState &state);
-    bool CheckBlock(const CCoinsViewCache& view, const CBlockIndex& blockindex, CValidationState &state);
-    bool IsMining(uint160& delegatesHash, const std::string& strDelegateAddress, time_t t);
+    bool IsMining(CDPoSBlockInfo& dposBlockInfo, const CKeyID& keyid, time_t t);
 
-    static CScript DelegateInfoToScript(const uint160& delegatesHash, const CKey& delegatekey, time_t t);
-    static bool ScriptToDelegateInfo(uint160& delegatesHash, time_t &t, std::vector<unsigned char>* pvctPublicKey, const CScript& script);
+    static bool CheckTransaction(const CCoinsViewCache& view, const CTransaction& tx, CValidationState &state);
+    bool CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidationState &state);
+    bool CheckBlock(const CCoinsViewCache& view, const CBlockIndex& blockindex, CValidationState &state);
 
     uint64_t GetStartTime() {return nDposStartTime;}
     void SetStartTime(uint64_t t) {nDposStartTime = t;}
-
     uint32_t GetStartHeight() {return nDposStartHeight;}
 
-    uint160 DelegatesToHash(const DelegateInfo& cDelegateInfo);
-
-    bool UpdateDelegates(const int height);
-    bool GetDelegates(const int height, DelegateInfo& cDelegateInfo);
+    bool UpdateDelegateList(const int height);
+    bool GetDelegateList(const int height, DelegateList& cDelegateInfo);
 
 private:
     DPOS();
 
-    static bool GetDelegateID(CKeyID& keyid, const std::string& address);
-    static bool GetDelegateID(CKeyID& keyid, const CBlock& block);
-    static std::string GetDelegateAddress(const CBlock& block);
-    static bool GetBlockDelegate(uint160& delegateHash, const CBlock& block);
-
-    bool CheckBlock(const CCoinsViewCache& view, const CBlock &block, CValidationState &state);
-    static bool CheckCoinbase(const CTransaction& tx);
-//    bool CheckTransactionVersion(const CBlock& block) {return true;}
+    bool GetAddressKeyID(CKeyID& keyid, const std::string& strAddress);
 
     uint64_t GetLoopIndex(uint64_t time);
     uint32_t GetDelegateIndex(uint64_t time);
 
-    bool CheckBlockDelegateHash(const int blockHeight, const CBlock &block);
-    bool GetBlockDelegates(uint160& delegateHash, CBlockIndex* pBlockIndex);
-    bool GetBlockDelegates(uint160& delegateHash, const CBlock& block);
+    uint256 DelegateListToHash(const DelegateList& cDelegateInfo);
+    bool CheckDelegateListHash(const int blockHeight, const CBlock &block);
+    bool GetDelegateListHash(uint256& delegateHash, CBlockIndex* pBlockIndex);
 
-    DelegateInfo GetNextDelegates(int64_t t);
     std::vector<Delegate> SortDelegate(const std::vector<Delegate>& delegates);
 
     // HTODO add func `void ProcessIrreversibleBlock(int64_t height, uint256 hash);`

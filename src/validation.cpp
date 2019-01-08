@@ -2624,36 +2624,6 @@ void ProcessDPoSDisconnectBlock(const CBlock& block, uint64_t nBlockHeight)
     DoVoting(block, nBlockHeight, mapTxFee, true);
 }
 
-bool RepairDPoSData(int64_t nOldBlockHeight, const std::string& strOldBlockHash)
-{
-    LOCK(cs_main);
-    CBlockIndex* pblockindex = mapBlockIndex[uint256S(strOldBlockHash)];
-    if(pblockindex == false || pblockindex->nHeight != nOldBlockHeight) {
-        return false;
-    }
-
-    while(chainActive.Contains(pblockindex) == false) {
-        CBlock block;
-        if(ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()) == false) {
-            return false;
-        }
-
-        ProcessDPoSDisconnectBlock(block, pblockindex->nHeight);
-        pblockindex = pblockindex->pprev;
-    }
-
-    for(auto i = pblockindex->nHeight + 1; i <= chainActive.Height(); ++i) {
-        CBlock block;
-        if(ReadBlockFromDisk(block, chainActive[i], Params().GetConsensus()) == false) {
-            return false;
-        }
-
-        ProcessDPoSConnectBlock(block, chainActive[i]->nHeight);
-    }
-
-    return true;
-}
-
 // Protected by cs_main
 static ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
 
@@ -3296,7 +3266,8 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
         DPOS::GetInstance().SetStartTime(chainActive[nDposPreHeight]->nTime);
     }
     if (nTipHeight >= nDposPreHeight) {
-        DPOS::GetInstance().UpdateDelegates(nTipHeight);
+        // nTipHeight+1 mean update next block delegate list
+        DPOS::GetInstance().UpdateDelegateList(nTipHeight+1);
     }
 
     LogPrintf("%s: new best=%s height=%d version=0x%08x log2_work=%.8g tx=%lu date='%s' progress=%f cache=%.1fMiB(%utx)", __func__,
@@ -3410,7 +3381,6 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         CCoinsViewCache view(pcoinsTip);
 
         if( !DPOS::GetInstance().CheckBlock(view, *pindexNew, state) ) {
-//            state.DoS(50, false, REJECT_INVALID, "DPoS CheckBlock hash error");
             InvalidBlockFound(pindexNew, state);
             return error("ConnectTip(): DPoS CheckBlock hash: %s failed\n", pindexNew->GetBlockHash().ToString());
         }

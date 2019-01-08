@@ -955,6 +955,4 @@ void DumpMempool();
 /** Load the mempool from disk. */
 bool LoadMempool();
 
-bool RepairDPoSData(int64_t nOldBlockHeight, const std::string& strOldBlockHash);
-
 #endif // BITCOIN_VALIDATION_H
