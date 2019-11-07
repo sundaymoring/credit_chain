@@ -463,10 +463,12 @@ std::vector<Delegate> Vote::GetTopDelegateList(CAmount nMinHoldBalance, uint32_t
         // if delegate amount > nMinHoldBalance, then valid
         if (pDPoSDb->GetAddressVoteNum(item.first) >= nMinHoldBalance){
             CAmount vote = 0;
+            // HTODO test  delegates.insert(std::make_pair(vote, item.first));????
             for (const auto& item2 : item.second){
                 vote += pDPoSDb->GetAddressVoteNum(item2);
-                delegates.insert(std::make_pair(vote, item.first));
+//                delegates.insert(std::make_pair(vote, item.first));
             }
+            delegates.insert(std::make_pair(vote, item.first));
         }
     }
 

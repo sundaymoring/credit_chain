@@ -308,6 +308,7 @@ std::vector<Delegate> DPOS::SortDelegate(const std::vector<Delegate>& delegates)
 {
     std::vector<Delegate> result;
     std::vector<const Delegate*> tmp(delegates.size(), NULL);
+    // HTODO set real rand
     uint64_t rand = 987654321123456823;
 
     for(unsigned int i=0; i < delegates.size(); i++) {
