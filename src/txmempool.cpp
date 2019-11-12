@@ -34,7 +34,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
     nCountWithDescendants = 1;
     nSizeWithDescendants = GetTxSize();
     nModFeesWithDescendants = nFee;
-    CAmount nValueIn = tx->GetValueOut()+nFee;
+    CAmount nValueIn = tx->GetValueOut(_tx->vout[0].tokenId)+nFee;
     assert(inChainInputValue <= nValueIn);
 
     feeDelta = 0;

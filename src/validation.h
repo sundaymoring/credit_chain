@@ -800,7 +800,7 @@ private:
     CScript scriptPubKey;
     CAmount amount;
     CTokenId tokenId;
-    CAmount tokenAmount;
+    CAmount tokenAmount;  // HTODO  remove tokenAmount
     const CTransaction *ptxTo;
     unsigned int nIn;
     unsigned int nFlags;
@@ -812,7 +812,7 @@ public:
     CScriptCheck(): amount(0), tokenId(TOKENID_ZERO), tokenAmount(0),ptxTo(0), nIn(0), nFlags(0), cacheStore(false), error(SCRIPT_ERR_UNKNOWN_ERROR) {}
     CScriptCheck(const CCoins& txFromIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
         scriptPubKey(txFromIn.vout[txToIn.vin[nInIn].prevout.n].scriptPubKey), amount(txFromIn.vout[txToIn.vin[nInIn].prevout.n].nValue),
-        tokenId(txFromIn.vout[txToIn.vin[nInIn].prevout.n].tokenId), tokenAmount(txFromIn.vout[txToIn.vin[nInIn].prevout.n].nTokenValue),
+        tokenId(txFromIn.vout[txToIn.vin[nInIn].prevout.n].tokenId), tokenAmount(0),
         ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), error(SCRIPT_ERR_UNKNOWN_ERROR), txdata(txdataIn) { }
 
     bool operator()();

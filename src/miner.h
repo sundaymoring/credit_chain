@@ -160,7 +160,8 @@ private:
     uint64_t nBlockSize;
     uint64_t nBlockTx;
     uint64_t nBlockSigOpsCost;
-    CAmount nFees;
+//    CAmount nFees;
+    std::map<CTokenId, CAmount> nFees;
     CTxMemPool::setEntries inBlock;
 
     // Chain context for the block

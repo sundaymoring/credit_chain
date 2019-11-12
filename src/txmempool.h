@@ -160,6 +160,8 @@ public:
     CAmount GetModFeesWithAncestors() const { return nModFeesWithAncestors; }
     int64_t GetSigOpCostWithAncestors() const { return nSigOpCostWithAncestors; }
 
+    CTokenId GetTxTokenId() const { return this->tx->vout[0].tokenId; }
+
     mutable size_t vTxHashesIdx; //!< Index in mempool's vTxHashes
 };
 

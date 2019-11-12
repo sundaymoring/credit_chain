@@ -108,16 +108,11 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         if (!ser_action.ForRead()) {
             uint64_t nVal = CompressAmount(txout.nValue);
-            uint64_t nTokenVal = CompressAmount(txout.nTokenValue);
             READWRITE(VARINT(nVal));
-            READWRITE(VARINT(nTokenVal));
         } else {
             uint64_t nVal = 0;
             READWRITE(VARINT(nVal));
             txout.nValue = DecompressAmount(nVal);
-            uint64_t nTokenVal = 0;
-            READWRITE(VARINT(nTokenVal));
-            txout.nTokenValue = DecompressAmount(nTokenVal);
         }
         CScriptCompressor cscript(REF(txout.scriptPubKey));
         READWRITE(cscript);

@@ -137,7 +137,7 @@ public:
     CAmount nValue;
     CScript scriptPubKey;
     CTokenId tokenId;
-    CAmount nTokenValue;
+//    CAmount nTokenValue;
 
     CTxOut()
     {
@@ -145,7 +145,7 @@ public:
     }
 
     CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn);
-    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, CTokenId tokenIdIn, CAmount nTokenValueIn);
+    CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, CTokenId tokenIdIn);
 
     ADD_SERIALIZE_METHODS;
 
@@ -154,7 +154,6 @@ public:
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
         READWRITE(tokenId);
-        READWRITE(nTokenValue);
     }
 
     void SetNull()
@@ -162,7 +161,6 @@ public:
         nValue = -1;
         scriptPubKey.clear();
         tokenId.SetNull();
-        nTokenValue = 0;
     }
 
     bool IsNull() const
@@ -175,7 +173,6 @@ public:
         nValue = 0;
         scriptPubKey.clear();
         tokenId.SetNull();
-        nTokenValue = 0;
     }
 
     bool IsEmpty() const
@@ -224,8 +221,7 @@ public:
     {
         return (a.nValue       == b.nValue &&
                 a.scriptPubKey == b.scriptPubKey &&
-                a.tokenId      == b.tokenId &&
-                a.nTokenValue  == b.nTokenValue);
+                a.tokenId      == b.tokenId);
     }
 
     friend bool operator!=(const CTxOut& a, const CTxOut& b)
@@ -301,7 +297,7 @@ public:
     uint256 GetWitnessHash() const;
 
     // Return sum of txouts.
-    CAmount GetValueOut() const;
+    CAmount GetValueOut(const CTokenId& tokenid = TOKENID_ZERO) const;
     // GetValueIn() is a method on CCoinsViewCache, because
     // inputs must be known to compute value in.
 

@@ -344,7 +344,7 @@ UniValue getaddressesbyaccount(const JSONRPCRequest& request)
 
 static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew)
 {
-    CAmount curBalance = pwalletMain->GetBalance();
+    CAmount curBalance = pwalletMain->GetBalance(TOKENID_ZERO);
 
     // Check amount
     if (nValue <= 0)
@@ -365,7 +365,7 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = -1;
-    CRecipient recipient = {scriptPubKey, nValue, TOKENID_ZERO, 0, fSubtractFeeFromAmount};
+    CRecipient recipient = {scriptPubKey, nValue, TOKENID_ZERO, fSubtractFeeFromAmount};
     vecSend.push_back(recipient);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
         if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
@@ -381,14 +381,14 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
 
 static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAmount nValue, CWalletTx& wtxNew)
 {
-    CAmount curBalance = pwalletMain->GetBalance();
+//    CAmount curBalance = pwalletMain->GetBalance();
     CAmount curTokenBalance = pwalletMain->GetTokenBalance(tokenid);
 
     // Check amount
     if (nValue <= 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
 
-    if (nValue > curTokenBalance || TOKEN_DEFAULT_VALUE > curBalance)
+    if (nValue > curTokenBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
     if (pwalletMain->GetBroadcastTransactions() && !g_connman)
@@ -396,7 +396,7 @@ static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAm
 
     // Parse Bitcoin address
     CScript scriptPubKey = GetScriptForDestination(address);
-    CScript scriptTokenSend = CreateSendScriptDummy(tokenid);
+    CScript scriptTokenSend = CreateSendScript(tokenid, nValue);
 
     // Create and send the transaction
     CReserveKey reservekey(pwalletMain);
@@ -404,13 +404,13 @@ static void SendToken(const CTokenId tokenid, const CTxDestination &address, CAm
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = 2;
-    CRecipient recipient0 = {scriptTokenSend, 0, TOKENID_ZERO, 0, false};
+    CRecipient recipient0 = {scriptTokenSend, 0, tokenid, false};
     vecSend.push_back(recipient0);
-    CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, tokenid, nValue, false};
+    CRecipient recipient1 = {scriptPubKey, nValue, tokenid, false};
     vecSend.push_back(recipient1);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_SEND)) {
-        if (nFeeRequired > curBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+//        if (nFeeRequired > curBalance)
+//            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
     CValidationState state;
@@ -443,9 +443,9 @@ static void SendTokenIssuance(const CTxDestination &address, CAmount nAmount, CS
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = 2;
-    CRecipient recipient0 = {scriptTokenIssue, 0, TOKENID_ZERO, 0, false};
+    CRecipient recipient0 = {scriptTokenIssue, 0, TOKENID_ZERO, false};
     vecSend.push_back(recipient0);
-    CRecipient recipient1 = {scriptPubKey, TOKEN_DEFAULT_VALUE, TOKENID_ZERO, nAmount, false};
+    CRecipient recipient1 = {scriptPubKey, nAmount, TOKENID_ZERO, false};
     vecSend.push_back(recipient1);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_ISSUE)) {
         if (nFeeRequired > curBalance)
@@ -602,9 +602,9 @@ static void SendTokenBurn(const CTokenId tokenid, CAmount nValue, CWalletTx& wtx
     std::string strError;
     vector<CRecipient> vecSend;
     int nChangePosRet = 1;
-    CRecipient recipient0 = {scriptTokenBurn, 0, TOKENID_ZERO, 0, false};
+    CRecipient recipient0 = {scriptTokenBurn, 0, tokenid, false};
     vecSend.push_back(recipient0);
-    CRecipient recipient1 = {CScript(), 0, tokenid, nValue, false};
+    CRecipient recipient1 = {CScript(), nValue, tokenid, false};
     vecSend.push_back(recipient1);
     if (!pwalletMain->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, NULL, true, TTC_BURN)) {
         if (nFeeRequired > curBalance)
@@ -1134,13 +1134,13 @@ UniValue gettokenbalance(const JSONRPCRequest& request)
             BOOST_FOREACH(const COutputEntry& r, listReceived)
             {
                 if (r.tokenId == tokenid)
-                    nBalance += r.tokenAmount;
+                    nBalance += r.amount;
             }
         }
         BOOST_FOREACH(const COutputEntry& s, listSent)
         {
             if (s.tokenId == tokenid)
-                nBalance -= s.tokenAmount;
+                nBalance -= s.amount;
         }
     }
     return  ValueFromAmount(nBalance);
@@ -1413,7 +1413,7 @@ UniValue sendmany(const JSONRPCRequest& request)
                 fSubtractFeeFromAmount = true;
         }
 
-        CRecipient recipient = {scriptPubKey, nAmount, TOKENID_ZERO, 0, fSubtractFeeFromAmount};
+        CRecipient recipient = {scriptPubKey, nAmount, TOKENID_ZERO, fSubtractFeeFromAmount};
         vecSend.push_back(recipient);
     }
 
@@ -1521,7 +1521,7 @@ UniValue tokensendmany(const JSONRPCRequest& request)
 
         bool fSubtractFeeFromAmount = false;
 
-        CRecipient recipient = {scriptPubKey, TOKEN_DEFAULT_VALUE, tokenid, nAmount, fSubtractFeeFromAmount};
+        CRecipient recipient = {scriptPubKey, nAmount, tokenid, fSubtractFeeFromAmount};
         vecSend.push_back(recipient);
     }
 
@@ -1536,7 +1536,7 @@ UniValue tokensendmany(const JSONRPCRequest& request)
     CReserveKey keyChange(pwalletMain);
     CAmount nFeeRequired = 0;
     CScript scriptTokenSend = CreateSendScriptDummy(tokenid);
-    CRecipient scout = {scriptTokenSend, 0, TOKENID_ZERO, 0, false};
+    CRecipient scout = {scriptTokenSend, 0, TOKENID_ZERO, false};
     vecSend.insert(vecSend.begin(), scout);
 
     int nChangePosRet = vecSend.size();
@@ -1938,7 +1938,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
             entry.push_back(Pair("tokenid", s.tokenId.ToString()));
-            entry.push_back(Pair("tokenamount", ValueFromAmount(-s.tokenAmount)));
+//            entry.push_back(Pair("tokenamount", ValueFromAmount(-s.tokenAmount)));
             if (pwalletMain->mapAddressBook.count(s.destination))
                 entry.push_back(Pair("label", pwalletMain->mapAddressBook[s.destination].name));
             entry.push_back(Pair("vout", s.vout));
@@ -1980,7 +1980,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 }
                 entry.push_back(Pair("amount", ValueFromAmount(r.amount)));
                 entry.push_back(Pair("tokenid", r.tokenId.ToString()));
-                entry.push_back(Pair("tokenamount", ValueFromAmount(r.tokenAmount)));
+//                entry.push_back(Pair("tokenamount", ValueFromAmount(r.tokenAmount)));
                 if (pwalletMain->mapAddressBook.count(r.destination))
                     entry.push_back(Pair("label", account));
                 entry.push_back(Pair("vout", r.vout));
@@ -3072,7 +3072,6 @@ UniValue listunspent(const JSONRPCRequest& request)
         entry.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
         entry.push_back(Pair("amount", ValueFromAmount(out.tx->tx->vout[out.i].nValue)));
         entry.push_back(Pair("tokenid", out.tx->tx->vout[out.i].tokenId.ToString()));
-        entry.push_back(Pair("tokenamount", ValueFromAmount(out.tx->tx->vout[out.i].nTokenValue)));
         entry.push_back(Pair("confirmations", out.nDepth));
         entry.push_back(Pair("spendable", out.fSpendable));
         entry.push_back(Pair("solvable", out.fSolvable));
@@ -3507,9 +3506,9 @@ UniValue bumpfee(const JSONRPCRequest& request)
         const CScript& scriptPubKey = mi->second.tx->vout[input.prevout.n].scriptPubKey;
         const CAmount& amount = mi->second.tx->vout[input.prevout.n].nValue;
         const CTokenId& tokenId = mi->second.tx->vout[input.prevout.n].tokenId;
-        const CAmount& tokenAmount = mi->second.tx->vout[input.prevout.n].nTokenValue;
+//        const CAmount& tokenAmount = mi->second.tx->vout[input.prevout.n].nTokenValue;
         SignatureData sigdata;
-        if (!ProduceSignature(TransactionSignatureCreator(pwalletMain, &txNewConst, nIn, amount, tokenId, tokenAmount, SIGHASH_ALL), scriptPubKey, sigdata)) {
+        if (!ProduceSignature(TransactionSignatureCreator(pwalletMain, &txNewConst, nIn, amount, tokenId, SIGHASH_ALL), scriptPubKey, sigdata)) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Can't sign transaction.");
         }
         UpdateTransaction(tx, nIn, sigdata);
@@ -3583,7 +3582,7 @@ static void SendRegister(const CBitcoinAddress &address, const std::string& name
     CAmount nFeeRequired;
     int nChangePosRet = 1;
     vector<CRecipient> vecSend;
-    CRecipient recipient0 = {scriptDposRegister, 0, TOKENID_ZERO, 0, false};
+    CRecipient recipient0 = {scriptDposRegister, 0, TOKENID_ZERO, false};
     vecSend.push_back(recipient0);
 
     if (!pwalletMain->CreateDposTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, &coinControl, true)) {
@@ -3615,8 +3614,8 @@ UniValue regist(const JSONRPCRequest& request){
             "\"txid\"                (string) the hex-encoded transaction hash\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("issuenewtoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" \"delegateA\"")
-            + HelpExampleRpc("issuenewtoken", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" \"delegateA\"")
+            + HelpExampleCli("regist", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" \"delegateA\"")
+            + HelpExampleRpc("regist", "\"3Ck2kEGLJtZw9ENj2tameMCtS3HB7uRar3\" \"delegateA\"")
         );
     }
 
@@ -3697,7 +3696,7 @@ static void SendVote(const CBitcoinAddress& fromAddr, const set<CBitcoinAddress>
     CAmount nFeeRequired;
     int nChangePosRet = 1;
     vector<CRecipient> vecSend;
-    CRecipient recipient0 = {scriptDposVote, 0, TOKENID_ZERO, 0, false};
+    CRecipient recipient0 = {scriptDposVote, 0, TOKENID_ZERO, false};
     vecSend.push_back(recipient0);
 
     if (!pwalletMain->CreateDposTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, &coinControl, true)) {

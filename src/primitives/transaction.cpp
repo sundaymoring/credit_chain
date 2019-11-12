@@ -49,20 +49,18 @@ CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn)
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
     tokenId = TOKENID_ZERO;
-    nTokenValue = 0;
 }
 
-CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, CTokenId tokenIdIn, CAmount nTokenValueIn)
+CTxOut::CTxOut(const CAmount& nValueIn, CScript scriptPubKeyIn, CTokenId tokenIdIn)
 {
     nValue = nValueIn;
     scriptPubKey = scriptPubKeyIn;
     tokenId = tokenIdIn;
-    nTokenValue = nTokenValueIn;
 }
 
 std::string CTxOut::ToString() const
 {
-    return strprintf("CTxOut(nValue=%d.%08d, nTokenValue=%d.%08d, tokenId=%s, scriptPubKey=%s)", nValue / COIN, nValue % COIN, nTokenValue / COIN, nTokenValue % COIN, tokenId.ToString(),  HexStr(scriptPubKey).substr(0, 30));
+    return strprintf("CTxOut(nValue=%d.%08d, tokenId=%s, scriptPubKey=%s)", nValue / COIN, nValue % COIN, tokenId.ToString(),  HexStr(scriptPubKey).substr(0, 30));
 }
 
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nTime(0), nLockTime(0) {}
@@ -91,12 +89,13 @@ CTransaction::CTransaction() : nVersion(CTransaction::CURRENT_VERSION), nTime(0)
 CTransaction::CTransaction(const CMutableTransaction &tx) : nVersion(tx.nVersion), nTime(tx.nTime), vin(tx.vin), vout(tx.vout), nLockTime(tx.nLockTime), hash(ComputeHash()) {}
 CTransaction::CTransaction(CMutableTransaction &&tx) : nVersion(tx.nVersion), nTime(tx.nTime), vin(std::move(tx.vin)), vout(std::move(tx.vout)), nLockTime(tx.nLockTime), hash(ComputeHash()) {}
 
-CAmount CTransaction::GetValueOut() const
+CAmount CTransaction::GetValueOut(const CTokenId& tokenid) const
 {
     CAmount nValueOut = 0;
     for (std::vector<CTxOut>::const_iterator it(vout.begin()); it != vout.end(); ++it)
     {
-        nValueOut += it->nValue;
+        if (tokenid == it->tokenId) nValueOut += it->nValue;
+
         if (!MoneyRange(it->nValue) || !MoneyRange(nValueOut))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
     }

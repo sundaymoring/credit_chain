@@ -141,7 +141,6 @@ struct CRecipient
     CScript scriptPubKey;
     CAmount nAmount;
     CTokenId tokenId;
-    CAmount nTokenAmount;
     bool fSubtractFeeFromAmount;
 };
 
@@ -171,7 +170,6 @@ struct COutputEntry
     CTxDestination destination;
     CAmount amount;
     CTokenId tokenId;
-    CAmount tokenAmount;
     int vout;
 };
 
@@ -390,16 +388,16 @@ public:
     //! make sure balances are recalculated
     void MarkDirty()
     {
-        fCreditCached = false;
-        fAvailableCreditCached = false;
-        fImmatureCreditCached = false;
-        fImmatureStakeCreditCached = false;
-        fWatchDebitCached = false;
-        fWatchCreditCached = false;
-        fAvailableWatchCreditCached = false;
-        fImmatureWatchCreditCached = false;
-        fDebitCached = false;
-        fChangeCached = false;
+//        fCreditCached = false;
+//        fAvailableCreditCached = false;
+//        fImmatureCreditCached = false;
+//        fImmatureStakeCreditCached = false;
+//        fWatchDebitCached = false;
+//        fWatchCreditCached = false;
+//        fAvailableWatchCreditCached = false;
+//        fImmatureWatchCreditCached = false;
+//        fDebitCached = false;
+//        fChangeCached = false;
     }
 
     void BindWallet(CWallet *pwalletIn)
@@ -415,7 +413,7 @@ public:
     CAmount GetTokenCredit(const CTokenId& tokenId, const isminefilter& filter) const;
     CAmount GetImmatureCredit(bool fUseCache=true) const;
     CAmount GetImmatureStakeCredit(bool fUseCache=true) const;
-    CAmount GetAvailableCredit(bool fUseCache=true) const;
+    CAmount GetAvailableCredit(const CTokenId& tokenId = TOKENID_ZERO, bool fUseCache=true) const;
     std::map<CTokenId, CAmount> GetTokenAvailableCredit(bool fUseCache=true) const;
     CAmount GetAvailableTokenCredit(const CTokenId& tokenId, bool fUseCache=true) const;
     std::pair<CTokenId, CAmount> GetAvailableTokenIdAndCredit(bool fUseCache=true) const;
@@ -736,7 +734,7 @@ public:
      */
     void AvailableUtxos(bool isall, const CTokenId& tokenid, std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false) const;
     void AvailableToken(const CTokenId& tokenid, std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false) const;
-	void AvailablePureCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false) const;
+    void AvailablePureCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false) const;
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false) const;
 
     /**
@@ -817,7 +815,7 @@ public:
     void ReacceptWalletTransactions();
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
-    CAmount GetBalance() const;
+    CAmount GetBalance(const CTokenId& tokenid = TOKENID_ZERO) const;
     CAmount GetTokenBalance(const CTokenId& tokenid) const;
     std::map<CTokenId, CAmount> GetAllTokenBalance() const;
     CAmount GetUnconfirmedBalance() const;

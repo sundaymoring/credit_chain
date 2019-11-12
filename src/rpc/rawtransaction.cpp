@@ -112,7 +112,6 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             out.push_back(Pair("symbol", ""));
         }
         out.push_back(Pair("tokenId", txout.tokenId.ToString()));
-        out.push_back(Pair("tokenValue", ValueFromAmount(txout.nTokenValue)));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
@@ -520,7 +519,6 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
             "      \"address\":           (string, required) The key is the currnet address\n"
             "        {\n"
             "            \"amount\":x.xxx,          (numeric or string, required) the numeric value (can be string) is the " + CURRENCY_UNIT + " amount\n"
-            "            \"tokenamount\":x.xxx.\n   (numeric or string, required) the numeric value (can be string) is the token amount\n"
             "            \"tokenid\": \"tokenid\"   (string, required) The tokenid to use\n"
             "        }\n"
             "      \"data\": \"hex\"      (string, required) The key is \"data\", the value is hex encoded data\n"
@@ -531,9 +529,9 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
             "\"transaction\"              (string) hex string of the transaction\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
+            + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
             + HelpExampleCli("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"{\\\"data\\\":\\\"00010203\\\"}\"")
-            + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenamount\\\":10,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
+            + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"address\\\":{\\\"amount\\\":0.01,\\\"tokenid\\\":\\\"tokenid\\\"}}\"")
             + HelpExampleRpc("createtokenrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"{\\\"data\\\":\\\"00010203\\\"}\"")
         );
 
@@ -600,7 +598,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
             CTokenId id = TOKENID_ZERO;
             CScript scriptPubKey;
             CAmount nAmount = 0;
-            CAmount nTokenAmount = 0;
+//            CAmount nTokenAmount = 0;
             const UniValue& outValues = sendTo[name_];
 
             CBitcoinAddress address(name_);
@@ -615,7 +613,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
 
             if (outValues.exists("tokenamount") && outValues.exists("tokenid") && outValues.exists("amount")){
                 nAmount = AmountFromValue(outValues["amount"]);
-                nTokenAmount = TokenAmountFromValue(outValues["tokenamount"]);
+//                nTokenAmount = TokenAmountFromValue(outValues["tokenamount"]);
                 if(!id.FromString(outValues["tokenid"].getValStr()))
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Token ID");
                 if (id != TOKENID_ZERO){
@@ -625,11 +623,12 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
                         throw JSONRPCError(RPC_INVALID_PARAMETER, "Multi tokenid output");
                     }
                 }
-                ntotalTokenAmount += nTokenAmount;
-                if ((id != TOKENID_ZERO && nTokenAmount<=0) || (id==TOKENID_ZERO && nTokenAmount>0))
-                    throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, Tokenid and tokenamount are inconsistent");
+
+//                ntotalTokenAmount += nTokenAmount;
+//                if ((id != TOKENID_ZERO && nTokenAmount<=0) || (id==TOKENID_ZERO && nTokenAmount>0))
+//                    throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, Tokenid and tokenamount are inconsistent");
             }
-            CTxOut out( nAmount, scriptPubKey, id, nTokenAmount);
+            CTxOut out( nAmount, scriptPubKey, id);
             rawTx.vout.push_back(out);
 
         }
@@ -637,7 +636,7 @@ UniValue createtokenrawtransaction(const JSONRPCRequest& request)
     if (tokenid==TOKENID_ZERO)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, No valid tokenid");
     CScript scriptToken = CreateSendScript(tokenid, ntotalTokenAmount);
-    CTxOut out( 0, scriptToken, TOKENID_ZERO, 0);
+    CTxOut out( 0, scriptToken, TOKENID_ZERO);
     rawTx.vout.insert(rawTx.vout.begin(), out);
 
     return EncodeHexTx(rawTx);
@@ -1011,24 +1010,23 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
         const CScript& prevPubKey = coins->vout[txin.prevout.n].scriptPubKey;
         const CAmount& amount = coins->vout[txin.prevout.n].nValue;
         const CTokenId& tokenId = coins->vout[txin.prevout.n].tokenId;
-        const CAmount& tokenAmount = coins->vout[txin.prevout.n].nTokenValue;
 
         SignatureData sigdata;
         // Only sign SIGHASH_SINGLE if there's a corresponding output:
         if (!fHashSingle || (i < mergedTx.vout.size()))
-            ProduceSignature(MutableTransactionSignatureCreator(&keystore, &mergedTx, i, amount, tokenId, tokenAmount, nHashType), prevPubKey, sigdata);
+            ProduceSignature(MutableTransactionSignatureCreator(&keystore, &mergedTx, i, amount, tokenId, nHashType), prevPubKey, sigdata);
 
         // ... and merge in other signatures:
         BOOST_FOREACH(const CMutableTransaction& txv, txVariants) {
             if (txv.vin.size() > i) {
-                sigdata = CombineSignatures(prevPubKey, TransactionSignatureChecker(&txConst, i, amount, tokenId, tokenAmount), sigdata, DataFromTransaction(txv, i));
+                sigdata = CombineSignatures(prevPubKey, TransactionSignatureChecker(&txConst, i, amount, tokenId), sigdata, DataFromTransaction(txv, i));
             }
         }
 
         UpdateTransaction(mergedTx, i, sigdata);
 
         ScriptError serror = SCRIPT_ERR_OK;
-        if (!VerifyScript(txin.scriptSig, prevPubKey, &txin.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i, amount, tokenId, tokenAmount), &serror)) {
+        if (!VerifyScript(txin.scriptSig, prevPubKey, &txin.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i, amount, tokenId), &serror)) {
             TxInErrorToJSON(txin, vErrors, ScriptErrorString(serror));
         }
     }

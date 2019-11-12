@@ -130,7 +130,8 @@ void BlockAssembler::resetBlock()
 
     // These counters do not include coinbase tx
     nBlockTx = 0;
-    nFees = 0;
+//    nFees = 0;
+    nFees.clear();
 
     lastFewTxs = 0;
     blockFinished = false;
@@ -211,14 +212,30 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (consensus == Miner_POW){
         coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
         coinbaseTx.vout[0].nValue = GetProofOfWorkSubsidy();
-        coinbaseTx.vout[0].nValue += nFees;
+//        coinbaseTx.vout[0].nValue += nFees;
+        for (std::map<CTokenId, CAmount>::iterator it = nFees.begin(); it != nFees.end(); it++) {
+            if (it->first == TOKENID_ZERO) {
+                coinbaseTx.vout[0].nValue += it->second;
+            } else {
+                CTxOut out(it->second, scriptPubKeyIn, it->first);
+                coinbaseTx.vout.push_back(out);
+            }
+        }
     } else if (consensus == Miner_POS){
         coinbaseTx.vout[0].SetEmpty();
     } else if (consensus == Miner_DPOS){
         coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
         coinbaseTx.vout[0].nValue = GetProofOfWorkSubsidy();
-        coinbaseTx.vout[0].nValue += nFees;
+//        coinbaseTx.vout[0].nValue += nFees;
         coinbaseTx.nTime = pblock->nTime;
+        for (std::map<CTokenId, CAmount>::iterator it = nFees.begin(); it != nFees.end(); it++) {
+            if (it->first == TOKENID_ZERO) {
+                coinbaseTx.vout[0].nValue += it->second;
+            } else {
+                CTxOut out(it->second, scriptPubKeyIn, it->first);
+                coinbaseTx.vout.push_back(out);
+            }
+        }
     }
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
@@ -227,10 +244,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (consensus == Miner_POW || consensus == Miner_DPOS){
         pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     }
-    pblocktemplate->vTxFees[0] = -nFees;
+//    pblocktemplate->vTxFees[0] = -nFees;
 
     uint64_t nSerializeSize = GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
-    LogPrintf("CreateNewBlock(): total size: %u block weight: %u txs: %u fees: %ld sigops %d\n", nSerializeSize, GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
+//    LogPrintf("CreateNewBlock(): total size: %u block weight: %u txs: %u fees: %ld sigops %d\n", nSerializeSize, GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
+    LogPrintf("CreateNewBlock(): total size: %u block weight: %u txs: %u sigops %d\n", nSerializeSize, GetBlockWeight(*pblock), nBlockTx, nBlockSigOpsCost);
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -320,11 +338,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlockPOS(const CScript&
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].SetEmpty();
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-    nFeesIn = nFees;
-    pblocktemplate->vTxFees[0] = -nFees;
+//    nFeesIn = nFees;
+//    pblocktemplate->vTxFees[0] = -nFees;
 
     uint64_t nSerializeSize = GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
-    LogPrintf("CreateNewBlock(): total size: %u block weight: %u txs: %u fees: %ld sigops %d\n", nSerializeSize, GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
+//    LogPrintf("CreateNewBlock(): total size: %u block weight: %u txs: %u fees: %ld sigops %d\n", nSerializeSize, GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -461,7 +479,7 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
     nBlockWeight += iter->GetTxWeight();
     ++nBlockTx;
     nBlockSigOpsCost += iter->GetSigOpCost();
-    nFees += iter->GetFee();
+    nFees[iter->GetTxTokenId()] += iter->GetFee();
     inBlock.insert(iter);
 
     bool fPrintPriority = GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
